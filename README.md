@@ -13,7 +13,7 @@
 
 ## 系统要求
 
-- Windows 7 或更高版本
+- Windows 7/10/11 或 macOS 10.14+
 - Python 3.8 或更高版本
 - 管理员权限（用于监控键盘和鼠标事件）
 
@@ -45,8 +45,15 @@ python behavior_monitor.py
 
 ### 打包为可执行文件
 
+Windows:
 ```bash
 build.bat
+```
+
+macOS:
+```bash
+chmod +x build.sh
+./build.sh
 ```
 
 打包后的可执行文件将在 `dist` 目录中生成。
@@ -65,7 +72,9 @@ user-behavior-monitor/
 ├── feature_engineering.py # 特征提取
 ├── behavior_classifier.py # 行为分类
 ├── create_icon.py        # 图标生成
-├── build.bat             # 打包脚本
+├── build.bat             # Windows打包脚本
+├── build.sh             # macOS打包脚本
+├── init_repo.sh         # macOS仓库初始化脚本
 ├── requirements.txt      # 依赖列表
 └── README.md            # 项目文档
 ```
