@@ -12,6 +12,7 @@ from PyQt5.QtGui import QIcon, QFont
 from pynput import mouse, keyboard
 from feature_engineering import FeatureExtractor
 from behavior_classifier import BehaviorClassifier, BehaviorAnalyzer
+from screen_locker import ScreenLocker
 
 # 配置日志
 logging.basicConfig(
@@ -114,6 +115,7 @@ class BehaviorMonitor(QMainWindow):
         self.feature_extractor = FeatureExtractor()
         self.classifier = BehaviorClassifier()
         self.analyzer = BehaviorAnalyzer(self.classifier)
+        self.screen_locker = ScreenLocker()
         
         # 创建UI
         self._create_ui()
@@ -132,6 +134,10 @@ class BehaviorMonitor(QMainWindow):
         # 启动事件收集
         self.event_collector.event_signal.connect(self._on_event)
         self.event_collector.start()
+        
+        # 异常行为计数
+        self.anomaly_count = 0
+        self.anomaly_threshold = 3  # 连续3次异常行为触发锁屏
         
     def _create_ui(self):
         """创建用户界面"""
@@ -157,6 +163,18 @@ class BehaviorMonitor(QMainWindow):
         status_layout.addWidget(self.stop_button)
         
         layout.addLayout(status_layout)
+        
+        # 添加锁屏控制
+        lock_layout = QHBoxLayout()
+        self.lock_button = QPushButton('锁定屏幕')
+        self.lock_button.clicked.connect(self._lock_screen)
+        lock_layout.addWidget(self.lock_button)
+        
+        self.logout_button = QPushButton('强制注销')
+        self.logout_button.clicked.connect(self._force_logout)
+        lock_layout.addWidget(self.logout_button)
+        
+        layout.addLayout(lock_layout)
         
         # 事件日志
         self.event_log = QTextEdit()
@@ -192,6 +210,29 @@ class BehaviorMonitor(QMainWindow):
         self.event_queue.put(event)
         self.event_log.append(f"{datetime.now().strftime('%H:%M:%S')} - {event}")
         
+    def _lock_screen(self):
+        """锁定屏幕"""
+        if self.screen_locker.lock_screen():
+            self.status_label.setText('监控状态: 屏幕已锁定')
+            self.logout_button.setEnabled(False)
+        else:
+            QMessageBox.warning(self, '警告', '锁定屏幕失败')
+    
+    def _force_logout(self):
+        """强制注销"""
+        reply = QMessageBox.question(
+            self, '确认', 
+            '确定要强制注销当前用户吗？',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            if self.screen_locker.force_logout():
+                self.status_label.setText('监控状态: 用户已注销')
+            else:
+                QMessageBox.warning(self, '警告', '注销用户失败')
+    
     def _analyze_behavior(self):
         """分析行为"""
         if self.event_queue.empty():
@@ -216,9 +257,18 @@ class BehaviorMonitor(QMainWindow):
             f"是否异常: {'是' if result['is_anomaly'] else '否'}\n"
         )
         
-        # 如果检测到异常，显示警告
+        # 如果检测到异常，显示警告并增加计数
         if result['is_anomaly']:
+            self.anomaly_count += 1
             self._show_alert(result)
+            
+            # 如果连续异常次数达到阈值，触发锁屏
+            if self.anomaly_count >= self.anomaly_threshold:
+                self._lock_screen()
+                self.anomaly_count = 0
+        else:
+            # 重置异常计数
+            self.anomaly_count = 0
             
     def _show_alert(self, result):
         """显示警告"""
@@ -226,7 +276,10 @@ class BehaviorMonitor(QMainWindow):
         msg.setIcon(QMessageBox.Warning)
         msg.setWindowTitle('行为异常警告')
         msg.setText(f'检测到{result["behavior_type"]}!')
-        msg.setInformativeText(result['behavior_description'])
+        msg.setInformativeText(
+            f"{result['behavior_description']}\n"
+            f"连续异常次数: {self.anomaly_count}/{self.anomaly_threshold}"
+        )
         msg.setStandardButtons(QMessageBox.Ok)
         msg.exec_()
         
