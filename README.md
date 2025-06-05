@@ -1,61 +1,120 @@
+# User Behavior Monitor
 
-BALABIT MOUSE CHALLENGE DATA SET
-================================
+This project implements a user authentication system based on mouse movement characteristics. It processes raw mouse movement data, extracts features, and trains a machine learning model to identify users based on their mouse behavior patterns.
 
-This repository contains the **[Balabit Mouse Dynamics Challenge][balabit]** data set which includes timing and positioning information of mouse pointers. It can be used for evaluating the performance of behavioral biometric algorithms based on mouse dynamics for user authentication/identification purposes.  
-We make the data set accessible to researchers and experts in the fields of IT security and data science with the hope of contributing to research and providing a benchmark data set.  
-The data set was first made public during a data science competition on [datapallet.io][datapallet]. The files and descriptions in this repository originate from the challenge itself.  
+## Project Structure
 
-[balabit]: https://medium.com/balabit-unsupervised/releasing-the-balabit-mouse-dynamics-challenge-data-set-a15a016fba6c
-[datapallet]: https://datapallet.io
+```
+user-behavior-monitor/
+├── data/
+│   ├── raw/              # Raw data files
+│   │   ├── training/     # Training data
+│   │   └── test/        # Test data
+│   └── processed/        # Processed data files
+├── src/
+│   ├── __init__.py
+│   ├── feature_engineering.py  # Feature extraction and processing
+│   └── classification.py       # Model training and evaluation
+├── models/               # Trained model files
+├── requirements.txt      # Project dependencies
+└── README.md            # This file
+```
 
-## The Challenge
+## Setup
 
-The goal of the challenge was to protect a set of users from the unauthorized usage of their accounts by learning the characteristics of how they use their mouses.  
+1. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Linux/Mac
+# or
+.\venv\Scripts\activate  # On Windows
+```
 
-During their work, these users usually log in to remote servers with their remote desktop client. A network monitoring device is set between the client and the remote computer that inspects all traffic as described by the RDP protocol. This includes the mouse interactions of the user that is transmitted from the client to the server during the remote session.  
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-Once in a while, a user account is stolen and is being used illegally, i.e., by a person that is not the legit owner of the account.  
+## Usage
 
-How can you detect such misuses?  
-Fortunately, you have access to the data that was recorded by the network monitoring device. Also, it is supposed that the way a person moves their mouse is specific to them and can be used as a kind of behavioral biometric identifier.  
-If you could in fact identify the typical patterns of each user, you would be able to easily notice a stolen account by seeing that the mouse movement data going from the account to the remote server is not characteristic of the owner of said account.  
+1. Feature Engineering:
+```bash
+python src/feature_engineering.py
+```
+This script processes raw mouse movement data and extracts features for model training.
 
-You have to build a model that can fulfil this task.  
+2. Model Training:
+```bash
+python src/classification.py
+```
+This script trains a Random Forest classifier on the processed features and evaluates its performance.
 
-## Session Files
+## Data
 
-The 'training_files' folder contains 10 folders, one for every user account in the system. In each of these folders, you are given the data of a few remote sessions that are known to be carried out by the legal owners of the respective user accounts.  
+- Raw data is stored in `data/raw/`
+- Processed data is saved to `data/processed/`
+- Trained models are saved to `models/`
 
-The 'test_files' folder contains also 10 folders. Each folder represents a user account, and comprises the data of several shorter sessions. Each of these test sessions was recorded as the session of the respective user account; however, the true identity of the user in a test session is unknown.  
+## Dependencies
 
-The fields of each session file is to be translated as follows:  
-- *record timestamp*: elapsed time (in sec) since the start of the session as recorded by the netork monitoring device  
-- *client timestamp*: elapsed time (in sec) since the start of the session as recorded by the RDP client  
-- *button*: the current condition of the mouse buttons  
-- *state*: additional information about the current state of the mouse  
-- *x*: the x coordinate of the cursor on the screen  
-- *y*: the y coordinate of the cursor on the screen  
+- Python 3.8+
+- pandas
+- numpy
+- scikit-learn
+- matplotlib
+- seaborn
 
-## Labels
+See `requirements.txt` for specific versions.
 
-In the challenge, for each test session file the task was to provide an anomaly score between 0 and 1 that tells how unlikely it is that the remote session was carried out by the respective user account. Submissions were judged on the area under the ROC curve. The AUC was calculated in a global manner (all predictions together).  
+## About the Data ##
+The dataset is available at [https://github.com/balabit/Mouse-Dynamics-Challenge](https://github.com/balabit/Mouse-Dynamics-Challenge), with a detailed description of the data structure and the challenge.
 
-The 'public_labels.csv' file contains the labels of the *public part* of the test data (i.e., those that contributed to the public leaderboard score). Each row describes whether a certain test session capture a legal or an illegal session.  
+### Situation ###
+A legit user logs in to remote servers for work via their remote desktop client, with a network monitoring device (that sits in between the remote desktop client and the remote servers) recording the user's mouse movement information.
 
-## Attack Model
+### Concern ###
+Unauthorized persons might steal a user's account and use that to log into the company's remote servers.
 
-Although this data set is offered as benchmark data for detecting illegal account usages, during its creation no such misuses were carried out. All recorded data reflect work executed during authenticated remote sessions that have not been hijacked. The attacks are imitated. For each user, in order to simulate illegal usage of his/her account, data from other users are artificially mixed into the test data of said user. Since all users engage in the same kind of unspecified administative tasks, the data from the artificial attackers do not reflect malicious activities.  
+### Task ###
+First learn the characteristics of how each legit user uses their mouse, in order to identify in future sessions whether the person that logs in to the server under one user's account is indeed that user. Naturally, the assumption here is that the typical pattern a person uses their mouse is specific and characteristic, and therefore can be used as a biometric identifier.
 
-## Citation
+### Data ###
+The data includes 10 users' mouse movement records from remote sessions that are known to be carried out by the respective legit user; these are the training files. It also includes mouse movement records for sessions where one certain user's account is used to logged into the remote server, potentially by an unauthorized person; these are the test files.
 
-If you are using the data in your publication, please cite it as follows:  
+The above-mentioned monitoring device captures: elapsed time (in seconds, with a millisecond precision) since the start of the session as recorded by the network monitoring device, elapsed time (same precision) since the start of the session as recorded by the remote desktop client, the mouse button engaged (no button, left, middle, right, mousewheel scroll), the mouse state (move, drag, a button is pressed, button released, scroll up, scroll down), the x coordinate of the cursor on the screen, and the y coordinate of the cursor.
 
-Fülöp, Á., Kovács, L., Kurics, T., Windhager-Pokol, E. (2016). *Balabit Mouse Dynamics Challenge data set*. Available at: https://github.com/balabit/Mouse-Dynamics-Challenge  
+I discover that the data has several problems: 1) the elapsed time recorded by the monitoring device is substantially different from that by the remote desktop client (in terms of a millisecond precision), 2) a user could move their mouse outside the window of the remote desktop client; when this happens the mouse coordinates are no longer recorded and placeholder (65535, 65535) are used, 3) when scrolling the mouse wheel, the coordinates are not recorded and placeholder (0, 0) are used.
 
-## Contact
+## Data Processing ##
+First, I address the abovementioned problems: 1) I choose elapsed time recorded by the remote desktop client, 2) users rarely move their mice outside the remote desktop client, so I simply remove these mouse records, 3) the coordinates of the mouse movement before scrolling are available, so I assign them to the mouse scrolling records.
 
-If you wish to contact the authors you may reach them through the [maintainer][maintainer] of this repository or find them with a search engine.
+I then aggregate the raw mouse movements into "mouse actions". Definition of a mouse action is from one click/scroll to another:
+* a complete drag, that starts with a button pressed and ends with the button released with dragging in between
+* move + scroll, that includes all the moves leading to a scroll and ends with the end of scrolling
+* move + left single click
+* move + right single click
+* move + double click, where a double click is defined as two consecutive single clicks within 5 seconds of each other (5s is the maximum double-click interval for MS Windows)
+* if there is a break in time longer than 5 seconds between two consecutive "move" records, the first one ends a mouse action and the second one starts a new mouse action.
 
-[maintainer]: https://github.com/DataOmbudsman
+## Feature Engineering ##
+### Feature Construction ###
+Each mouse action has these features:
+* mouse action type
+* average linear speed
+* maximum linear speed
+* distance traveled (in pixels)
+* straight line distance between the beginning and the ending position of the mouse
+* efficiency: ratio of straight line distance and distance traveled
+* total time of the mouse action
+* sum of angles in paths
+* curvature: ration of the sum of angles and distance traveled
+* average angular speed
 
+### Outlier Removal ###
+* From the maximum values of the coordinates I can find the largest screen size among all users. Obviously, the longest straight-line distance a mouse can travel on a rectangle screen is its diagonal. Actions with a shortest distance longer than the largest screen's diagonal are removed.
+
+## Modeling ##
+The data could be used for various tasks such as user identification (for given mouse movement records, figure out who the user is). However, the specific goal of this challenge is user authentication: for a given remote session, one user's account is used to log in; user authentication refers to determining whether the person behind the account is indeed its legit owner. I fit a LightGBM classification model to each user's mouse behavior. Model optimization is done via randomized grid search. 
+
+## Results ##
+Public leaderboard score is 0.9075. 
