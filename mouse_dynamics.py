@@ -74,6 +74,7 @@ import seaborn as sn
 import hashlib
 import binascii
 import math
+import os
 from sklearn.decomposition import PCA as skPCA
 from pyspark.ml.feature import PCA as spPCA
 from pyspark.ml.linalg import Vectors
@@ -84,10 +85,21 @@ from pyspark.ml.evaluation import MulticlassClassificationEvaluator
 from pyspark.sql.types import StructType, StringType, FloatType, LongType, IntegerType, StructField
 from pyspark.sql import HiveContext, SparkSession
 from pyspark.sql.functions import countDistinct, array_distinct, col, isnan, when, count, lit, array
+import pickle
 
 plt.rcParams["figure.autolayout"] = True
 
 """### EDA"""
+
+# Define paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, 'data')
+MODEL_DIR = os.path.join(BASE_DIR, 'models')
+SCALER_DIR = os.path.join(BASE_DIR, 'scalers')
+
+# Create directories if they don't exist
+for dir_path in [DATA_DIR, MODEL_DIR, SCALER_DIR]:
+    os.makedirs(dir_path, exist_ok=True)
 
 # Initialize spark context
 spark = SparkSession.builder.appName("MouseDynamics").getOrCreate()
@@ -103,7 +115,7 @@ schemaMousePos = StructType([
     StructField('screen_y', FloatType(), False)
 ])
 
-# Load training data
+# Load training data - using the file in current directory since it was downloaded there
 trainDs = spark.read.csv('Train_Mouse.csv', header=True, schema=schemaMousePos)
 
 # Create user encoder
@@ -227,17 +239,26 @@ ann_f1 = evaluator.evaluate(pred)
 print('Test F1 =', ann_f1)
 
 # Save model
-cvModel.save('mouse_dynamics_model')
+model_path = os.path.join(MODEL_DIR, 'mouse_dynamics_model')
+cvModel.save(model_path)
 
 # Save scaler
-fittedScaler.save('mouse_dynamics_scaler')
+scaler_path = os.path.join(SCALER_DIR, 'mouse_dynamics_scaler')
+fittedScaler.save(scaler_path)
 
 # Save user encoder
-import pickle
-with open('user_encoder.pkl', 'wb') as f:
+encoder_path = os.path.join(MODEL_DIR, 'user_encoder.pkl')
+with open(encoder_path, 'wb') as f:
     pickle.dump(usersEncoder, f)
 
 print("Model training completed and saved!")
+print(f"Training data loaded from: Train_Mouse.csv")
+print(f"Model saved to: {model_path}")
+print(f"Scaler saved to: {scaler_path}")
+print(f"Encoder saved to: {encoder_path}")
+
+# Stop Spark session
+spark.stop()
 
 """##### Let's have a look at some features"""
 
