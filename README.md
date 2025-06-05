@@ -1,70 +1,102 @@
 # User Behavior Monitor
 
-This project implements a user authentication system based on mouse movement characteristics. It processes raw mouse movement data, extracts features, and trains a machine learning model to identify users based on their mouse behavior patterns.
+A sophisticated system for monitoring and analyzing user behavior through mouse movement patterns. This project implements advanced feature engineering techniques to extract meaningful patterns from mouse movement data for user authentication and behavior analysis.
 
-## Project Structure
+## Features
 
-```
-user-behavior-monitor/
-├── data/
-│   ├── raw/              # Raw data files
-│   │   ├── training/     # Training data
-│   │   └── test/        # Test data
-│   └── processed/        # Processed data files
-├── src/
-│   ├── __init__.py
-│   ├── feature_engineering.py  # Feature extraction and processing
-│   └── classification.py       # Model training and evaluation
-├── models/               # Trained model files
-├── requirements.txt      # Project dependencies
-└── README.md            # This file
-```
+- **Comprehensive Feature Engineering**: Extracts over 200 features from mouse movement data
+- **Parallel Processing**: Optimized for handling large datasets
+- **Advanced Analytics**: Includes velocity, acceleration, trajectory, and temporal analysis
+- **User Authentication**: Capable of identifying unique user behavior patterns
 
-## Setup
+## Feature Categories
 
-1. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Linux/Mac
-# or
-.\venv\Scripts\activate  # On Windows
-```
+1. **Velocity Features**
+   - Linear and angular velocity
+   - Acceleration and jerk
+   - Directional components
 
-2. Install dependencies:
+2. **Trajectory Features**
+   - Curvature analysis
+   - Path straightness
+   - Movement complexity
+   - Direction changes
+
+3. **Temporal Features**
+   - Time-based patterns
+   - Action duration
+   - Interaction timing
+
+4. **Statistical Features**
+   - Rolling window statistics
+   - Peak detection
+   - Distribution analysis
+
+5. **Interaction Features**
+   - Click patterns
+   - Action sequences
+   - Interaction density
+
+6. **Geometric Features**
+   - Screen position analysis
+   - Movement direction
+   - Area coverage
+
+## Requirements
+
+- Python 3.7+
+- pandas
+- numpy
+- scipy
+- scikit-learn
+
+## Installation
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-1. Feature Engineering:
+1. Place your raw mouse movement data in the `data/raw/training` directory
+2. Run the feature engineering script:
+
 ```bash
 python src/feature_engineering.py
 ```
-This script processes raw mouse movement data and extracts features for model training.
 
-2. Model Training:
-```bash
-python src/classification.py
+3. Processed data will be saved in `data/processed/all_training_aggregation.pickle`
+
+## Project Structure
+
 ```
-This script trains a Random Forest classifier on the processed features and evaluates its performance.
+user-behavior-monitor/
+├── data/
+│   ├── raw/
+│   │   └── training/
+│   └── processed/
+├── src/
+│   └── feature_engineering.py
+├── README.md
+└── requirements.txt
+```
 
-## Data
+## Contributing
 
-- Raw data is stored in `data/raw/`
-- Processed data is saved to `data/processed/`
-- Trained models are saved to `models/`
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-## Dependencies
+## License
 
-- Python 3.8+
-- pandas
-- numpy
-- scikit-learn
-- matplotlib
-- seaborn
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-See `requirements.txt` for specific versions.
+## Acknowledgments
+
+- Thanks to all contributors who have helped shape this project
+- Special thanks to the open-source community for their valuable tools and libraries
 
 ## About the Data ##
 The dataset is available at [https://github.com/balabit/Mouse-Dynamics-Challenge](https://github.com/balabit/Mouse-Dynamics-Challenge), with a detailed description of the data structure and the challenge.
