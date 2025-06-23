@@ -1,0 +1,64 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Data directories (但允许数据库文件)
+data/
+!data/*.db
+!data/*.sqlite
+!data/*.sqlite3
+models/
+results/
+plots/
+
+# Logs
+*.log
+feature_engineering.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Windows
+Desktop.ini
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Generated files
+icon.png
+icon.ico
+behavior_monitor.log
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover 

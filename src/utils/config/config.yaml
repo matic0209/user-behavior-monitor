@@ -1,0 +1,79 @@
+feature_engineering:
+  velocity_features: true
+  temporal_features: true
+  trajectory_features: true
+  statistical_features: true
+  interaction_features: true
+  geometric_features: true
+  advanced_features: true
+
+model:
+  algorithm: xgboost
+  params:
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 100
+    random_state: 42
+    eval_metric: 'logloss'
+
+prediction:
+  threshold: 0.8
+  window_size: 100
+  min_samples: 1000
+  batch_size: 1000
+  interval: 30  # 预测间隔（秒）
+  anomaly_threshold: 0.7  # 异常检测阈值
+
+paths:
+  models: "models"
+  data: "data"
+  logs: "logs"
+  results: "results"
+  test_data: "data/processed/all_test_aggregation.pickle"
+  train_data: "data/processed/all_training_aggregation.pickle"
+
+alert:
+  max_alert_count: 3
+  alert_threshold: 0.8
+  force_logout: true  # Windows下启用强制登出
+  log_alerts: true
+  popup_enabled: true  # 启用弹窗告警
+  lock_computer: true  # 启用锁定计算机
+
+user:
+  user_id: "default_user"
+  session_timeout: 3600  # 会话超时时间（秒）
+
+data_collection:
+  mouse_events: true
+  keyboard_events: false  # 暂时禁用键盘事件
+  window_events: false    # 暂时禁用窗口事件
+  collection_interval: 0.1  # 采集间隔（秒）
+  max_buffer_size: 10000   # 最大缓冲区大小
+
+feature_processing:
+  batch_size: 1000
+  processing_interval: 3600  # 特征处理间隔（秒）
+  auto_process: true
+
+model_training:
+  auto_train: true
+  training_interval: 86400  # 模型训练间隔（秒）
+  retrain_threshold: 0.8    # 重新训练阈值
+
+logging:
+  level: "DEBUG"  # 修改为DEBUG级别
+  format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s"
+  file_rotation: true
+  max_file_size: "50MB"  # 增加文件大小限制
+  backup_count: 10  # 增加备份文件数量
+  console_level: "INFO"  # 控制台显示INFO级别
+  file_level: "DEBUG"    # 文件记录DEBUG级别
+  enable_debug_file: true  # 启用单独的调试日志文件
+
+system:
+  max_workers: 4
+  memory_limit: "2GB"
+  timeout: 300
+  platform: "windows"  # 平台标识
+  debug_mode: true     # 启用调试模式 
