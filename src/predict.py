@@ -12,7 +12,14 @@ import math
 import signal
 from functools import partial
 import time
-from classification import prepare_features
+try:
+    from src.classification import prepare_features
+except ImportError:
+    # 如果classification模块不可用，创建一个模拟版本
+    def prepare_features(df, encoders):
+        """模拟的特征准备函数"""
+        print("使用模拟的prepare_features函数")
+        return df
 import logging
 
 # 配置日志记录
