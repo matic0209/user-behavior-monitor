@@ -31,8 +31,8 @@ class WindowsMouseCollector:
         self.is_collecting = False
         self.collection_thread = None
         
-        # 数据库连接
-        self.db_path = Path.cwd() / 'data' / 'user_behavior.db'
+        # 数据库连接 - 使用配置文件中的数据库路径
+        self.db_path = Path(self.config.get_paths()['database'])
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         
         # 初始化数据库
@@ -68,10 +68,25 @@ class WindowsMouseCollector:
                 )
             ''')
             
+            # 创建特征表（如果不存在）
+            self.logger.debug("创建特征表...")
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS features (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    session_id TEXT NOT NULL,
+                    timestamp REAL NOT NULL,
+                    feature_vector TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
             # 创建索引
             self.logger.debug("创建数据库索引...")
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_user_session ON mouse_events(user_id, session_id)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON mouse_events(timestamp)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_features_user_session ON features(user_id, session_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_features_timestamp ON features(timestamp)')
             
             conn.commit()
             conn.close()

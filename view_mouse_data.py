@@ -1,55 +1,32 @@
 #!/usr/bin/env python3
 """
-查看鼠标数据存储位置和内容
+查看鼠标数据工具
+支持查看不同数据库文件中的鼠标事件数据
 """
 
 import sqlite3
 import pandas as pd
 from pathlib import Path
-import os
+import json
+from datetime import datetime
 
-def check_data_locations():
-    """检查数据存储位置"""
-    print("=== 鼠标数据存储位置检查 ===")
-    
-    # 检查数据库文件
-    db_paths = [
-        Path('data/user_behavior.db'),
-        Path('data/mouse_data.db'),
-        Path('data/raw/user_behavior.db'),
-        Path('data/processed/user_behavior.db')
-    ]
-    
-    print("\n1. 数据库文件位置:")
-    for db_path in db_paths:
-        if db_path.exists():
-            size_mb = db_path.stat().st_size / (1024 * 1024)
-            print(f"   ✓ {db_path} ({size_mb:.2f} MB)")
-        else:
-            print(f"   ✗ {db_path} (不存在)")
-    
-    # 检查数据目录
-    print("\n2. 数据目录结构:")
-    data_dirs = ['data', 'data/raw', 'data/processed', 'logs']
-    for dir_path in data_dirs:
-        if Path(dir_path).exists():
-            files = list(Path(dir_path).glob('*'))
-            print(f"   {dir_path}/ ({len(files)} 个文件)")
-            for file in files[:5]:  # 只显示前5个文件
-                if file.is_file():
-                    size_mb = file.stat().st_size / (1024 * 1024)
-                    print(f"     - {file.name} ({size_mb:.2f} MB)")
-                else:
-                    print(f"     - {file.name}/ (目录)")
-            if len(files) > 5:
-                print(f"     ... 还有 {len(files) - 5} 个文件")
-        else:
-            print(f"   ✗ {dir_path}/ (不存在)")
+# 数据库文件路径列表
+DB_PATHS = [
+    Path('data/mouse_data.db'),  # 统一使用mouse_data.db
+    Path('data/mouse_data_sample.db'),  # 样本数据库
+]
 
-def view_database_content(db_path):
-    """查看数据库内容"""
-    print(f"\n=== 数据库内容: {db_path} ===")
-    
+def check_database_exists(db_path):
+    """检查数据库是否存在"""
+    if db_path.exists():
+        print(f"✓ 数据库存在: {db_path}")
+        return True
+    else:
+        print(f"✗ 数据库不存在: {db_path}")
+        return False
+
+def get_table_info(db_path):
+    """获取数据库表信息"""
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -58,126 +35,176 @@ def view_database_content(db_path):
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         tables = cursor.fetchall()
         
-        print(f"数据库中的表: {[table[0] for table in tables]}")
-        
-        # 检查鼠标事件表
-        if ('mouse_events',) in tables:
-            print("\n鼠标事件表 (mouse_events):")
-            
+        table_info = {}
+        for (table_name,) in tables:
             # 获取表结构
-            cursor.execute("PRAGMA table_info(mouse_events);")
+            cursor.execute(f"PRAGMA table_info({table_name});")
             columns = cursor.fetchall()
-            print("  表结构:")
-            for col in columns:
-                print(f"    {col[1]} ({col[2]})")
             
             # 获取记录数
-            cursor.execute("SELECT COUNT(*) FROM mouse_events;")
+            cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
             count = cursor.fetchone()[0]
-            print(f"  总记录数: {count}")
             
-            # 获取用户列表
-            cursor.execute("SELECT DISTINCT user_id FROM mouse_events LIMIT 10;")
-            users = cursor.fetchall()
-            print(f"  用户列表 (前10个): {[user[0] for user in users]}")
-            
-            # 获取会话列表
-            cursor.execute("SELECT DISTINCT session_id FROM mouse_events LIMIT 10;")
-            sessions = cursor.fetchall()
-            print(f"  会话列表 (前10个): {[session[0] for session in sessions]}")
-            
-            # 获取最新记录
-            cursor.execute("""
-                SELECT user_id, session_id, timestamp, x, y, event_type, button 
-                FROM mouse_events 
-                ORDER BY timestamp DESC 
-                LIMIT 5;
-            """)
-            recent_records = cursor.fetchall()
-            
-            print("\n  最新5条记录:")
-            for record in recent_records:
-                print(f"    用户: {record[0]}, 会话: {record[1][:8]}..., "
-                      f"时间: {record[2]:.2f}, 坐标: ({record[3]}, {record[4]}), "
-                      f"事件: {record[5]}, 按钮: {record[6]}")
-            
-            # 获取统计信息
-            cursor.execute("""
-                SELECT 
-                    MIN(timestamp) as start_time,
-                    MAX(timestamp) as end_time,
-                    COUNT(DISTINCT user_id) as user_count,
-                    COUNT(DISTINCT session_id) as session_count
-                FROM mouse_events;
-            """)
-            stats = cursor.fetchone()
-            
-            print(f"\n  统计信息:")
-            print(f"    时间范围: {stats[0]:.2f} - {stats[1]:.2f}")
-            print(f"    用户数量: {stats[2]}")
-            print(f"    会话数量: {stats[3]}")
-            
-        else:
-            print("  没有找到mouse_events表")
+            table_info[table_name] = {
+                'columns': [col[1] for col in columns],
+                'count': count
+            }
         
         conn.close()
+        return table_info
         
     except Exception as e:
-        print(f"  查看数据库失败: {e}")
+        print(f"获取数据库 {db_path} 信息失败: {str(e)}")
+        return {}
 
-def export_sample_data(db_path, output_file='sample_mouse_data.csv'):
-    """导出样本数据到CSV"""
-    print(f"\n=== 导出样本数据 ===")
-    
+def view_mouse_events(db_path, limit=10):
+    """查看鼠标事件数据"""
     try:
         conn = sqlite3.connect(db_path)
         
-        # 查询样本数据
-        query = """
-            SELECT user_id, session_id, timestamp, x, y, event_type, button, wheel_delta
-            FROM mouse_events 
+        # 检查是否有mouse_events表
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='mouse_events';")
+        if not cursor.fetchone():
+            print(f"数据库 {db_path} 中没有mouse_events表")
+            conn.close()
+            return
+        
+        # 查询鼠标事件数据
+        query = f'''
+            SELECT * FROM mouse_events 
             ORDER BY timestamp DESC 
-            LIMIT 1000;
-        """
+            LIMIT {limit}
+        '''
         
         df = pd.read_sql_query(query, conn)
+        conn.close()
         
-        # 保存到CSV
-        df.to_csv(output_file, index=False)
+        if df.empty:
+            print(f"数据库 {db_path} 中没有鼠标事件数据")
+            return
         
-        print(f"  导出 {len(df)} 条记录到 {output_file}")
-        print(f"  文件大小: {Path(output_file).stat().st_size / 1024:.2f} KB")
+        print(f"\n=== 鼠标事件数据 ({db_path}) ===")
+        print(f"总记录数: {len(df)}")
+        print("\n前10条记录:")
+        print(df.to_string(index=False))
         
-        # 显示前几行
-        print("\n  前5行数据:")
-        print(df.head().to_string())
+    except Exception as e:
+        print(f"查看鼠标事件数据失败: {str(e)}")
+
+def view_features(db_path, limit=5):
+    """查看特征数据"""
+    try:
+        conn = sqlite3.connect(db_path)
+        
+        # 检查是否有features表
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='features';")
+        if not cursor.fetchone():
+            print(f"数据库 {db_path} 中没有features表")
+            conn.close()
+            return
+        
+        # 查询特征数据
+        query = f'''
+            SELECT id, user_id, session_id, timestamp, 
+                   substr(feature_vector, 1, 100) || '...' as feature_preview
+            FROM features 
+            ORDER BY timestamp DESC 
+            LIMIT {limit}
+        '''
+        
+        df = pd.read_sql_query(query, conn)
+        conn.close()
+        
+        if df.empty:
+            print(f"数据库 {db_path} 中没有特征数据")
+            return
+        
+        print(f"\n=== 特征数据 ({db_path}) ===")
+        print(f"总记录数: {len(df)}")
+        print("\n前5条记录:")
+        print(df.to_string(index=False))
+        
+    except Exception as e:
+        print(f"查看特征数据失败: {str(e)}")
+
+def export_sample_data(db_path, output_file=None):
+    """导出样本数据"""
+    try:
+        conn = sqlite3.connect(db_path)
+        
+        # 导出mouse_events表
+        try:
+            df_events = pd.read_sql_query("SELECT * FROM mouse_events LIMIT 100", conn)
+            if not df_events.empty:
+                events_file = output_file or f"sample_mouse_events_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                df_events.to_csv(events_file, index=False)
+                print(f"✓ 鼠标事件数据已导出到: {events_file}")
+        except Exception as e:
+            print(f"导出鼠标事件数据失败: {str(e)}")
+        
+        # 导出features表
+        try:
+            df_features = pd.read_sql_query("SELECT * FROM features LIMIT 50", conn)
+            if not df_features.empty:
+                features_file = output_file or f"sample_features_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                df_features.to_csv(features_file, index=False)
+                print(f"✓ 特征数据已导出到: {features_file}")
+        except Exception as e:
+            print(f"导出特征数据失败: {str(e)}")
         
         conn.close()
         
     except Exception as e:
-        print(f"  导出数据失败: {e}")
+        print(f"导出样本数据失败: {str(e)}")
 
 def main():
-    """主函数"""
-    print("鼠标数据查看工具")
-    print("=" * 50)
+    print("=== 鼠标数据查看工具 ===")
+    print()
     
-    # 检查数据位置
-    check_data_locations()
+    # 检查数据库文件
+    available_dbs = []
+    for db_path in DB_PATHS:
+        if check_database_exists(db_path):
+            available_dbs.append(db_path)
     
-    # 查看数据库内容
-    db_files = ['data/user_behavior.db', 'data/mouse_data.db']
+    if not available_dbs:
+        print("\n没有找到可用的数据库文件")
+        print("请确保以下文件之一存在:")
+        for db_path in DB_PATHS:
+            print(f"  - {db_path}")
+        return
     
-    for db_file in db_files:
-        if Path(db_file).exists():
-            view_database_content(db_file)
+    print(f"\n找到 {len(available_dbs)} 个可用数据库")
+    
+    # 显示每个数据库的信息
+    for db_path in available_dbs:
+        print(f"\n--- 数据库: {db_path} ---")
+        table_info = get_table_info(db_path)
+        
+        if not table_info:
+            print("无法获取表信息")
+            continue
+        
+        for table_name, info in table_info.items():
+            print(f"表: {table_name}")
+            print(f"  列: {', '.join(info['columns'])}")
+            print(f"  记录数: {info['count']}")
             
-            # 导出样本数据
-            export_sample_data(db_file, f'sample_data_{Path(db_file).stem}.csv')
-            break
-    else:
-        print("\n没有找到鼠标数据数据库文件")
-        print("请先运行数据采集: python start_monitor.py")
+            # 查看具体数据
+            if table_name == 'mouse_events':
+                view_mouse_events(db_path, limit=5)
+            elif table_name == 'features':
+                view_features(db_path, limit=3)
+    
+    # 导出样本数据
+    print("\n=== 导出样本数据 ===")
+    for db_path in available_dbs:
+        print(f"\n导出 {db_path} 的样本数据...")
+        export_sample_data(db_path)
+    
+    print("\n=== 工具使用完成 ===")
 
 if __name__ == "__main__":
     main() 

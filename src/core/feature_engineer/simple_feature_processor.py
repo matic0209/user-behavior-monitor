@@ -162,18 +162,18 @@ class SimpleFeatureProcessor:
             
             if session_id:
                 query = '''
-                    SELECT "client timestamp", x, y, button, state, event_type
+                    SELECT timestamp as "client timestamp", x, y, button, event_type as state, event_type
                     FROM mouse_events 
                     WHERE user_id = ? AND session_id = ?
-                    ORDER BY "client timestamp"
+                    ORDER BY timestamp
                 '''
                 params = (user_id, session_id)
             else:
                 query = '''
-                    SELECT "client timestamp", x, y, button, state, event_type
+                    SELECT timestamp as "client timestamp", x, y, button, event_type as state, event_type
                     FROM mouse_events 
                     WHERE user_id = ?
-                    ORDER BY "client timestamp"
+                    ORDER BY timestamp
                 '''
                 params = (user_id,)
             
@@ -329,54 +329,67 @@ class SimpleFeatureProcessor:
 
     def process_session_features(self, user_id, session_id):
         """处理指定会话的特征"""
-        self.logger.info(f"开始处理用户 {user_id} 会话 {session_id} 的特征")
-        
-        # 1. 加载数据
-        df = self.load_data_from_db(user_id, session_id)
-        if df.empty:
-            self.logger.warning(f"会话 {session_id} 没有数据")
+        try:
+            self.logger.info(f"处理用户 {user_id} 会话 {session_id} 的特征")
+            
+            # 首先转换mouse_events数据为features
+            conversion_success = self.convert_mouse_events_to_features(user_id, session_id)
+            if not conversion_success:
+                self.logger.warning(f"转换用户 {user_id} 会话 {session_id} 的鼠标事件数据失败")
+                return False
+            
+            # 然后处理特征（如果需要进一步处理）
+            # 这里可以添加额外的特征处理逻辑
+            
+            self.logger.info(f"用户 {user_id} 会话 {session_id} 的特征处理完成")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"处理用户 {user_id} 会话 {session_id} 的特征失败: {str(e)}")
             return False
-        
-        # 2. 处理特征
-        features = self.process_features(df)
-        if features.empty:
-            self.logger.error(f"会话 {session_id} 特征处理失败")
-            return False
-        
-        # 3. 保存特征
-        self.save_features_to_db(features, user_id, session_id)
-        
-        self.logger.info(f"会话 {session_id} 特征处理完成")
-        return True
 
     def process_all_user_sessions(self, user_id):
-        """处理用户的所有会话"""
+        """处理用户所有会话的特征"""
         try:
+            self.logger.info(f"处理用户 {user_id} 所有会话的特征")
+            
+            # 首先转换所有mouse_events数据为features
+            conversion_success = self.convert_mouse_events_to_features(user_id)
+            if not conversion_success:
+                self.logger.warning(f"转换用户 {user_id} 的鼠标事件数据失败")
+                return False
+            
+            # 获取用户的所有会话
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            # 获取用户的所有会话
             cursor.execute('''
                 SELECT DISTINCT session_id FROM mouse_events 
                 WHERE user_id = ?
+                ORDER BY session_id
             ''', (user_id,))
             
             sessions = cursor.fetchall()
             conn.close()
             
-            self.logger.info(f"用户 {user_id} 共有 {len(sessions)} 个会话需要处理")
+            if not sessions:
+                self.logger.warning(f"用户 {user_id} 没有会话数据")
+                return False
             
+            self.logger.info(f"用户 {user_id} 共有 {len(sessions)} 个会话")
+            
+            # 处理每个会话的特征
             success_count = 0
             for (session_id,) in sessions:
                 if self.process_session_features(user_id, session_id):
                     success_count += 1
             
             self.logger.info(f"用户 {user_id} 特征处理完成: {success_count}/{len(sessions)} 个会话成功")
-            return success_count
+            return success_count > 0
             
         except Exception as e:
-            self.logger.error(f"处理用户 {user_id} 所有会话失败: {str(e)}")
-            return 0
+            self.logger.error(f"处理用户 {user_id} 所有会话的特征失败: {str(e)}")
+            return False
 
     def get_user_features(self, user_id, limit=None):
         """获取用户的特征数据"""
@@ -400,4 +413,35 @@ class SimpleFeatureProcessor:
             
         except Exception as e:
             self.logger.error(f"获取用户特征数据失败: {str(e)}")
-            return pd.DataFrame() 
+            return pd.DataFrame()
+
+    def convert_mouse_events_to_features(self, user_id, session_id=None):
+        """将mouse_events数据转换为features并保存到数据库"""
+        try:
+            self.logger.info(f"开始转换用户 {user_id} 的鼠标事件数据为特征")
+            
+            # 加载鼠标事件数据
+            df = self.load_data_from_db(user_id, session_id)
+            if df.empty:
+                self.logger.warning(f"用户 {user_id} 没有鼠标事件数据")
+                return False
+            
+            # 处理特征
+            features_df = self.process_features(df)
+            if features_df.empty:
+                self.logger.warning(f"用户 {user_id} 的特征处理结果为空")
+                return False
+            
+            # 保存特征到数据库
+            success = self.save_features_to_db(features_df, user_id, session_id)
+            
+            if success:
+                self.logger.info(f"成功转换并保存了用户 {user_id} 的 {len(features_df)} 条特征数据")
+            else:
+                self.logger.error(f"保存用户 {user_id} 的特征数据失败")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"转换鼠标事件数据为特征失败: {str(e)}")
+            return False 

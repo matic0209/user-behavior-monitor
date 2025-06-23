@@ -41,8 +41,8 @@ class UserManager:
         
         self.logger.debug("=== UserManager 初始化开始 ===")
         
-        # 用户配置文件路径
-        self.user_config_path = Path(self.config.get_paths()['data']) / 'user_config.json'
+        # 用户配置文件路径 - 使用配置文件中的路径
+        self.user_config_path = Path(self.config.get_paths()['user_config'])
         self.user_config_path.parent.mkdir(parents=True, exist_ok=True)
         
         # 当前用户信息

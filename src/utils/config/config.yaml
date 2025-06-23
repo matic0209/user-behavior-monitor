@@ -31,6 +31,8 @@ paths:
   results: "results"
   test_data: "data/processed/all_test_aggregation.pickle"
   train_data: "data/processed/all_training_aggregation.pickle"
+  database: "data/mouse_data.db"  # 统一数据库文件名
+  user_config: "data/user_config.json"  # 用户配置文件
 
 alert:
   max_alert_count: 3
