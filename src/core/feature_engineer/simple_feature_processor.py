@@ -298,6 +298,10 @@ class SimpleFeatureProcessor:
     def save_features_to_db(self, features_df, user_id, session_id):
         """保存特征到数据库"""
         try:
+            if features_df.empty:
+                self.logger.warning("特征数据为空，跳过保存")
+                return False
+            
             conn = sqlite3.connect(self.db_path)
             
             # 将特征转换为JSON字符串
@@ -306,6 +310,7 @@ class SimpleFeatureProcessor:
             )
             
             # 保存到数据库
+            saved_count = 0
             for _, row in features_df.iterrows():
                 cursor = conn.cursor()
                 cursor.execute('''
@@ -318,14 +323,19 @@ class SimpleFeatureProcessor:
                     time.time(),
                     row.get('feature_vector', '{}')
                 ))
+                saved_count += 1
             
             conn.commit()
             conn.close()
             
-            self.logger.info(f"保存了 {len(features_df)} 条特征到数据库")
+            self.logger.info(f"保存了 {saved_count} 条特征到数据库")
+            return True
             
         except Exception as e:
             self.logger.error(f"保存特征到数据库失败: {str(e)}")
+            import traceback
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
+            return False
 
     def process_session_features(self, user_id, session_id):
         """处理指定会话的特征"""
