@@ -431,18 +431,22 @@ class UserManager:
             
             def on_press(key):
                 try:
-                    # 检测组合键
-                    if hasattr(key, 'char'):
+                    # 更新修饰键状态
+                    if key == keyboard.Key.ctrl:
+                        self._ctrl_pressed = True
+                        self.logger.debug("Ctrl键按下")
+                    elif key == keyboard.Key.alt:
+                        self._alt_pressed = True
+                        self.logger.debug("Alt键按下")
+                    elif hasattr(key, 'char'):
                         # 字符键
                         self.logger.debug(f"按下字符键: {key.char}")
+                        # 检测Ctrl+Alt组合键
+                        if self._ctrl_pressed and self._alt_pressed:
+                            self._handle_hotkey(key)
                     else:
                         # 特殊键
                         self.logger.debug(f"按下特殊键: {key}")
-                    
-                    # 检测Ctrl+Alt组合键
-                    if hasattr(self, '_ctrl_pressed') and hasattr(self, '_alt_pressed'):
-                        if self._ctrl_pressed and self._alt_pressed:
-                            self._handle_hotkey(key)
                             
                 except Exception as e:
                     self.logger.error(f"键盘事件处理失败: {str(e)}")
