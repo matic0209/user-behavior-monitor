@@ -429,6 +429,10 @@ class UserManager:
             self.logger.debug("导入键盘监听库...")
             from pynput import keyboard
             
+            # 初始化修饰键状态
+            self._ctrl_pressed = False
+            self._alt_pressed = False
+            
             def on_press(key):
                 try:
                     # 更新修饰键状态
@@ -466,15 +470,18 @@ class UserManager:
                     self.logger.error(f"键盘释放事件处理失败: {str(e)}")
                     self.logger.debug(f"异常详情: {traceback.format_exc()}")
 
-            # 初始化修饰键状态
-            self._ctrl_pressed = False
-            self._alt_pressed = False
-            
             # 创建监听器
             self.logger.debug("创建键盘监听器...")
-            with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-                self.logger.info("键盘监听器运行中...")
-                listener.join()
+            listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+            listener.start()
+            
+            # 监听循环
+            self.logger.info("键盘监听器运行中...")
+            while self.is_listening:
+                time.sleep(0.1)
+            
+            # 停止监听器
+            listener.stop()
                 
         except ImportError:
             self.logger.error("pynput库未安装，无法启动键盘监听")

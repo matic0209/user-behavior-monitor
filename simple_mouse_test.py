@@ -119,46 +119,81 @@ def test_keyboard_hotkey():
     
     try:
         from pynput import keyboard
+        import threading
+        import time
         
         print("按下 Ctrl+Alt+C 开始测试 (5秒)...")
+        print("提示: 请先按住Ctrl和Alt键，然后按C键")
         
         ctrl_pressed = False
         alt_pressed = False
         hotkey_detected = False
+        listener = None
         
         def on_press(key):
             nonlocal ctrl_pressed, alt_pressed, hotkey_detected
             
-            if key == keyboard.Key.ctrl:
-                ctrl_pressed = True
-                print("Ctrl键按下")
-            elif key == keyboard.Key.alt:
-                alt_pressed = True
-                print("Alt键按下")
-            elif hasattr(key, 'char') and key.char == 'c':
-                if ctrl_pressed and alt_pressed:
-                    print("✓ 检测到快捷键: Ctrl+Alt+C")
-                    hotkey_detected = True
-                    return False  # 停止监听
+            try:
+                # 打印所有按键事件用于调试
+                if hasattr(key, 'char'):
+                    print(f"按下字符键: {key.char}")
+                else:
+                    print(f"按下特殊键: {key}")
+                
+                if key == keyboard.Key.ctrl:
+                    ctrl_pressed = True
+                    print("✓ Ctrl键按下")
+                elif key == keyboard.Key.alt:
+                    alt_pressed = True
+                    print("✓ Alt键按下")
+                elif hasattr(key, 'char') and key.char == 'c':
+                    print(f"按下C键，当前状态: Ctrl={ctrl_pressed}, Alt={alt_pressed}")
+                    if ctrl_pressed and alt_pressed:
+                        print("✓ 检测到快捷键: Ctrl+Alt+C")
+                        hotkey_detected = True
+                        if listener:
+                            listener.stop()
+                        return False  # 停止监听
+                    else:
+                        print("✗ 修饰键状态不正确")
+            except Exception as e:
+                print(f"按键处理异常: {e}")
         
         def on_release(key):
             nonlocal ctrl_pressed, alt_pressed
             
-            if key == keyboard.Key.ctrl:
-                ctrl_pressed = False
-                print("Ctrl键释放")
-            elif key == keyboard.Key.alt:
-                alt_pressed = False
-                print("Alt键释放")
+            try:
+                if key == keyboard.Key.ctrl:
+                    ctrl_pressed = False
+                    print("Ctrl键释放")
+                elif key == keyboard.Key.alt:
+                    alt_pressed = False
+                    print("Alt键释放")
+            except Exception as e:
+                print(f"按键释放处理异常: {e}")
         
-        with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-            listener.join()
+        # 创建监听器
+        listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        listener.start()
+        
+        # 等待5秒或直到检测到快捷键
+        start_time = time.time()
+        while time.time() - start_time < 5 and not hotkey_detected:
+            time.sleep(0.1)
+        
+        # 停止监听器
+        if listener:
+            listener.stop()
         
         if hotkey_detected:
             print("✓ 键盘快捷键测试成功!")
             return True
         else:
             print("✗ 未检测到快捷键")
+            print("可能的原因:")
+            print("- 没有正确按下Ctrl+Alt+C组合键")
+            print("- 键盘监听权限不足")
+            print("- pynput库版本问题")
             return False
             
     except ImportError as e:
@@ -166,6 +201,8 @@ def test_keyboard_hotkey():
         return False
     except Exception as e:
         print(f"✗ 键盘测试失败: {e}")
+        import traceback
+        print(f"异常详情: {traceback.format_exc()}")
         return False
 
 def main():
