@@ -39,6 +39,23 @@ class ConfigLoader:
         except Exception as e:
             raise Exception(f"配置文件加载失败: {str(e)}")
 
+    def get(self, key, default=None):
+        """获取配置值，支持点分隔的路径"""
+        try:
+            # 支持点分隔的路径，如 'data_collection.collection_interval'
+            keys = key.split('.')
+            value = self._config
+            
+            for k in keys:
+                if isinstance(value, dict) and k in value:
+                    value = value[k]
+                else:
+                    return default
+            
+            return value
+        except Exception:
+            return default
+
     def get_feature_config(self):
         """获取特征工程配置"""
         return self._config.get('feature_engineering', {})
@@ -60,7 +77,8 @@ class ConfigLoader:
             'logs': str(base_path / 'logs'),
             'results': str(base_path / 'results'),
             'test_data': str(base_path / 'data' / 'processed' / 'all_test_aggregation.pickle'),
-            'train_data': str(base_path / 'data' / 'processed' / 'all_training_aggregation.pickle')
+            'train_data': str(base_path / 'data' / 'processed' / 'all_training_aggregation.pickle'),
+            'database': str(base_path / 'data' / 'mouse_data.db')
         }
         
         # 合并配置文件中的路径

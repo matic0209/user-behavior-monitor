@@ -163,11 +163,12 @@ class WindowsMouseCollector:
         
         try:
             # 获取采集间隔
-            interval = self.config.get('data_collection.collection_interval', 0.1)
+            data_collection_config = self.config.get_data_collection_config()
+            interval = data_collection_config.get('collection_interval', 0.1)
             self.logger.debug(f"采集间隔: {interval}秒")
             
             # 获取最大缓冲区大小
-            max_buffer_size = self.config.get('data_collection.max_buffer_size', 10000)
+            max_buffer_size = data_collection_config.get('max_buffer_size', 10000)
             self.logger.debug(f"最大缓冲区大小: {max_buffer_size}")
             
             # 数据缓冲区
