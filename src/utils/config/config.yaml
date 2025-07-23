@@ -41,6 +41,11 @@ alert:
   log_alerts: true
   popup_enabled: true  # 启用弹窗告警
   lock_computer: true  # 启用锁定计算机
+  enable_system_actions: true  # 启用系统操作（锁屏等）
+  lock_screen_threshold: 0.8  # 锁屏阈值
+  alert_cooldown: 60  # 告警冷却时间（秒）
+  show_warning_dialog: true  # 显示警告对话框
+  warning_duration: 10  # 警告持续时间（秒）
 
 user:
   user_id: "default_user"

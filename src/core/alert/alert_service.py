@@ -21,10 +21,21 @@ try:
     import win32con
     import win32gui
     import win32security
+    import ctypes
+    from ctypes import wintypes
     WINDOWS_AVAILABLE = True
 except ImportError:
     WINDOWS_AVAILABLE = False
     print("警告: Windows API不可用")
+
+# GUI库导入
+try:
+    import tkinter as tk
+    from tkinter import messagebox
+    GUI_AVAILABLE = True
+except ImportError:
+    GUI_AVAILABLE = False
+    print("警告: tkinter不可用")
 
 class AlertService:
     def __init__(self):
@@ -37,6 +48,8 @@ class AlertService:
         self.enable_system_actions = self.alert_config.get('enable_system_actions', True)
         self.lock_screen_threshold = self.alert_config.get('lock_screen_threshold', 0.8)
         self.alert_cooldown = self.alert_config.get('alert_cooldown', 60)  # 60秒冷却时间
+        self.show_warning_dialog = self.alert_config.get('show_warning_dialog', True)
+        self.warning_duration = self.alert_config.get('warning_duration', 10)  # 警告显示时间（秒）
         
         # 告警状态
         self.last_alert_time = {}
@@ -45,6 +58,8 @@ class AlertService:
         self.logger.info("告警服务初始化完成")
         self.logger.info(f"系统操作: {'启用' if self.enable_system_actions else '禁用'}")
         self.logger.info(f"锁屏阈值: {self.lock_screen_threshold}")
+        self.logger.info(f"弹窗警告: {'启用' if self.show_warning_dialog else '禁用'}")
+        self.logger.info(f"警告持续时间: {self.warning_duration}秒")
 
     def send_alert(self, user_id, alert_type, message, severity="warning", data=None):
         """发送告警"""
@@ -129,12 +144,128 @@ class AlertService:
                 
                 if anomaly_score >= self.lock_screen_threshold:
                     self.logger.warning(f"异常分数 {anomaly_score:.3f} 达到锁屏阈值 {self.lock_screen_threshold}")
-                    self._lock_screen()
+                    self._show_lock_warning_and_execute(anomaly_score)
                 else:
                     self.logger.info(f"异常分数 {anomaly_score:.3f} 未达到锁屏阈值 {self.lock_screen_threshold}")
                     
         except Exception as e:
             self.logger.error(f"执行系统操作失败: {str(e)}")
+
+    def _show_lock_warning_and_execute(self, anomaly_score):
+        """显示锁屏警告并执行锁屏"""
+        try:
+            # 显示警告弹窗
+            if self.show_warning_dialog and GUI_AVAILABLE:
+                self._show_warning_dialog(anomaly_score)
+            else:
+                # 如果没有GUI，直接锁屏
+                self.logger.warning("GUI不可用，直接执行锁屏")
+                self._lock_screen()
+                
+        except Exception as e:
+            self.logger.error(f"显示锁屏警告失败: {str(e)}")
+            # 如果警告失败，直接锁屏
+            self._lock_screen()
+
+    def _show_warning_dialog(self, anomaly_score):
+        """显示警告对话框"""
+        try:
+            # 创建警告窗口
+            warning_window = tk.Tk()
+            warning_window.title("安全警告")
+            warning_window.geometry("400x300")
+            warning_window.configure(bg='#ff4444')
+            
+            # 设置窗口置顶
+            warning_window.attributes('-topmost', True)
+            warning_window.focus_force()
+            
+            # 创建警告内容
+            title_label = tk.Label(
+                warning_window,
+                text="⚠️ 异常行为检测",
+                font=("Arial", 16, "bold"),
+                fg="white",
+                bg="#ff4444"
+            )
+            title_label.pack(pady=20)
+            
+            message_label = tk.Label(
+                warning_window,
+                text=f"检测到异常用户行为\n异常分数: {anomaly_score:.3f}\n\n系统将在 {self.warning_duration} 秒后自动锁屏\n\n请确保已保存所有工作",
+                font=("Arial", 12),
+                fg="white",
+                bg="#ff4444",
+                justify="center"
+            )
+            message_label.pack(pady=20)
+            
+            # 倒计时标签
+            countdown_label = tk.Label(
+                warning_window,
+                text=f"剩余时间: {self.warning_duration} 秒",
+                font=("Arial", 14, "bold"),
+                fg="yellow",
+                bg="#ff4444"
+            )
+            countdown_label.pack(pady=10)
+            
+            # 取消按钮
+            cancel_button = tk.Button(
+                warning_window,
+                text="取消锁屏",
+                font=("Arial", 12),
+                bg="#4CAF50",
+                fg="white",
+                command=lambda: self._cancel_lock_screen(warning_window)
+            )
+            cancel_button.pack(pady=10)
+            
+            # 立即锁屏按钮
+            lock_now_button = tk.Button(
+                warning_window,
+                text="立即锁屏",
+                font=("Arial", 12),
+                bg="#f44336",
+                fg="white",
+                command=lambda: self._lock_screen_now(warning_window)
+            )
+            lock_now_button.pack(pady=5)
+            
+            # 倒计时和自动锁屏
+            self._start_countdown(warning_window, countdown_label, self.warning_duration)
+            
+            # 启动GUI事件循环
+            warning_window.mainloop()
+            
+        except Exception as e:
+            self.logger.error(f"显示警告对话框失败: {str(e)}")
+            # 如果GUI失败，直接锁屏
+            self._lock_screen()
+
+    def _start_countdown(self, window, label, remaining_time):
+        """开始倒计时"""
+        if remaining_time > 0:
+            label.config(text=f"剩余时间: {remaining_time} 秒")
+            window.after(1000, lambda: self._start_countdown(window, label, remaining_time - 1))
+        else:
+            # 时间到，执行锁屏
+            self.logger.warning("警告时间结束，执行锁屏")
+            window.destroy()
+            self._lock_screen()
+
+    def _cancel_lock_screen(self, window):
+        """取消锁屏"""
+        self.logger.info("用户取消锁屏操作")
+        print("[系统] 用户取消锁屏操作")
+        window.destroy()
+
+    def _lock_screen_now(self, window):
+        """立即锁屏"""
+        self.logger.warning("用户选择立即锁屏")
+        print("[系统] 用户选择立即锁屏")
+        window.destroy()
+        self._lock_screen()
 
     def _lock_screen(self):
         """锁屏操作"""
