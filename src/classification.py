@@ -1122,8 +1122,46 @@ def preprocess_data(data):
             
             X = X[numeric_cols]
             
+            # 数据清理和验证
+            log_message("Cleaning and validating data...")
+            
+            # 处理无穷大值
+            if np.isinf(X).any().any():
+                log_message("Found infinite values, replacing with 0")
+                X = X.replace([np.inf, -np.inf], 0)
+            
+            # 处理NaN值
+            if X.isnull().any().any():
+                log_message("Found NaN values, filling with 0")
+                X = X.fillna(0)
+            
+            # 检查并处理异常值
+            for col in X.columns:
+                col_data = X[col]
+                if col_data.dtype in ['float64', 'float32']:
+                    # 计算分位数
+                    q99 = col_data.quantile(0.99)
+                    q01 = col_data.quantile(0.01)
+                    
+                    # 如果存在极端值，进行裁剪
+                    if q99 > 1e6 or q01 < -1e6:
+                        log_message(f"Column {col} has extreme values, clipping to reasonable range")
+                        X[col] = np.clip(X[col], -1e6, 1e6)
+                    
+                    # 检查是否有无穷大值
+                    if np.isinf(col_data).any():
+                        log_message(f"Column {col} has infinite values, replacing with 0")
+                        X[col] = col_data.replace([np.inf, -np.inf], 0)
+            
+            # 最终验证
+            X = X.astype(float)
+            X = X.replace([np.inf, -np.inf], 0)
+            X = X.fillna(0)
+            
             log_message(f"Data preprocessed: {len(X)} records, {len(X.columns)} features")
             log_message(f"Feature columns: {list(X.columns)}")
+            log_message(f"Data range: {X.min().min():.2f} to {X.max().max():.2f}")
+            
             return X, y, None
         else:
             log_message(f"Data is not a DataFrame, type: {type(data)}", level='error')
@@ -1147,12 +1185,45 @@ def train_model(X_train, y_train, X_val=None, y_val=None, **kwargs):
     try:
         log_message("Training model...")
         
-        # 使用XGBoost作为默认模型
+        # 数据清理和验证
+        log_message("Cleaning training data...")
+        
+        # 检查并处理无穷大值
+        if np.isinf(X_train).any():
+            log_message("Found infinite values in training data, replacing with 0")
+            X_train = X_train.replace([np.inf, -np.inf], 0)
+        
+        # 检查并处理NaN值
+        if X_train.isnull().any().any():
+            log_message("Found NaN values in training data, filling with 0")
+            X_train = X_train.fillna(0)
+        
+        # 检查数据范围
+        for col in X_train.columns:
+            col_data = X_train[col]
+            if col_data.dtype in ['float64', 'float32']:
+                # 对于浮点数列，检查异常值
+                q99 = col_data.quantile(0.99)
+                q01 = col_data.quantile(0.01)
+                if q99 > 1e6 or q01 < -1e6:
+                    log_message(f"Column {col} has extreme values, clipping to reasonable range")
+                    X_train[col] = np.clip(X_train[col], -1e6, 1e6)
+        
+        # 确保所有值都是有限的
+        X_train = X_train.astype(float)
+        X_train = X_train.replace([np.inf, -np.inf], 0)
+        X_train = X_train.fillna(0)
+        
+        log_message(f"Training data shape: {X_train.shape}")
+        log_message(f"Training data range: {X_train.min().min():.2f} to {X_train.max().max():.2f}")
+        
+        # 使用XGBoost作为默认模型，设置missing参数
         model = xgb.XGBClassifier(
             n_estimators=100,
             max_depth=6,
             learning_rate=0.1,
             random_state=42,
+            missing=0,  # 设置缺失值处理
             **kwargs
         )
         
@@ -1164,6 +1235,8 @@ def train_model(X_train, y_train, X_val=None, y_val=None, **kwargs):
         
     except Exception as e:
         log_message(f"Error training model: {str(e)}", level='error')
+        import traceback
+        log_message(f"Traceback: {traceback.format_exc()}", level='error')
         return None
 
 def save_model(model, filepath):
