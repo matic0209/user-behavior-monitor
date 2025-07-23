@@ -55,21 +55,27 @@ class UserManager:
         self.keyboard_listener = None
         self.is_listening = False
         
-        # 快捷键配置 - 修改为更直观的快捷键
+        # 快捷键配置 - 修改为单个字母
         self.hotkeys = {
-            'start_collection': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('C')},  # Ctrl+Alt+C 开始采集
-            'stop_collection': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('S')},   # Ctrl+Alt+S 停止采集
-            'process_features': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('F')},  # Ctrl+Alt+F 处理特征
-            'train_model': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('T')},      # Ctrl+Alt+T 训练模型
-            'start_prediction': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('P')}, # Ctrl+Alt+P 开始预测
-            'stop_prediction': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('X')},  # Ctrl+Alt+X 停止预测
-            'retrain_model': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('R')},    # Ctrl+Alt+R 重新训练
-            'show_status': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('I')},      # Ctrl+Alt+I 显示状态
-            'quit_system': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('Q')}       # Ctrl+Alt+Q 退出系统
+            'start_collection': 'c',      # c 开始采集
+            'stop_collection': 's',       # s 停止采集
+            'process_features': 'f',      # f 处理特征
+            'train_model': 't',           # t 训练模型
+            'start_prediction': 'p',      # p 开始预测
+            'stop_prediction': 'x',       # x 停止预测
+            'retrain_model': 'r',         # r 重新训练
+            'show_status': 'i',           # i 显示状态
+            'quit_system': 'q'            # q 退出系统
         }
         
         # 当前按下的键
         self.pressed_keys = set()
+        
+        # 连续按键检测
+        self.key_sequence = []
+        self.last_key_time = 0
+        self.sequence_timeout = 1.0  # 1秒内连续按键有效
+        self.sequence_count = 4      # 连续4次触发快捷键
         
         # 回调函数
         self.callbacks = {
@@ -429,28 +435,43 @@ class UserManager:
             self.logger.debug("导入键盘监听库...")
             from pynput import keyboard
             
-            # 初始化修饰键状态
-            self._ctrl_pressed = False
-            self._alt_pressed = False
-            
             def on_press(key):
                 try:
-                    # 更新修饰键状态
-                    if key == keyboard.Key.ctrl:
-                        self._ctrl_pressed = True
-                        self.logger.debug("Ctrl键按下")
-                    elif key == keyboard.Key.alt:
-                        self._alt_pressed = True
-                        self.logger.debug("Alt键按下")
-                    elif hasattr(key, 'char'):
-                        # 字符键
-                        self.logger.debug(f"按下字符键: {key.char}")
-                        # 检测Ctrl+Alt组合键
-                        if self._ctrl_pressed and self._alt_pressed:
-                            self._handle_hotkey(key)
+                    # 只处理字符键
+                    if hasattr(key, 'char'):
+                        char = key.char.lower()
+                        current_time = time.time()
+                        
+                        # 检查是否是快捷键字符
+                        if char in self.hotkeys.values():
+                            # 添加到序列
+                            self.key_sequence.append(char)
+                            
+                            # 如果序列长度超过4，移除最早的
+                            if len(self.key_sequence) > self.sequence_count:
+                                self.key_sequence.pop(0)
+                            
+                            # 检查是否在时间窗口内
+                            if current_time - self.last_key_time <= self.sequence_timeout:
+                                # 检查是否连续4次相同字符
+                                if len(self.key_sequence) == self.sequence_count and len(set(self.key_sequence)) == 1:
+                                    # 找到对应的快捷键
+                                    for action, hotkey_char in self.hotkeys.items():
+                                        if hotkey_char == char:
+                                            self.logger.info(f"检测到快捷键序列: {char} x{self.sequence_count} ({action})")
+                                            self._handle_hotkey(key)
+                                            break
+                                    # 清空序列
+                                    self.key_sequence = []
+                            
+                            # 更新最后按键时间
+                            self.last_key_time = current_time
+                        else:
+                            # 非快捷键字符，清空序列
+                            self.key_sequence = []
                     else:
-                        # 特殊键
-                        self.logger.debug(f"按下特殊键: {key}")
+                        # 特殊键，清空序列
+                        self.key_sequence = []
                             
                 except Exception as e:
                     self.logger.error(f"键盘事件处理失败: {str(e)}")
@@ -458,14 +479,8 @@ class UserManager:
 
             def on_release(key):
                 try:
-                    # 更新修饰键状态
-                    if key == keyboard.Key.ctrl:
-                        self._ctrl_pressed = False
-                        self.logger.debug("Ctrl键释放")
-                    elif key == keyboard.Key.alt:
-                        self._alt_pressed = False
-                        self.logger.debug("Alt键释放")
-                        
+                    # 可以在这里添加按键释放的处理逻辑
+                    pass
                 except Exception as e:
                     self.logger.error(f"键盘释放事件处理失败: {str(e)}")
                     self.logger.debug(f"异常详情: {traceback.format_exc()}")
@@ -506,32 +521,32 @@ class UserManager:
                 self.logger.debug(f"检测到字符键: {char}")
                 
                 if char == 'c':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+C (开始数据采集)")
+                    self.logger.info("检测到快捷键: c x4 (开始数据采集)")
                     self._trigger_callback('start_collection', current_user_id)
                 elif char == 's':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+S (停止数据采集)")
+                    self.logger.info("检测到快捷键: s x4 (停止数据采集)")
                     self._trigger_callback('stop_collection', current_user_id)
                 elif char == 'f':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+F (处理特征)")
+                    self.logger.info("检测到快捷键: f x4 (处理特征)")
                     self._trigger_callback('process_features')
                 elif char == 't':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+T (训练模型)")
+                    self.logger.info("检测到快捷键: t x4 (训练模型)")
                     self._trigger_callback('train_model')
                 elif char == 'p':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+P (开始预测)")
+                    self.logger.info("检测到快捷键: p x4 (开始预测)")
                     self._trigger_callback('start_prediction')
                 elif char == 'x':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+X (停止预测)")
+                    self.logger.info("检测到快捷键: x x4 (停止预测)")
                     self._trigger_callback('stop_prediction')
                 elif char == 'r':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+R (重新训练)")
+                    self.logger.info("检测到快捷键: r x4 (重新训练)")
                     retrain_user_id = self.create_retrain_user()
                     self._trigger_callback('retrain_model', retrain_user_id)
                 elif char == 'i':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+I (显示状态)")
+                    self.logger.info("检测到快捷键: i x4 (显示状态)")
                     self._trigger_callback('show_status')
                 elif char == 'q':
-                    self.logger.info("检测到快捷键: Ctrl+Alt+Q (退出系统)")
+                    self.logger.info("检测到快捷键: q x4 (退出系统)")
                     self._trigger_callback('quit_system')
                 else:
                     self.logger.debug(f"未识别的快捷键: {char}")

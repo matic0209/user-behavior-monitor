@@ -119,56 +119,61 @@ def test_keyboard_hotkey():
     
     try:
         from pynput import keyboard
-        import threading
-        import time
         
-        print("按下 Ctrl+Alt+C 开始测试 (5秒)...")
-        print("提示: 请先按住Ctrl和Alt键，然后按C键")
+        print("连续按下 c 键4次开始测试 (10秒)...")
+        print("提示: 需要在1秒内连续按4次c键")
         
-        ctrl_pressed = False
-        alt_pressed = False
         hotkey_detected = False
         listener = None
+        key_sequence = []
+        last_key_time = 0
+        sequence_timeout = 1.0
+        sequence_count = 4
         
         def on_press(key):
-            nonlocal ctrl_pressed, alt_pressed, hotkey_detected
+            nonlocal hotkey_detected, key_sequence, last_key_time
             
             try:
-                # 打印所有按键事件用于调试
                 if hasattr(key, 'char'):
-                    print(f"按下字符键: {key.char}")
+                    char = key.char.lower()
+                    current_time = time.time()
+                    print(f"按下字符键: {char}")
+                    
+                    if char == 'c':
+                        # 添加到序列
+                        key_sequence.append(char)
+                        
+                        # 如果序列长度超过4，移除最早的
+                        if len(key_sequence) > sequence_count:
+                            key_sequence.pop(0)
+                        
+                        # 检查是否在时间窗口内
+                        if current_time - last_key_time <= sequence_timeout:
+                            # 检查是否连续4次相同字符
+                            if len(key_sequence) == sequence_count and len(set(key_sequence)) == 1:
+                                print("✓ 检测到快捷键序列: c x4")
+                                hotkey_detected = True
+                                if listener:
+                                    listener.stop()
+                                return False
+                        
+                        # 更新最后按键时间
+                        last_key_time = current_time
+                    else:
+                        # 非c键，清空序列
+                        key_sequence = []
                 else:
                     print(f"按下特殊键: {key}")
-                
-                if key == keyboard.Key.ctrl:
-                    ctrl_pressed = True
-                    print("✓ Ctrl键按下")
-                elif key == keyboard.Key.alt:
-                    alt_pressed = True
-                    print("✓ Alt键按下")
-                elif hasattr(key, 'char') and key.char == 'c':
-                    print(f"按下C键，当前状态: Ctrl={ctrl_pressed}, Alt={alt_pressed}")
-                    if ctrl_pressed and alt_pressed:
-                        print("✓ 检测到快捷键: Ctrl+Alt+C")
-                        hotkey_detected = True
-                        if listener:
-                            listener.stop()
-                        return False  # 停止监听
-                    else:
-                        print("✗ 修饰键状态不正确")
+                    key_sequence = []
             except Exception as e:
                 print(f"按键处理异常: {e}")
         
         def on_release(key):
-            nonlocal ctrl_pressed, alt_pressed
-            
             try:
-                if key == keyboard.Key.ctrl:
-                    ctrl_pressed = False
-                    print("Ctrl键释放")
-                elif key == keyboard.Key.alt:
-                    alt_pressed = False
-                    print("Alt键释放")
+                if hasattr(key, 'char'):
+                    print(f"释放字符键: {key.char}")
+                else:
+                    print(f"释放特殊键: {key}")
             except Exception as e:
                 print(f"按键释放处理异常: {e}")
         
@@ -176,9 +181,9 @@ def test_keyboard_hotkey():
         listener = keyboard.Listener(on_press=on_press, on_release=on_release)
         listener.start()
         
-        # 等待5秒或直到检测到快捷键
+        # 等待10秒或直到检测到快捷键
         start_time = time.time()
-        while time.time() - start_time < 5 and not hotkey_detected:
+        while time.time() - start_time < 10 and not hotkey_detected:
             time.sleep(0.1)
         
         # 停止监听器
@@ -191,9 +196,9 @@ def test_keyboard_hotkey():
         else:
             print("✗ 未检测到快捷键")
             print("可能的原因:")
-            print("- 没有正确按下Ctrl+Alt+C组合键")
+            print("- 没有连续按4次c键")
+            print("- 按键间隔超过1秒")
             print("- 键盘监听权限不足")
-            print("- pynput库版本问题")
             return False
             
     except ImportError as e:

@@ -71,53 +71,66 @@ def test_hotkey_detection():
     try:
         from pynput import keyboard
         
-        print("请按 Ctrl+Alt+C 组合键")
+        print("请连续按 c 键4次")
         print("测试时间: 10秒")
+        print("提示: 需要在1秒内连续按4次c键")
         
-        ctrl_pressed = False
-        alt_pressed = False
         hotkey_detected = False
         listener = None
+        key_sequence = []
+        last_key_time = 0
+        sequence_timeout = 1.0
+        sequence_count = 4
         
         def on_press(key):
-            nonlocal ctrl_pressed, alt_pressed, hotkey_detected
+            nonlocal hotkey_detected, key_sequence, last_key_time
             
             try:
-                if key == keyboard.Key.ctrl:
-                    ctrl_pressed = True
-                    print("✓ Ctrl键按下")
-                elif key == keyboard.Key.alt:
-                    alt_pressed = True
-                    print("✓ Alt键按下")
-                elif hasattr(key, 'char') and key.char == 'c':
-                    print(f"按下C键，当前状态: Ctrl={ctrl_pressed}, Alt={alt_pressed}")
-                    if ctrl_pressed and alt_pressed:
-                        print("✓ 检测到快捷键: Ctrl+Alt+C")
-                        hotkey_detected = True
-                        if listener:
-                            listener.stop()
-                        return False
+                if hasattr(key, 'char'):
+                    char = key.char.lower()
+                    current_time = time.time()
+                    print(f"按下: {char}")
+                    
+                    if char == 'c':
+                        # 添加到序列
+                        key_sequence.append(char)
+                        print(f"序列: {key_sequence}")
+                        
+                        # 如果序列长度超过4，移除最早的
+                        if len(key_sequence) > sequence_count:
+                            key_sequence.pop(0)
+                        
+                        # 检查是否在时间窗口内
+                        if current_time - last_key_time <= sequence_timeout:
+                            # 检查是否连续4次相同字符
+                            if len(key_sequence) == sequence_count and len(set(key_sequence)) == 1:
+                                print("✓ 检测到快捷键序列: c x4")
+                                hotkey_detected = True
+                                if listener:
+                                    listener.stop()
+                                return False
+                        else:
+                            print("时间间隔过长，重置序列")
+                            key_sequence = [char]
+                        
+                        # 更新最后按键时间
+                        last_key_time = current_time
                     else:
-                        print("✗ 修饰键状态不正确")
+                        # 非c键，清空序列
+                        key_sequence = []
+                        print("非快捷键字符，重置序列")
                 else:
-                    # 打印其他按键用于调试
-                    if hasattr(key, 'char'):
-                        print(f"按下: {key.char}")
-                    else:
-                        print(f"按下: {key}")
+                    print(f"按下: {key}")
+                    key_sequence = []
             except Exception as e:
                 print(f"按键处理异常: {e}")
         
         def on_release(key):
-            nonlocal ctrl_pressed, alt_pressed
-            
             try:
-                if key == keyboard.Key.ctrl:
-                    ctrl_pressed = False
-                    print("Ctrl键释放")
-                elif key == keyboard.Key.alt:
-                    alt_pressed = False
-                    print("Alt键释放")
+                if hasattr(key, 'char'):
+                    print(f"释放: {key.char}")
+                else:
+                    print(f"释放: {key}")
             except Exception as e:
                 print(f"按键释放处理异常: {e}")
         
