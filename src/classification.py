@@ -1126,7 +1126,7 @@ def preprocess_data(data):
             log_message("Cleaning and validating data...")
             
             # 处理无穷大值
-            if np.isinf(X).any().any():
+            if np.isinf(X.values).any():
                 log_message("Found infinite values, replacing with 0")
                 X = X.replace([np.inf, -np.inf], 0)
             
@@ -1149,7 +1149,7 @@ def preprocess_data(data):
                         X[col] = np.clip(X[col], -1e6, 1e6)
                     
                     # 检查是否有无穷大值
-                    if np.isinf(col_data).any():
+                    if np.isinf(col_data.values).any():
                         log_message(f"Column {col} has infinite values, replacing with 0")
                         X[col] = col_data.replace([np.inf, -np.inf], 0)
             
@@ -1189,7 +1189,7 @@ def train_model(X_train, y_train, X_val=None, y_val=None, **kwargs):
         log_message("Cleaning training data...")
         
         # 检查并处理无穷大值
-        if np.isinf(X_train).any():
+        if np.isinf(X_train.values).any():
             log_message("Found infinite values in training data, replacing with 0")
             X_train = X_train.replace([np.inf, -np.inf], 0)
         
