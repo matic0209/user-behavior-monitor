@@ -279,13 +279,26 @@ class SimpleModelTrainer:
             data_df.to_csv(temp_data_path, index=False)
             
             # 使用classification模块的函数
-            data = load_data(str(temp_data_path))
+            data_result = load_data(str(temp_data_path))
+            if data_result is None or len(data_result) < 1:
+                self.logger.error("数据加载失败")
+                return False
+            
+            # 提取数据（load_data返回(data, None, None)）
+            data = data_result[0] if isinstance(data_result, tuple) else data_result
             if data is None:
                 self.logger.error("数据加载失败")
                 return False
             
-            X_processed, y_processed, _ = preprocess_data(data)
-            if X_processed is None:
+            # 预处理数据
+            preprocess_result = preprocess_data(data)
+            if preprocess_result is None or len(preprocess_result) < 2:
+                self.logger.error("数据预处理失败")
+                return False
+            
+            # 提取预处理结果（preprocess_data返回(X, y, None)）
+            X_processed, y_processed = preprocess_result[0], preprocess_result[1]
+            if X_processed is None or y_processed is None:
                 self.logger.error("数据预处理失败")
                 return False
             

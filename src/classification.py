@@ -1041,12 +1041,29 @@ def load_data(filepath=None):
         elif data_path.endswith('.pickle') or data_path.endswith('.pkl'):
             # 加载pickle文件
             with open(data_path, 'rb') as f:
-                data = pickle.load(f)
+                loaded_data = pickle.load(f)
+            
+            # 确保返回的是DataFrame
+            if isinstance(loaded_data, pd.DataFrame):
+                data = loaded_data
+            elif isinstance(loaded_data, dict):
+                # 如果是字典，尝试转换为DataFrame
+                data = pd.DataFrame(loaded_data)
+            else:
+                # 其他类型，尝试转换为DataFrame
+                data = pd.DataFrame(loaded_data)
+            
             log_message(f"Pickle data loaded successfully: {len(data)} records")
         else:
             log_message(f"Unsupported file format: {data_path}", level='error')
             return None, None, None
         
+        # 确保返回的是DataFrame
+        if not isinstance(data, pd.DataFrame):
+            log_message("Converting data to DataFrame...")
+            data = pd.DataFrame(data)
+        
+        log_message(f"Final data shape: {data.shape}")
         return data, None, None
         
     except Exception as e:
@@ -1062,35 +1079,67 @@ def preprocess_data(data):
             log_message("No data to preprocess", level='error')
             return None, None, None
         
+        log_message(f"Input data type: {type(data)}")
+        log_message(f"Input data shape: {data.shape if hasattr(data, 'shape') else 'unknown'}")
+        
         # 基本预处理
         if isinstance(data, pd.DataFrame):
+            log_message("Data is DataFrame, proceeding with preprocessing...")
+            
             # 处理缺失值
             data = data.fillna(0)
+            log_message("Missing values filled")
             
             # 移除重复行
+            original_len = len(data)
             data = data.drop_duplicates()
+            log_message(f"Removed {original_len - len(data)} duplicate rows")
             
             # 分离特征和标签
             if 'label' in data.columns:
+                log_message("Found 'label' column, separating features and labels...")
                 X = data.drop('label', axis=1)
                 y = data['label']
             else:
+                log_message("No 'label' column found, creating dummy labels...")
                 # 如果没有标签列，创建一个虚拟标签（用于无监督学习）
                 X = data
                 y = np.zeros(len(data))  # 创建虚拟标签
             
             # 确保所有特征都是数值型
             numeric_cols = X.select_dtypes(include=[np.number]).columns
+            log_message(f"Found {len(numeric_cols)} numeric columns out of {len(X.columns)} total columns")
+            
+            if len(numeric_cols) == 0:
+                log_message("No numeric columns found, attempting to convert...", level='error')
+                # 尝试转换非数值列为数值
+                for col in X.columns:
+                    try:
+                        X[col] = pd.to_numeric(X[col], errors='coerce')
+                    except:
+                        X[col] = 0
+                numeric_cols = X.select_dtypes(include=[np.number]).columns
+            
             X = X[numeric_cols]
             
             log_message(f"Data preprocessed: {len(X)} records, {len(X.columns)} features")
+            log_message(f"Feature columns: {list(X.columns)}")
             return X, y, None
         else:
-            log_message("Data is not a DataFrame", level='error')
-            return None, None, None
+            log_message(f"Data is not a DataFrame, type: {type(data)}", level='error')
+            # 尝试转换为DataFrame
+            try:
+                data = pd.DataFrame(data)
+                log_message("Successfully converted to DataFrame, retrying preprocessing...")
+                return preprocess_data(data)
+            except Exception as e:
+                log_message(f"Failed to convert to DataFrame: {str(e)}", level='error')
+                return None, None, None
             
     except Exception as e:
         log_message(f"Error preprocessing data: {str(e)}", level='error')
+        import traceback
+        log_message(f"Traceback: {traceback.format_exc()}", level='error')
         return None, None, None
 
 def train_model(X_train, y_train, X_val=None, y_val=None, **kwargs):
