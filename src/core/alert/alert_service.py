@@ -172,19 +172,26 @@ class AlertService:
         try:
             # 创建警告窗口
             warning_window = tk.Tk()
-            warning_window.title("安全警告")
-            warning_window.geometry("400x300")
+            warning_window.title("安全警告 - 异常行为检测")
+            warning_window.geometry("500x400")
             warning_window.configure(bg='#ff4444')
             
-            # 设置窗口置顶
+            # 设置窗口置顶且不可关闭
             warning_window.attributes('-topmost', True)
             warning_window.focus_force()
+            
+            # 禁用窗口关闭按钮
+            warning_window.protocol("WM_DELETE_WINDOW", lambda: None)
+            
+            # 禁用Alt+F4等快捷键
+            warning_window.bind('<Alt-F4>', lambda e: None)
+            warning_window.bind('<Escape>', lambda e: None)
             
             # 创建警告内容
             title_label = tk.Label(
                 warning_window,
-                text="⚠️ 异常行为检测",
-                font=("Arial", 16, "bold"),
+                text="⚠️ 严重安全警告",
+                font=("Arial", 18, "bold"),
                 fg="white",
                 bg="#ff4444"
             )
@@ -192,7 +199,7 @@ class AlertService:
             
             message_label = tk.Label(
                 warning_window,
-                text=f"检测到异常用户行为\n异常分数: {anomaly_score:.3f}\n\n系统将在 {self.warning_duration} 秒后自动锁屏\n\n请确保已保存所有工作",
+                text=f"检测到异常用户行为\n\n异常分数: {anomaly_score:.3f}\n\n系统将在 {self.warning_duration} 秒后自动锁屏\n\n请确保已保存所有工作\n\n此窗口无法关闭",
                 font=("Arial", 12),
                 fg="white",
                 bg="#ff4444",
@@ -204,33 +211,32 @@ class AlertService:
             countdown_label = tk.Label(
                 warning_window,
                 text=f"剩余时间: {self.warning_duration} 秒",
-                font=("Arial", 14, "bold"),
+                font=("Arial", 16, "bold"),
                 fg="yellow",
                 bg="#ff4444"
             )
-            countdown_label.pack(pady=10)
+            countdown_label.pack(pady=15)
             
-            # 取消按钮
-            cancel_button = tk.Button(
-                warning_window,
-                text="取消锁屏",
-                font=("Arial", 12),
-                bg="#4CAF50",
-                fg="white",
-                command=lambda: self._cancel_lock_screen(warning_window)
-            )
-            cancel_button.pack(pady=10)
-            
-            # 立即锁屏按钮
+            # 立即锁屏按钮（用户可以选择立即锁屏）
             lock_now_button = tk.Button(
                 warning_window,
                 text="立即锁屏",
-                font=("Arial", 12),
+                font=("Arial", 14, "bold"),
                 bg="#f44336",
                 fg="white",
                 command=lambda: self._lock_screen_now(warning_window)
             )
-            lock_now_button.pack(pady=5)
+            lock_now_button.pack(pady=10)
+            
+            # 添加说明文字
+            info_label = tk.Label(
+                warning_window,
+                text="注意：此窗口无法关闭，系统将自动锁屏",
+                font=("Arial", 10),
+                fg="yellow",
+                bg="#ff4444"
+            )
+            info_label.pack(pady=10)
             
             # 倒计时和自动锁屏
             self._start_countdown(warning_window, countdown_label, self.warning_duration)
@@ -251,14 +257,14 @@ class AlertService:
         else:
             # 时间到，执行锁屏
             self.logger.warning("警告时间结束，执行锁屏")
+            print("[系统] 倒计时结束，正在锁屏...")
             window.destroy()
             self._lock_screen()
 
     def _cancel_lock_screen(self, window):
-        """取消锁屏"""
-        self.logger.info("用户取消锁屏操作")
-        print("[系统] 用户取消锁屏操作")
-        window.destroy()
+        """取消锁屏 - 已禁用，用户无法取消"""
+        # 此功能已禁用，用户无法取消锁屏
+        pass
 
     def _lock_screen_now(self, window):
         """立即锁屏"""

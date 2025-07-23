@@ -112,6 +112,7 @@ def test_manual_warning():
         alert_service = AlertService()
         
         print("警告: 即将显示锁屏警告对话框！")
+        print("注意：此对话框无法关闭，倒计时结束后将自动锁屏")
         print("请观察对话框的外观和功能。")
         
         response = input("是否继续? (y/N): ")
@@ -147,6 +148,56 @@ def test_manual_warning():
         print(f"✗ 手动警告测试失败: {e}")
         return False
 
+def test_dialog_security():
+    """测试对话框安全性"""
+    print("\n=== 测试对话框安全性 ===")
+    
+    try:
+        import tkinter as tk
+        
+        # 创建测试窗口
+        root = tk.Tk()
+        root.title("安全测试")
+        root.geometry("400x300")
+        root.configure(bg='#ff4444')
+        
+        # 设置窗口置顶且不可关闭
+        root.attributes('-topmost', True)
+        root.protocol("WM_DELETE_WINDOW", lambda: None)
+        root.bind('<Alt-F4>', lambda e: None)
+        root.bind('<Escape>', lambda e: None)
+        
+        # 添加说明
+        label = tk.Label(
+            root,
+            text="这是一个安全测试窗口\n\n此窗口无法通过常规方式关闭\n\n请尝试关闭窗口（应该无法关闭）",
+            font=("Arial", 12),
+            fg="white",
+            bg="#ff4444",
+            justify="center"
+        )
+        label.pack(pady=50)
+        
+        # 添加关闭按钮（用于测试）
+        close_button = tk.Button(
+            root,
+            text="测试关闭（应该无效）",
+            command=lambda: print("尝试关闭窗口（应该无效）")
+        )
+        close_button.pack(pady=20)
+        
+        print("测试窗口已显示，请尝试关闭它...")
+        print("按回车键继续测试...")
+        input()
+        
+        root.destroy()
+        print("✓ 安全性测试完成")
+        return True
+        
+    except Exception as e:
+        print(f"✗ 安全性测试失败: {e}")
+        return False
+
 def main():
     """主函数"""
     print("弹窗警告功能测试工具")
@@ -158,19 +209,24 @@ def main():
     # 测试对话框外观
     appearance_test_ok = test_dialog_appearance()
     
+    # 测试对话框安全性
+    security_test_ok = test_dialog_security()
+    
     # 总结
     print("\n" + "=" * 50)
     print("测试结果:")
     print(f"弹窗功能: {'✓ 正常' if dialog_test_ok else '✗ 异常'}")
     print(f"对话框外观: {'✓ 正常' if appearance_test_ok else '✗ 异常'}")
+    print(f"对话框安全性: {'✓ 正常' if security_test_ok else '✗ 异常'}")
     
-    if dialog_test_ok and appearance_test_ok:
+    if dialog_test_ok and appearance_test_ok and security_test_ok:
         print("\n建议:")
         print("1. 弹窗警告功能已启用")
-        print("2. 异常检测达到阈值时会显示警告对话框")
-        print("3. 用户可以取消锁屏或立即锁屏")
-        print("4. 运行 python start_monitor.py 启动完整系统")
-        print("5. 按 pppp 开始预测，观察异常检测和弹窗")
+        print("2. 异常检测达到阈值时会显示不可关闭的警告对话框")
+        print("3. 用户无法关闭弹窗，只能等待倒计时结束或立即锁屏")
+        print("4. 倒计时结束后系统将强制锁屏")
+        print("5. 运行 python start_monitor.py 启动完整系统")
+        print("6. 按 pppp 开始预测，观察异常检测和弹窗")
         
         # 询问是否进行手动测试
         response = input("\n是否进行手动警告对话框测试? (y/N): ")
