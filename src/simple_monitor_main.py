@@ -279,16 +279,37 @@ class SimpleMonitor:
                 print("[系统] 错误: 没有当前用户ID")
                 return False
             
+            # 检查是否有鼠标采集器
+            if not self.mouse_collector:
+                self.logger.error("没有鼠标采集器实例")
+                print("[系统] 错误: 请先进行数据采集")
+                return False
+            
             # 处理当前会话的特征
-            session_id = self.mouse_collector.session_id if self.mouse_collector else None
+            session_id = self.mouse_collector.session_id
             self.logger.debug(f"会话ID: {session_id}")
             
             if not session_id:
                 self.logger.error("没有会话ID")
-                print("[系统] 错误: 没有会话ID")
+                print("[系统] 错误: 没有会话ID，请先进行数据采集")
+                return False
+            
+            # 检查是否有数据
+            try:
+                data = self.mouse_collector.get_session_data(session_id)
+                if not data:
+                    self.logger.error("会话中没有数据")
+                    print("[系统] 错误: 会话中没有数据，请先进行数据采集")
+                    return False
+                self.logger.info(f"会话 {session_id} 有 {len(data)} 条数据")
+            except Exception as e:
+                self.logger.error(f"获取会话数据失败: {str(e)}")
+                print(f"[系统] 错误: 获取会话数据失败: {str(e)}")
                 return False
             
             self.logger.debug("开始处理会话特征...")
+            print("[系统] 开始处理特征...")
+            
             success = self.feature_processor.process_session_features(
                 self.current_user_id, session_id
             )
@@ -300,7 +321,7 @@ class SimpleMonitor:
                 return True
             else:
                 self.logger.error("特征处理失败")
-                print("[系统] 特征处理失败")
+                print("[系统] 特征处理失败，请检查数据质量")
                 return False
                 
         except Exception as e:

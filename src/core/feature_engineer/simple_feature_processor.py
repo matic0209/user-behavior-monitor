@@ -332,6 +332,27 @@ class SimpleFeatureProcessor:
         try:
             self.logger.info(f"处理用户 {user_id} 会话 {session_id} 的特征")
             
+            # 检查数据库连接
+            if not Path(self.db_path).exists():
+                self.logger.error(f"数据库文件不存在: {self.db_path}")
+                return False
+            
+            # 检查是否有鼠标事件数据
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT COUNT(*) FROM mouse_events 
+                WHERE user_id = ? AND session_id = ?
+            ''', (user_id, session_id))
+            count = cursor.fetchone()[0]
+            conn.close()
+            
+            if count == 0:
+                self.logger.warning(f"用户 {user_id} 会话 {session_id} 没有鼠标事件数据")
+                return False
+            
+            self.logger.info(f"用户 {user_id} 会话 {session_id} 有 {count} 条鼠标事件数据")
+            
             # 首先转换mouse_events数据为features
             conversion_success = self.convert_mouse_events_to_features(user_id, session_id)
             if not conversion_success:
@@ -346,6 +367,8 @@ class SimpleFeatureProcessor:
             
         except Exception as e:
             self.logger.error(f"处理用户 {user_id} 会话 {session_id} 的特征失败: {str(e)}")
+            import traceback
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
             return False
 
     def process_all_user_sessions(self, user_id):
