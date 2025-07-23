@@ -311,7 +311,15 @@ class SimpleModelTrainer:
             # 评估模型
             y_pred = model.predict(X_processed)
             y_pred_proba = model.predict_proba(X_processed)
-            accuracy = evaluate_model(y_processed, y_pred, y_pred_proba)
+            evaluation_result = evaluate_model(y_processed, y_pred, y_pred_proba)
+            
+            if evaluation_result is None or evaluation_result[0] is None:
+                self.logger.error("模型评估失败")
+                return False
+            
+            # 提取准确率
+            metrics, cm = evaluation_result
+            accuracy = metrics.get('accuracy', 0.0)
             self.logger.info(f"模型准确率: {accuracy:.4f}")
             
             # 保存模型
@@ -329,6 +337,7 @@ class SimpleModelTrainer:
                     'n_features': len(feature_cols),
                     'training_samples': len(X),
                     'accuracy': accuracy,
+                    'metrics': metrics,
                     'trained_at': datetime.now().isoformat(),
                     'model_type': 'simple_classification'
                 }, f, indent=2)

@@ -630,17 +630,66 @@ def monitor_resources():
 def evaluate_model(y_true, y_pred, y_pred_proba):
     """评估模型性能"""
     try:
+        log_message("Evaluating model performance...")
+        
+        # 确保输入数据是numpy数组
+        y_true = np.array(y_true)
+        y_pred = np.array(y_pred)
+        y_pred_proba = np.array(y_pred_proba)
+        
+        # 检查数据有效性
+        if len(y_true) == 0 or len(y_pred) == 0:
+            log_message("Empty prediction data", level='error')
+            return None, None
+        
+        # 确保y_pred_proba是二维数组
+        if len(y_pred_proba.shape) == 1:
+            y_pred_proba = y_pred_proba.reshape(-1, 1)
+        
         # 计算各种评估指标
-        metrics = {
-            'auc': roc_auc_score(y_true, y_pred_proba),
-            'accuracy': accuracy_score(y_true, y_pred),
-            'precision': precision_score(y_true, y_pred),
-            'recall': recall_score(y_true, y_pred),
-            'f1': f1_score(y_true, y_pred)
-        }
+        metrics = {}
+        
+        try:
+            metrics['accuracy'] = accuracy_score(y_true, y_pred)
+        except Exception as e:
+            log_message(f"Error calculating accuracy: {e}", level='error')
+            metrics['accuracy'] = 0.0
+        
+        try:
+            metrics['precision'] = precision_score(y_true, y_pred, zero_division=0)
+        except Exception as e:
+            log_message(f"Error calculating precision: {e}", level='error')
+            metrics['precision'] = 0.0
+        
+        try:
+            metrics['recall'] = recall_score(y_true, y_pred, zero_division=0)
+        except Exception as e:
+            log_message(f"Error calculating recall: {e}", level='error')
+            metrics['recall'] = 0.0
+        
+        try:
+            metrics['f1'] = f1_score(y_true, y_pred, zero_division=0)
+        except Exception as e:
+            log_message(f"Error calculating f1: {e}", level='error')
+            metrics['f1'] = 0.0
+        
+        try:
+            # 对于二分类，使用第二列的概率
+            if y_pred_proba.shape[1] > 1:
+                y_pred_proba_for_auc = y_pred_proba[:, 1]
+            else:
+                y_pred_proba_for_auc = y_pred_proba[:, 0]
+            metrics['auc'] = roc_auc_score(y_true, y_pred_proba_for_auc)
+        except Exception as e:
+            log_message(f"Error calculating AUC: {e}", level='error')
+            metrics['auc'] = 0.0
         
         # 计算混淆矩阵
-        cm = confusion_matrix(y_true, y_pred)
+        try:
+            cm = confusion_matrix(y_true, y_pred)
+        except Exception as e:
+            log_message(f"Error calculating confusion matrix: {e}", level='error')
+            cm = np.array([[0, 0], [0, 0]])
         
         # 记录评估结果
         log_message("\nModel Evaluation Metrics:")
@@ -648,12 +697,14 @@ def evaluate_model(y_true, y_pred, y_pred_proba):
             log_message(f"{metric.upper()}: {value:.4f}")
         
         log_message("\nConfusion Matrix:")
-        log_message(cm)
+        log_message(str(cm))
         
         return metrics, cm
         
     except Exception as e:
-        log_message(f"Error in model evaluation: {str(e)}")
+        log_message(f"Error in model evaluation: {str(e)}", level='error')
+        import traceback
+        log_message(f"Traceback: {traceback.format_exc()}", level='error')
         return None, None
 
 def load_and_split_data():
