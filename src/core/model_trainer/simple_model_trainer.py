@@ -280,18 +280,33 @@ class SimpleModelTrainer:
             
             # 使用classification模块的函数
             data = load_data(str(temp_data_path))
-            X_processed, y_processed = preprocess_data(data)
+            if data is None:
+                self.logger.error("数据加载失败")
+                return False
+            
+            X_processed, y_processed, _ = preprocess_data(data)
+            if X_processed is None:
+                self.logger.error("数据预处理失败")
+                return False
             
             # 训练模型
             model = train_model(X_processed, y_processed)
+            if model is None:
+                self.logger.error("模型训练失败")
+                return False
             
             # 评估模型
-            accuracy = evaluate_model(model, X_processed, y_processed)
+            y_pred = model.predict(X_processed)
+            y_pred_proba = model.predict_proba(X_processed)
+            accuracy = evaluate_model(y_processed, y_pred, y_pred_proba)
             self.logger.info(f"模型准确率: {accuracy:.4f}")
             
             # 保存模型
             model_path = self.models_path / f"user_{user_id}_model.pkl"
-            save_model(model, str(model_path))
+            save_success = save_model(model, str(model_path))
+            if not save_success:
+                self.logger.error("模型保存失败")
+                return False
             
             # 保存特征列信息
             feature_info_path = self.models_path / f"user_{user_id}_features.json"
@@ -313,6 +328,8 @@ class SimpleModelTrainer:
             
         except Exception as e:
             self.logger.error(f"使用classification模块训练失败: {str(e)}")
+            import traceback
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
             return False
 
     def load_user_model(self, user_id):

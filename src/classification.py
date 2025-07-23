@@ -1020,21 +1020,33 @@ def check_X_safe(X, user_id, stage):
     X = X.replace([np.inf, -np.inf], np.nan).fillna(0).clip(-1e6, 1e6)
     return X
 
-def load_data():
+def load_data(filepath=None):
     """加载数据 - 兼容性函数"""
     try:
         log_message("Loading data...")
         
+        # 使用提供的文件路径或默认路径
+        data_path = filepath if filepath else DATA_PATH
+        
         # 检查数据文件是否存在
-        if not os.path.exists(DATA_PATH):
-            log_message(f"Data file not found: {DATA_PATH}", level='error')
+        if not os.path.exists(data_path):
+            log_message(f"Data file not found: {data_path}", level='error')
             return None, None, None
         
-        # 加载数据
-        with open(DATA_PATH, 'rb') as f:
-            data = pickle.load(f)
+        # 根据文件类型加载数据
+        if data_path.endswith('.csv'):
+            # 加载CSV文件
+            data = pd.read_csv(data_path)
+            log_message(f"CSV data loaded successfully: {len(data)} records")
+        elif data_path.endswith('.pickle') or data_path.endswith('.pkl'):
+            # 加载pickle文件
+            with open(data_path, 'rb') as f:
+                data = pickle.load(f)
+            log_message(f"Pickle data loaded successfully: {len(data)} records")
+        else:
+            log_message(f"Unsupported file format: {data_path}", level='error')
+            return None, None, None
         
-        log_message(f"Data loaded successfully: {len(data)} records")
         return data, None, None
         
     except Exception as e:
@@ -1058,8 +1070,21 @@ def preprocess_data(data):
             # 移除重复行
             data = data.drop_duplicates()
             
-            log_message(f"Data preprocessed: {len(data)} records")
-            return data, None, None
+            # 分离特征和标签
+            if 'label' in data.columns:
+                X = data.drop('label', axis=1)
+                y = data['label']
+            else:
+                # 如果没有标签列，创建一个虚拟标签（用于无监督学习）
+                X = data
+                y = np.zeros(len(data))  # 创建虚拟标签
+            
+            # 确保所有特征都是数值型
+            numeric_cols = X.select_dtypes(include=[np.number]).columns
+            X = X[numeric_cols]
+            
+            log_message(f"Data preprocessed: {len(X)} records, {len(X.columns)} features")
+            return X, y, None
         else:
             log_message("Data is not a DataFrame", level='error')
             return None, None, None
