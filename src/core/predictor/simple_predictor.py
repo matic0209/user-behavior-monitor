@@ -36,8 +36,8 @@ class SimplePredictor:
         # 预测配置
         self.prediction_config = self.config.get_prediction_config()
         self.batch_size = self.prediction_config.get('batch_size', 50)
-        self.prediction_interval = self.prediction_config.get('prediction_interval', 10)
-        self.anomaly_threshold = self.prediction_config.get('anomaly_threshold', 0.5)
+        self.prediction_interval = self.prediction_config.get('prediction_interval', 5)  # 降低到5秒
+        self.anomaly_threshold = self.prediction_config.get('anomaly_threshold', 0.3)  # 降低阈值到0.3
         
         # 预测状态
         self.is_predicting = False
@@ -45,6 +45,7 @@ class SimplePredictor:
         self.data_buffer = deque(maxlen=self.batch_size * 2)
         
         self.logger.info("简单预测器初始化完成")
+        self.logger.info(f"预测配置: batch_size={self.batch_size}, interval={self.prediction_interval}s, threshold={self.anomaly_threshold}")
 
     def load_recent_features(self, user_id, limit=None):
         """从数据库加载最近的特征数据"""
@@ -317,29 +318,51 @@ class SimplePredictor:
 
     def _prediction_loop(self, user_id, callback=None):
         """预测循环"""
+        self.logger.info(f"开始预测循环 - 用户: {user_id}, 间隔: {self.prediction_interval}秒")
+        
         while self.is_predicting:
             try:
                 # 加载最近的特征数据
                 features_df = self.load_recent_features(user_id, self.batch_size)
                 
                 if not features_df.empty:
+                    self.logger.debug(f"加载到 {len(features_df)} 条特征数据")
+                    
                     # 进行预测
                     predictions = self.predict_user_behavior(user_id, features_df)
                     
-                    # 调用回调函数
-                    if callback and predictions:
-                        callback(user_id, predictions)
-                    
-                    # 检查是否有异常
-                    anomalies = [p for p in predictions if not p['is_normal']]
-                    if anomalies:
-                        self.logger.warning(f"检测到 {len(anomalies)} 个异常行为")
+                    if predictions:
+                        self.logger.debug(f"完成 {len(predictions)} 个预测")
+                        
+                        # 分析预测结果
+                        normal_count = sum(1 for p in predictions if p['is_normal'])
+                        anomaly_count = sum(1 for p in predictions if not p['is_normal'])
+                        
+                        self.logger.info(f"预测结果: 正常={normal_count}, 异常={anomaly_count}")
+                        
+                        # 检查是否有异常
+                        anomalies = [p for p in predictions if not p['is_normal']]
+                        if anomalies:
+                            self.logger.warning(f"检测到 {len(anomalies)} 个异常行为")
+                            # 显示异常详情
+                            for i, anomaly in enumerate(anomalies[:3]):  # 只显示前3个
+                                self.logger.warning(f"异常 {i+1}: 分数={anomaly['anomaly_score']:.3f}, 概率={anomaly['probability']:.3f}")
+                        
+                        # 调用回调函数
+                        if callback:
+                            callback(user_id, predictions)
+                    else:
+                        self.logger.warning("预测结果为空")
+                else:
+                    self.logger.debug("没有新的特征数据")
                 
                 # 等待下次预测
                 time.sleep(self.prediction_interval)
                 
             except Exception as e:
                 self.logger.error(f"预测循环出错: {str(e)}")
+                import traceback
+                self.logger.debug(f"异常详情: {traceback.format_exc()}")
                 time.sleep(self.prediction_interval)
 
     def get_user_predictions(self, user_id, limit=100):
