@@ -332,8 +332,10 @@ class SimpleModelTrainer:
             # 保存特征列信息
             feature_info_path = self.models_path / f"user_{user_id}_features.json"
             with open(feature_info_path, 'w') as f:
+                # 确保feature_cols是列表格式
+                feature_cols_list = feature_cols.tolist() if hasattr(feature_cols, 'tolist') else list(feature_cols)
                 json.dump({
-                    'feature_cols': feature_cols.tolist(),
+                    'feature_cols': feature_cols_list,
                     'n_features': len(feature_cols),
                     'training_samples': len(X),
                     'accuracy': accuracy,
