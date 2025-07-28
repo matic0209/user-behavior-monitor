@@ -61,13 +61,13 @@ class AlertService:
         self.logger.info(f"弹窗警告: {'启用' if self.show_warning_dialog else '禁用'}")
         self.logger.info(f"警告持续时间: {self.warning_duration}秒")
 
-    def send_alert(self, user_id, alert_type, message, severity="warning", data=None):
+    def send_alert(self, user_id, alert_type, message, severity="warning", data=None, bypass_cooldown=False):
         """发送告警"""
         try:
             current_time = time.time()
             
-            # 检查冷却时间
-            if user_id in self.last_alert_time:
+            # 检查冷却时间（手动触发可以绕过）
+            if not bypass_cooldown and user_id in self.last_alert_time:
                 time_since_last = current_time - self.last_alert_time[user_id]
                 if time_since_last < self.alert_cooldown:
                     self.logger.debug(f"告警冷却中，剩余 {self.alert_cooldown - time_since_last:.1f} 秒")

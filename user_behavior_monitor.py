@@ -463,14 +463,15 @@ class WindowsBehaviorMonitor:
                 self.logger.info("📋 手动触发告警，直接显示安全警告弹窗")
                 self.alert_service._show_warning_dialog(anomaly_data['anomaly_score'])
             else:
-                # 如果GUI不可用，记录告警
+                # 如果GUI不可用，记录告警（绕过冷却时间）
                 self.logger.info("⚠️ GUI不可用，仅记录手动告警")
                 self.alert_service.send_alert(
                     user_id=self.current_user_id or "manual_test",
                     alert_type="behavior_anomaly",
                     message="手动触发告警测试 - 用户行为异常检测",
                     severity="warning",
-                    data=anomaly_data
+                    data=anomaly_data,
+                    bypass_cooldown=True  # 手动触发绕过冷却时间
                 )
             
             self.logger.info("✅ 手动告警触发成功")
