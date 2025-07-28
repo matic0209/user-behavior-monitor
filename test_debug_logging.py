@@ -84,11 +84,11 @@ def test_user_manager():
         print(f"当前用户ID: {user_id}")
         
         # 测试重新训练用户ID生成
-        retrain_user_id = user_manager.generate_retrain_user_id()
+        retrain_user_id = user_manager.create_retrain_user()
         print(f"重新训练用户ID: {retrain_user_id}")
         
         # 测试用户信息获取
-        user_info = user_manager.get_user_info()
+        user_info = user_manager.get_current_user_info()
         print(f"用户信息: {user_info}")
         
         print("✓ 用户管理器测试完成")
