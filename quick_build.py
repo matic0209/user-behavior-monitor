@@ -91,6 +91,8 @@ def main():
             '--hidden-import=psutil',
             '--hidden-import=tkinter',
             '--add-data=src/utils/config;src/utils/config',
+            '--distpath=dist',
+            '--workpath=build',
             'user_behavior_monitor.py'
         ]
         
@@ -116,6 +118,8 @@ def main():
             '--hidden-import=psutil',
             '--hidden-import=tkinter',
             '--add-data=src/utils/config;src/utils/config',
+            '--distpath=dist',
+            '--workpath=build',
             'user_behavior_monitor_optimized.py'
         ]
         

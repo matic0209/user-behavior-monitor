@@ -103,22 +103,25 @@ class OptimizedExeBuilder:
         """创建优化的spec文件"""
         print("📝 创建优化的spec文件...")
         
-        spec_content = '''# -*- mode: python ; coding: utf-8 -*-
+        # 获取项目根目录的绝对路径
+        project_root = str(self.project_root.absolute())
+        
+        spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 
 import sys
 import os
 from pathlib import Path
 
 # 添加项目根目录
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+project_root = r"{project_root}"
+sys.path.insert(0, project_root)
 
 # 数据文件
 datas = [
-    ('src/utils/config', 'src/utils/config'),
-    ('data', 'data'),
-    ('models', 'models'),
-    ('logs', 'logs'),
+    (os.path.join(project_root, 'src/utils/config'), 'src/utils/config'),
+    (os.path.join(project_root, 'data'), 'data'),
+    (os.path.join(project_root, 'models'), 'models'),
+    (os.path.join(project_root, 'logs'), 'logs'),
 ]
 
 # 隐藏导入
@@ -172,13 +175,13 @@ excludes = [
 ]
 
 a = Analysis(
-    ['user_behavior_monitor.py'],
-    pathex=[str(project_root)],
+    [os.path.join(project_root, 'user_behavior_monitor.py')],
+    pathex=[project_root],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=excludes,
     win_no_prefer_redirects=False,
@@ -250,19 +253,22 @@ exe = EXE(
         """创建服务可执行文件"""
         print("🔧 创建Windows服务可执行文件...")
         
-        service_spec_content = '''# -*- mode: python ; coding: utf-8 -*-
+        # 获取项目根目录的绝对路径
+        project_root = str(self.project_root.absolute())
+        
+        service_spec_content = f'''# -*- mode: python ; coding: utf-8 -*-
 
 import sys
 import os
 from pathlib import Path
 
 # 添加项目根目录
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+project_root = r"{project_root}"
+sys.path.insert(0, project_root)
 
 a = Analysis(
-    ['windows_service.py'],
-    pathex=[str(project_root)],
+    [os.path.join(project_root, 'windows_service.py')],
+    pathex=[project_root],
     binaries=[],
     datas=[],
     hiddenimports=[
@@ -296,7 +302,7 @@ a = Analysis(
         'traceback'
     ],
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=[
         'matplotlib',
