@@ -64,6 +64,41 @@ class OptimizedExeBuilder:
         
         return True
     
+    def _find_pyinstaller(self):
+        """查找pyinstaller可执行文件"""
+        try:
+            # 方法1: 直接查找pyinstaller命令
+            result = subprocess.run(['pyinstaller', '--version'], 
+                                 capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+                return 'pyinstaller'
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        try:
+            # 方法2: 使用python -m pyinstaller
+            result = subprocess.run([sys.executable, '-m', 'PyInstaller', '--version'], 
+                                 capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+                return [sys.executable, '-m', 'PyInstaller']
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        try:
+            # 方法3: 使用python -m pyinstaller (小写)
+            result = subprocess.run([sys.executable, '-m', 'pyinstaller', '--version'], 
+                                 capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+                return [sys.executable, '-m', 'pyinstaller']
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+        
+        print("✗ 找不到PyInstaller，尝试重新安装...")
+        return None
+    
     def create_spec_file(self):
         """创建优化的spec文件"""
         print("📝 创建优化的spec文件...")
@@ -189,14 +224,20 @@ exe = EXE(
         """构建可执行文件"""
         print("🔨 开始构建可执行文件...")
         
+        # 查找pyinstaller
+        pyinstaller_cmd = self._find_pyinstaller()
+        if not pyinstaller_cmd:
+            print("❌ 找不到PyInstaller，请确保已正确安装")
+            return False
+        
         # 使用spec文件构建
-        cmd = [
-            'pyinstaller',
+        cmd = pyinstaller_cmd + [
             '--clean',
             'user_behavior_monitor.spec'
         ]
         
         try:
+            print(f"执行命令: {' '.join(cmd)}")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print("✓ 构建成功!")
             return True
@@ -307,14 +348,20 @@ exe = EXE(
         with open(service_spec_file, 'w', encoding='utf-8') as f:
             f.write(service_spec_content)
         
+        # 查找pyinstaller
+        pyinstaller_cmd = self._find_pyinstaller()
+        if not pyinstaller_cmd:
+            print("❌ 找不到PyInstaller，请确保已正确安装")
+            return False
+        
         # 构建服务
-        cmd = [
-            'pyinstaller',
+        cmd = pyinstaller_cmd + [
             '--clean',
             'windows_service.spec'
         ]
         
         try:
+            print(f"执行命令: {' '.join(cmd)}")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print("✓ 服务构建成功!")
             return True

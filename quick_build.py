@@ -33,10 +33,49 @@ def main():
         subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyinstaller'], check=True)
         print("✓ PyInstaller安装完成")
         
+        # 查找pyinstaller命令
+        def find_pyinstaller():
+            try:
+                # 方法1: 直接查找pyinstaller命令
+                result = subprocess.run(['pyinstaller', '--version'], 
+                                     capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+                    return 'pyinstaller'
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+            
+            try:
+                # 方法2: 使用python -m pyinstaller
+                result = subprocess.run([sys.executable, '-m', 'PyInstaller', '--version'], 
+                                     capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+                    return [sys.executable, '-m', 'PyInstaller']
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+            
+            try:
+                # 方法3: 使用python -m pyinstaller (小写)
+                result = subprocess.run([sys.executable, '-m', 'pyinstaller', '--version'], 
+                                     capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+                    return [sys.executable, '-m', 'pyinstaller']
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+            
+            print("✗ 找不到PyInstaller")
+            return None
+        
+        pyinstaller_cmd = find_pyinstaller()
+        if not pyinstaller_cmd:
+            print("❌ 找不到PyInstaller，请确保已正确安装")
+            return False
+        
         # 构建主程序
         print("🔨 构建主程序...")
-        cmd = [
-            'pyinstaller',
+        cmd = pyinstaller_cmd + [
             '--onefile',
             '--console',
             '--name=UserBehaviorMonitor',
@@ -55,13 +94,13 @@ def main():
             'user_behavior_monitor.py'
         ]
         
+        print(f"执行命令: {' '.join(cmd)}")
         result = subprocess.run(cmd, check=True)
         print("✓ 主程序构建完成")
         
         # 构建优化版本
         print("🔨 构建优化版本...")
-        cmd_optimized = [
-            'pyinstaller',
+        cmd_optimized = pyinstaller_cmd + [
             '--onefile',
             '--console',
             '--name=UserBehaviorMonitorOptimized',
@@ -80,6 +119,7 @@ def main():
             'user_behavior_monitor_optimized.py'
         ]
         
+        print(f"执行命令: {' '.join(cmd_optimized)}")
         result = subprocess.run(cmd_optimized, check=True)
         print("✓ 优化版本构建完成")
         
