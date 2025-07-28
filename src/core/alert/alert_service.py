@@ -384,4 +384,74 @@ class AlertService:
             conn.close()
             
         except Exception as e:
-            self.logger.error(f"清除告警历史失败: {str(e)}") 
+            self.logger.error(f"清除告警历史失败: {str(e)}")
+
+    def force_logout(self):
+        """强制用户登出"""
+        try:
+            self.logger.warning("🚪 开始强制用户登出...")
+            
+            if WINDOWS_AVAILABLE:
+                try:
+                    # 使用Windows API强制登出
+                    win32api.ExitWindowsEx(win32con.EWX_LOGOFF, 0)
+                    self.logger.info("Windows强制登出命令已发送")
+                    return True
+                except Exception as e:
+                    self.logger.error(f"Windows强制登出失败: {str(e)}")
+                    # 备用方案：锁屏
+                    self.logger.warning("改为执行锁屏操作")
+                    self._lock_screen()
+                    return True
+            else:
+                self.logger.warning("Windows API不可用，改为锁屏")
+                self._lock_screen()
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"强制登出失败: {str(e)}")
+            return False
+
+    def get_alert_summary(self, user_id=None, hours=24):
+        """获取告警摘要"""
+        try:
+            stats = self.get_alert_statistics(user_id, hours)
+            
+            summary = {
+                'total_alerts': stats.get('total_alerts', 0),
+                'alerts_by_type': stats.get('alerts_by_type', {}),
+                'time_period_hours': hours,
+                'last_alert_time': None,
+                'alert_trend': 'normal'
+            }
+            
+            # 获取最后一次告警时间
+            if user_id:
+                conn = sqlite3.connect(self.db_path)
+                cursor = conn.cursor()
+                cursor.execute('''
+                    SELECT timestamp FROM alerts 
+                    WHERE user_id = ? 
+                    ORDER BY timestamp DESC 
+                    LIMIT 1
+                ''', (user_id,))
+                result = cursor.fetchone()
+                if result:
+                    summary['last_alert_time'] = result[0]
+                conn.close()
+            
+            # 判断告警趋势
+            if summary['total_alerts'] == 0:
+                summary['alert_trend'] = 'none'
+            elif summary['total_alerts'] >= 5:
+                summary['alert_trend'] = 'high'
+            elif summary['total_alerts'] >= 2:
+                summary['alert_trend'] = 'medium'
+            else:
+                summary['alert_trend'] = 'low'
+            
+            return summary
+            
+        except Exception as e:
+            self.logger.error(f"获取告警摘要失败: {str(e)}")
+            return {} 

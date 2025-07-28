@@ -15,6 +15,8 @@ import traceback
 import win32gui
 import win32con
 import win32api
+import json
+from datetime import datetime
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
@@ -28,6 +30,16 @@ from src.core.feature_engineer.simple_feature_processor import SimpleFeatureProc
 from src.core.model_trainer.simple_model_trainer import SimpleModelTrainer
 from src.core.predictor.simple_predictor import SimplePredictor
 from src.core.alert.alert_service import AlertService
+
+# 检查Windows API是否可用
+WINDOWS_AVAILABLE = True
+try:
+    import win32api
+    import win32con
+except ImportError:
+    WINDOWS_AVAILABLE = False
+    print("警告: Windows API 不可用，无法执行强制登出或锁屏操作。")
+
 
 class WindowsBehaviorMonitor:
     """Windows用户行为异常检测系统"""
@@ -393,27 +405,163 @@ class WindowsBehaviorMonitor:
     def _manual_trigger_alert(self):
         """手动触发告警"""
         try:
+            # 记录手动触发告警的开始
+            self.logger.info("=== 手动触发告警测试开始 ===")
+            self.logger.info(f"当前用户ID: {self.current_user_id}")
+            self.logger.info(f"当前会话ID: {self.user_manager.get_current_user_info().get('session_id', 'unknown')}")
+            
             # 模拟异常数据
             anomaly_data = {
                 'anomaly_score': 0.95,
                 'probability': 0.05,
                 'prediction': 0,
-                'is_normal': False
+                'is_normal': False,
+                'trigger_type': 'manual_test',
+                'timestamp': time.time()
             }
             
             # 发送告警
-            self.alert_service.send_alert(
+            alert_success = self.alert_service.send_alert(
                 user_id=self.current_user_id or "manual_test",
                 alert_type="behavior_anomaly",
-                message="手动触发告警测试",
+                message="手动触发告警测试 - 用户行为异常检测",
                 severity="warning",
                 data=anomaly_data
             )
             
-            self.logger.info("手动告警触发完成")
+            if alert_success:
+                self.logger.info("✅ 手动告警触发成功")
+                self.logger.info("📋 告警详情:")
+                self.logger.info(f"   - 异常分数: {anomaly_data['anomaly_score']:.3f}")
+                self.logger.info(f"   - 触发类型: {anomaly_data['trigger_type']}")
+                self.logger.info(f"   - 时间戳: {datetime.fromtimestamp(anomaly_data['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}")
+                
+                # 检查是否需要执行系统操作
+                if self.alert_service.enable_system_actions:
+                    self.logger.info("🔒 系统将根据配置执行安全操作（锁屏/登出）")
+                    self._handle_post_alert_actions(anomaly_data)
+                else:
+                    self.logger.info("⚠️ 系统操作已禁用，仅记录告警")
+                
+                # 记录告警统计
+                self._log_alert_statistics()
+                
+            else:
+                self.logger.warning("⚠️ 手动告警触发失败或处于冷却期")
+            
+            self.logger.info("=== 手动触发告警测试完成 ===")
             
         except Exception as e:
             self.logger.error(f"手动触发告警失败: {str(e)}")
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
+
+    def _handle_post_alert_actions(self, anomaly_data):
+        """处理告警后的系统操作"""
+        try:
+            anomaly_score = anomaly_data.get('anomaly_score', 0)
+            
+            # 检查是否需要强制登出
+            force_logout_enabled = self.config.get_alert_config().get('force_logout', False)
+            
+            if force_logout_enabled and anomaly_score >= 0.9:
+                self.logger.warning("🚨 异常分数过高，将执行强制登出")
+                self._force_user_logout()
+            elif anomaly_score >= self.alert_service.lock_screen_threshold:
+                self.logger.warning("🔒 异常分数达到锁屏阈值，将执行锁屏")
+                # 锁屏操作已在告警服务中处理
+            else:
+                self.logger.info("📝 仅记录告警，不执行系统操作")
+                
+        except Exception as e:
+            self.logger.error(f"处理告警后操作失败: {str(e)}")
+
+    def _force_user_logout(self):
+        """强制用户登出"""
+        try:
+            self.logger.warning("🔄 开始强制用户登出流程...")
+            
+            # 1. 停止数据采集
+            if self.is_collecting and self.data_collector:
+                self.logger.info("停止数据采集...")
+                self.data_collector.stop_collection()
+                self.is_collecting = False
+            
+            # 2. 停止预测
+            if self.is_predicting:
+                self.logger.info("停止异常检测...")
+                self.predictor.stop_continuous_prediction()
+                self.is_predicting = False
+            
+            # 3. 保存当前状态
+            self.logger.info("保存系统状态...")
+            self._save_system_state()
+            
+            # 4. 执行登出操作
+            if WINDOWS_AVAILABLE:
+                self.logger.warning("🚪 执行Windows强制登出...")
+                try:
+                    # 使用Windows API强制登出
+                    import win32api
+                    import win32con
+                    win32api.ExitWindowsEx(win32con.EWX_LOGOFF, 0)
+                    self.logger.info("Windows强制登出命令已发送")
+                except Exception as e:
+                    self.logger.error(f"Windows强制登出失败: {str(e)}")
+                    # 备用方案：锁屏
+                    self.alert_service._lock_screen()
+            else:
+                self.logger.warning("🔒 无法执行强制登出，改为锁屏")
+                self.alert_service._lock_screen()
+            
+            # 5. 记录登出日志
+            self.logger.warning("📋 强制登出完成，系统状态:")
+            self.logger.warning(f"   - 数据采集: {'运行中' if self.is_collecting else '已停止'}")
+            self.logger.warning(f"   - 异常检测: {'运行中' if self.is_predicting else '已停止'}")
+            self.logger.warning(f"   - 系统运行: {'运行中' if self.is_running else '已停止'}")
+            
+        except Exception as e:
+            self.logger.error(f"强制用户登出失败: {str(e)}")
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
+
+    def _save_system_state(self):
+        """保存系统状态"""
+        try:
+            state = {
+                'timestamp': time.time(),
+                'user_id': self.current_user_id,
+                'session_id': self.user_manager.get_current_user_info().get('session_id'),
+                'is_collecting': self.is_collecting,
+                'is_predicting': self.is_predicting,
+                'is_running': self.is_running,
+                'data_count': self._get_data_count() if self.data_collector else 0,
+                'last_alert_time': time.time()
+            }
+            
+            # 保存到文件
+            state_file = Path("data/system_state.json")
+            state_file.parent.mkdir(exist_ok=True)
+            
+            with open(state_file, 'w', encoding='utf-8') as f:
+                json.dump(state, f, indent=2, ensure_ascii=False)
+            
+            self.logger.info(f"系统状态已保存到: {state_file}")
+            
+        except Exception as e:
+            self.logger.error(f"保存系统状态失败: {str(e)}")
+
+    def _log_alert_statistics(self):
+        """记录告警统计信息"""
+        try:
+            if self.current_user_id:
+                stats = self.alert_service.get_alert_statistics(self.current_user_id, hours=1)
+                if stats:
+                    self.logger.info("📊 最近1小时告警统计:")
+                    self.logger.info(f"   - 总告警数: {stats.get('total_alerts', 0)}")
+                    for alert_type, count in stats.get('alerts_by_type', {}).items():
+                        self.logger.info(f"   - {alert_type}: {count} 条")
+                        
+        except Exception as e:
+            self.logger.error(f"记录告警统计失败: {str(e)}")
 
     def stop(self):
         """停止系统"""
