@@ -359,6 +359,15 @@ class SimpleFeatureProcessor:
             
             if count == 0:
                 self.logger.warning(f"用户 {user_id} 会话 {session_id} 没有鼠标事件数据")
+                self.logger.info("💡 建议：")
+                self.logger.info("   - 确保鼠标数据采集正在运行")
+                self.logger.info("   - 移动鼠标以生成更多数据")
+                self.logger.info("   - 等待系统自动重新采集数据")
+                return False
+            
+            if count < 100:  # 设置最小数据量阈值
+                self.logger.warning(f"用户 {user_id} 会话 {session_id} 数据量不足 ({count} < 100)")
+                self.logger.info("💡 建议：继续使用鼠标，系统将自动重新采集数据")
                 return False
             
             self.logger.info(f"用户 {user_id} 会话 {session_id} 有 {count} 条鼠标事件数据")

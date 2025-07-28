@@ -200,6 +200,15 @@ class WindowsBehaviorMonitor:
             if self._auto_collect_data():
                 self.logger.info("数据采集完成")
                 
+                # 检查数据量是否足够
+                data_count = self._get_data_count()
+                self.logger.info(f"当前数据量: {data_count} 个数据点")
+                
+                if data_count < self.min_data_points:
+                    self.logger.warning(f"数据量不足 ({data_count} < {self.min_data_points})，跳过特征处理")
+                    self.logger.info("建议：继续使用鼠标，系统将自动重新采集数据")
+                    return False
+                
                 # 2. 自动特征处理
                 self.logger.info("=== 步骤2: 自动特征处理 ===")
                 if self._auto_process_features():
@@ -247,22 +256,39 @@ class WindowsBehaviorMonitor:
             
             # 等待足够的数据
             start_time = time.time()
-            while time.time() - start_time < self.collection_timeout:
+            max_wait_time = self.collection_timeout * 2  # 增加最大等待时间
+            
+            while time.time() - start_time < max_wait_time:
                 # 检查数据量
                 data_count = self._get_data_count()
+                self.logger.debug(f"当前数据量: {data_count}/{self.min_data_points}")
+                
                 if data_count >= self.min_data_points:
-                    self.logger.info(f"已采集 {data_count} 个数据点，停止采集")
+                    self.logger.info(f"✅ 已采集 {data_count} 个数据点，达到要求")
                     break
                 
-                time.sleep(5)  # 每5秒检查一次
+                # 每10秒显示一次进度
+                elapsed = time.time() - start_time
+                if int(elapsed) % 10 == 0:
+                    self.logger.info(f"⏳ 数据采集中... ({data_count}/{self.min_data_points}) - 已等待 {int(elapsed)} 秒")
+                
+                time.sleep(2)  # 每2秒检查一次
             else:
-                self.logger.warning(f"采集超时，已采集 {self._get_data_count()} 个数据点")
+                self.logger.warning(f"⚠️ 采集超时，已采集 {self._get_data_count()} 个数据点")
+                self.logger.info("💡 建议：继续使用鼠标，系统将自动重新采集")
             
             # 停止采集
             self.data_collector.stop_collection()
             self.is_collecting = False
             
-            return True
+            # 最终检查数据量
+            final_count = self._get_data_count()
+            if final_count >= self.min_data_points:
+                self.logger.info(f"✅ 数据采集完成，共 {final_count} 个数据点")
+                return True
+            else:
+                self.logger.warning(f"⚠️ 数据量不足 ({final_count} < {self.min_data_points})")
+                return False
             
         except Exception as e:
             self.logger.error(f"自动数据采集失败: {str(e)}")
