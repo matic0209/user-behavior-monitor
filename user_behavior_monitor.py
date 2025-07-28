@@ -40,6 +40,15 @@ except ImportError:
     WINDOWS_AVAILABLE = False
     print("警告: Windows API 不可用，无法执行强制登出或锁屏操作。")
 
+# 检查GUI是否可用
+GUI_AVAILABLE = True
+try:
+    import tkinter
+    import tkinter.messagebox
+except ImportError:
+    GUI_AVAILABLE = False
+    print("警告: GUI 不可用，无法显示告警弹窗。")
+
 
 class WindowsBehaviorMonitor:
     """Windows用户行为异常检测系统"""
@@ -449,34 +458,29 @@ class WindowsBehaviorMonitor:
                 'timestamp': time.time()
             }
             
-            # 发送告警
-            alert_success = self.alert_service.send_alert(
-                user_id=self.current_user_id or "manual_test",
-                alert_type="behavior_anomaly",
-                message="手动触发告警测试 - 用户行为异常检测",
-                severity="warning",
-                data=anomaly_data
-            )
-            
-            if alert_success:
-                self.logger.info("✅ 手动告警触发成功")
-                self.logger.info("📋 告警详情:")
-                self.logger.info(f"   - 异常分数: {anomaly_data['anomaly_score']:.3f}")
-                self.logger.info(f"   - 触发类型: {anomaly_data['trigger_type']}")
-                self.logger.info(f"   - 时间戳: {datetime.fromtimestamp(anomaly_data['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}")
-                
-                # 检查是否需要执行系统操作
-                if self.alert_service.enable_system_actions:
-                    self.logger.info("🔒 系统将根据配置执行安全操作（锁屏/登出）")
-                    self._handle_post_alert_actions(anomaly_data)
-                else:
-                    self.logger.info("⚠️ 系统操作已禁用，仅记录告警")
-                
-                # 记录告警统计
-                self._log_alert_statistics()
-                
+            # 手动触发告警时，直接显示弹窗，不通过告警服务
+            if self.alert_service.enable_system_actions and GUI_AVAILABLE:
+                self.logger.info("📋 手动触发告警，直接显示安全警告弹窗")
+                self.alert_service._show_warning_dialog(anomaly_data['anomaly_score'])
             else:
-                self.logger.warning("⚠️ 手动告警触发失败或处于冷却期")
+                # 如果GUI不可用，记录告警
+                self.logger.info("⚠️ GUI不可用，仅记录手动告警")
+                self.alert_service.send_alert(
+                    user_id=self.current_user_id or "manual_test",
+                    alert_type="behavior_anomaly",
+                    message="手动触发告警测试 - 用户行为异常检测",
+                    severity="warning",
+                    data=anomaly_data
+                )
+            
+            self.logger.info("✅ 手动告警触发成功")
+            self.logger.info("📋 告警详情:")
+            self.logger.info(f"   - 异常分数: {anomaly_data['anomaly_score']:.3f}")
+            self.logger.info(f"   - 触发类型: {anomaly_data['trigger_type']}")
+            self.logger.info(f"   - 时间戳: {datetime.fromtimestamp(anomaly_data['timestamp']).strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            # 记录告警统计
+            self._log_alert_statistics()
             
             self.logger.info("=== 手动触发告警测试完成 ===")
             
@@ -490,17 +494,9 @@ class WindowsBehaviorMonitor:
             anomaly_score = anomaly_data.get('anomaly_score', 0)
             trigger_type = anomaly_data.get('trigger_type', 'auto')
             
-            # 手动触发告警时，总是显示弹窗，不直接登出
+            # 手动触发告警时，不执行额外操作（已在_manual_trigger_alert中处理）
             if trigger_type == 'manual_test':
-                self.logger.info("📋 手动触发告警，将显示安全警告弹窗")
-                # 手动触发时，通过告警服务显示弹窗
-                self.alert_service.send_alert(
-                    user_id=self.current_user_id or "manual_test",
-                    alert_type="behavior_anomaly",
-                    message="手动触发告警测试 - 显示安全警告",
-                    severity="warning",
-                    data=anomaly_data
-                )
+                self.logger.info("📋 手动触发告警已完成，无需额外操作")
                 return
             
             # 自动检测的异常行为处理
