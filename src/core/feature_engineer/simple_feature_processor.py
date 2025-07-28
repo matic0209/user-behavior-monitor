@@ -280,9 +280,9 @@ class SimpleFeatureProcessor:
                 self.logger.debug("提取高级特征")
                 df = add_advanced_features(df)
             
-            # 3. 特征聚合
-            self.logger.debug("聚合特征")
-            aggregated_features = aggregate_features(df)
+            # 3. 按时间窗口聚合特征
+            self.logger.debug("按时间窗口聚合特征")
+            aggregated_features = self._aggregate_features_by_window(df)
             
             # 4. 特征对齐（确保与训练数据一致）
             if not aggregated_features.empty:
@@ -293,6 +293,51 @@ class SimpleFeatureProcessor:
             
         except Exception as e:
             self.logger.error(f"特征处理失败: {str(e)}")
+            return pd.DataFrame()
+
+    def _aggregate_features_by_window(self, df):
+        """按时间窗口聚合特征"""
+        try:
+            if df.empty:
+                return pd.DataFrame()
+            
+            # 获取窗口大小配置
+            prediction_config = self.config.get_prediction_config()
+            window_size = prediction_config.get('window_size', 100)
+            
+            self.logger.info(f"按窗口大小 {window_size} 聚合特征")
+            
+            # 按窗口分组聚合
+            aggregated_features = []
+            
+            # 将数据分成窗口大小的块
+            for i in range(0, len(df), window_size):
+                window_df = df.iloc[i:i+window_size]
+                
+                if len(window_df) < 10:  # 窗口太小，跳过
+                    continue
+                
+                # 对每个窗口聚合特征
+                window_features = aggregate_features(window_df)
+                
+                if not window_features.empty:
+                    # 添加时间戳信息
+                    window_features['window_start_time'] = window_df['client timestamp'].iloc[0]
+                    window_features['window_end_time'] = window_df['client timestamp'].iloc[-1]
+                    window_features['window_size'] = len(window_df)
+                    
+                    aggregated_features.append(window_features)
+            
+            if aggregated_features:
+                result = pd.concat(aggregated_features, ignore_index=True)
+                self.logger.info(f"生成了 {len(result)} 个特征窗口")
+                return result
+            else:
+                self.logger.warning("没有生成任何特征窗口")
+                return pd.DataFrame()
+                
+        except Exception as e:
+            self.logger.error(f"按窗口聚合特征失败: {str(e)}")
             return pd.DataFrame()
 
     def save_features_to_db(self, features_df, user_id, session_id):

@@ -345,7 +345,7 @@ class WindowsBehaviorMonitor:
         try:
             self.logger.info("开始自动模型训练...")
             
-            success = self.model_trainer.train_model(self.current_user_id)
+            success = self.model_trainer.train_user_model(self.current_user_id)
             
             return success
             
