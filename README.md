@@ -12,6 +12,9 @@
 - ⌨️ **快捷键控制**: 支持键盘快捷键控制各个阶段
 - 📊 **详细日志**: 完整的调试日志和状态监控
 - 🔄 **自动流程**: 自动采集 → 自动训练 → 自动检测
+- 🖥️ **Windows服务**: 支持作为Windows服务运行
+- 🔧 **后台进程**: 支持作为后台进程运行
+- 📦 **EXE打包**: 支持打包为Windows可执行文件
 
 ## 系统架构
 
@@ -27,8 +30,14 @@
 │   └── 简单预测器
 ├── 告警服务层 (Alert Service)
 │   └── 告警服务
-└── 用户管理层 (User Management)
-    └── 用户管理器
+├── 用户管理层 (User Management)
+│   └── 用户管理器
+├── 服务管理层 (Service Management)
+│   ├── Windows服务管理
+│   └── 后台进程管理
+└── 部署管理层 (Deployment)
+    ├── EXE打包工具
+    └── 优化配置管理
 ```
 
 ## 快速开始
@@ -147,7 +156,125 @@ python user_behavior_monitor.py
 - 系统自动开始实时异常检测
 - 检测到异常时自动发送告警
 
-### 日志文件
+## 部署方案
+
+### 1. EXE打包部署
+
+#### 快速打包
+
+```bash
+# 使用简化打包脚本
+python simple_build.py
+
+# 或使用优化打包脚本
+python build_optimized_exe.py
+```
+
+#### 打包选项
+
+- **`simple_build.py`**: 简化打包，避免spec文件复杂性
+- **`build_optimized_exe.py`**: 优化打包，包含长期运行优化
+- **`quick_build.py`**: 快速打包，生成两个版本
+
+#### 优化特性
+
+打包后的EXE包含以下优化：
+- 内存管理和垃圾回收优化
+- 性能监控和自动重启
+- 日志轮转和错误处理
+- 长期运行稳定性增强
+
+### 2. Windows服务部署
+
+#### 安装服务
+
+```bash
+# 以管理员权限运行
+python service_manager.py install
+```
+
+#### 服务管理
+
+```bash
+# 启动服务
+python service_manager.py start
+
+# 停止服务
+python service_manager.py stop
+
+# 查看服务状态
+python service_manager.py status
+
+# 卸载服务
+python service_manager.py uninstall
+```
+
+#### 服务特性
+
+- 自动启动：系统启动时自动运行
+- 后台运行：无界面运行，不影响用户操作
+- 自动重启：崩溃时自动重启
+- 日志记录：完整的服务运行日志
+
+### 3. 后台进程部署
+
+#### 创建后台进程
+
+```bash
+# 创建后台进程配置
+python background_manager.py create_config
+
+# 启动后台进程
+python background_manager.py start
+```
+
+#### 进程管理
+
+```bash
+# 停止后台进程
+python background_manager.py stop
+
+# 查看进程状态
+python background_manager.py status
+
+# 使用批处理文件管理
+start_background.bat  # 启动
+stop_background.bat   # 停止
+```
+
+#### 后台进程特性
+
+- 隐藏运行：无控制台窗口
+- 轻量级：比Windows服务更轻量
+- 简单管理：使用批处理文件管理
+- 灵活配置：可自定义启动参数
+
+### 4. 部署方案对比
+
+| 特性 | 直接运行 | EXE打包 | Windows服务 | 后台进程 |
+|------|----------|---------|-------------|----------|
+| 安装复杂度 | 低 | 中 | 高 | 中 |
+| 运行稳定性 | 中 | 高 | 最高 | 高 |
+| 资源占用 | 中 | 中 | 低 | 低 |
+| 管理便利性 | 高 | 中 | 中 | 高 |
+| 自动启动 | 否 | 否 | 是 | 可配置 |
+| 权限要求 | 低 | 低 | 高 | 低 |
+
+### 5. 推荐部署方案
+
+#### 开发测试环境
+- **方案**: 直接运行Python脚本
+- **优势**: 便于调试和开发
+
+#### 生产环境
+- **方案**: Windows服务 + 优化EXE
+- **优势**: 稳定性最高，自动启动
+
+#### 轻量级部署
+- **方案**: 后台进程 + 优化EXE
+- **优势**: 简单易用，资源占用低
+
+## 日志文件
 
 系统会生成详细的日志文件：
 
@@ -155,6 +282,8 @@ python user_behavior_monitor.py
 - **错误日志**: `logs/error_*.log` - 错误和异常信息
 - **调试日志**: `logs/debug_*.log` - 详细的调试信息
 - **告警日志**: `logs/alerts/` - 异常告警记录
+- **服务日志**: `logs/service_*.log` - 服务运行日志
+- **后台日志**: `logs/background_*.log` - 后台进程日志
 
 ## 故障排除
 
@@ -226,6 +355,28 @@ pip uninstall pywin32
 pip install pywin32
 ```
 
+#### 6. PyInstaller打包问题
+
+**问题**: `pyinstaller` 命令未找到
+
+**解决方案**:
+```bash
+# 安装PyInstaller
+pip install pyinstaller
+
+# 或使用测试脚本检查
+python test_pyinstaller.py
+```
+
+#### 7. 服务安装问题
+
+**问题**: Windows服务安装失败
+
+**解决方案**:
+- 确保以管理员权限运行
+- 检查 `pywin32` 是否正确安装
+- 查看服务日志获取详细错误信息
+
 ### 调试模式
 
 系统支持详细的调试日志输出：
@@ -258,6 +409,12 @@ tail -f logs/debug_*.log
 - **告警配置**: 告警阈值、响应方式
 - **日志设置**: 日志级别、文件轮转
 
+### 优化配置文件
+
+- **`optimization_config.json`**: 长期运行优化配置
+- **`service_config.json`**: Windows服务配置
+- **`background_config.json`**: 后台进程配置
+
 ## 开发说明
 
 ### 项目结构
@@ -282,7 +439,12 @@ user-behavior-monitor/
 ├── requirements.txt             # 依赖列表
 ├── user_behavior_monitor.py    # 主启动脚本
 ├── install_dependencies.py     # 安装脚本
-└── test_debug_logging.py       # 测试脚本
+├── test_debug_logging.py       # 测试脚本
+├── build_optimized_exe.py      # 优化打包脚本
+├── simple_build.py             # 简化打包脚本
+├── service_manager.py          # Windows服务管理
+├── background_manager.py       # 后台进程管理
+└── test_pyinstaller.py        # PyInstaller测试
 ```
 
 ### 扩展开发
@@ -293,6 +455,7 @@ user-behavior-monitor/
 2. **实现新的特征**: 在 `FeatureProcessor` 中添加特征提取方法
 3. **集成新的模型**: 实现 `ModelTrainer` 接口
 4. **自定义告警**: 扩展 `AlertService` 功能
+5. **添加新的部署方式**: 扩展服务管理功能
 
 ## 许可证
 
@@ -304,7 +467,19 @@ user-behavior-monitor/
 
 ## 更新日志
 
-### v1.2.0 (最新)
+### v1.3.0 (最新)
+- ✨ 新增Windows服务管理功能 (`service_manager.py`)
+- ✨ 新增后台进程管理功能 (`background_manager.py`)
+- ✨ 新增优化EXE打包功能 (`build_optimized_exe.py`)
+- ✨ 新增简化打包功能 (`simple_build.py`)
+- ✨ 新增长期运行优化配置
+- 🔧 优化告警服务，修复弹窗问题
+- 📝 更新文档，添加部署方案说明
+- 🛠️ 改进错误处理和异常信息
+- 🐛 修复多个已知问题
+- 🔄 改进自动工作流程的稳定性
+
+### v1.2.0
 - ✨ 简化工作流程，实现完全自动化的采集→训练→检测流程
 - 🔧 简化快捷键系统，只保留核心功能（rrrr、aaaa、qqqq）
 - 📝 更新文档以反映最新实现
