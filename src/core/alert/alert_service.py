@@ -353,6 +353,37 @@ class AlertService:
             # 如果失败，直接锁屏
             self._execute_lock_screen(window)
 
+    def _execute_lock_screen(self, window):
+        """执行锁屏操作并关闭窗口"""
+        try:
+            self.logger.warning("执行最终锁屏操作...")
+            print("[系统] 执行最终锁屏操作...")
+            
+            # 关闭警告窗口
+            try:
+                window.destroy()
+                self.logger.info("警告窗口已关闭")
+            except Exception as e:
+                self.logger.error(f"关闭警告窗口失败: {str(e)}")
+            
+            # 执行锁屏
+            self._lock_screen()
+            
+        except Exception as e:
+            self.logger.error(f"执行最终锁屏失败: {str(e)}")
+            # 如果失败，尝试直接锁屏
+            try:
+                self._lock_screen()
+            except Exception as e2:
+                self.logger.error(f"备用锁屏也失败: {str(e2)}")
+
+    def _prevent_close(self, event=None):
+        """阻止窗口关闭"""
+        # 此方法用于阻止用户关闭警告窗口
+        self.logger.info("用户尝试关闭警告窗口，已阻止")
+        print("[系统] 警告：此窗口无法关闭！")
+        return "break"  # 阻止事件传播
+
     def _lock_screen(self):
         """锁屏操作"""
         try:
