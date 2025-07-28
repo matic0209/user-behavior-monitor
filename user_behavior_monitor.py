@@ -38,7 +38,7 @@ class WindowsBehaviorMonitor:
         self.config = ConfigLoader()
         
         self.logger.info("=== Windows用户行为异常检测系统启动 ===")
-        self.logger.info("版本: v1.0 Windows版")
+        self.logger.info("版本: v1.2.0 Windows版")
         
         # 系统状态
         self.is_running = False
@@ -156,7 +156,7 @@ class WindowsBehaviorMonitor:
     def _show_system_info(self):
         """显示系统信息"""
         print("\n" + "="*60)
-        print("Windows用户行为异常检测系统 v1.0")
+        print("Windows用户行为异常检测系统 v1.2.0")
         print("="*60)
         print("系统将自动执行以下流程:")
         print("1. 自动采集鼠标行为数据")

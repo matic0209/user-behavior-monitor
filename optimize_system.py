@@ -354,23 +354,14 @@ python user_behavior_monitor.py
 ## 使用流程
 
 1. **启动系统**: 运行主程序
-2. **数据采集**: 按 `cccc` 开始，按 `ssss` 停止
-3. **特征处理**: 按 `ffff` 处理特征
-4. **模型训练**: 按 `tttt` 训练模型
-5. **开始监控**: 按 `pppp` 开始异常检测
-6. **查看状态**: 按 `iiii` 查看系统状态
+2. **自动工作流程**: 系统自动执行数据采集 → 特征处理 → 模型训练 → 异常检测
+3. **快捷键控制**: 使用快捷键进行额外控制
 
 ## 快捷键说明
 | 快捷键 | 功能 |
 |--------|------|
-| `cccc` | 开始数据采集 |
-| `ssss` | 停止数据采集 |
-| `ffff` | 处理特征 |
-| `tttt` | 训练模型 |
-| `pppp` | 开始预测 |
-| `xxxx` | 停止预测 |
-| `rrrr` | 重新训练 |
-| `iiii` | 显示状态 |
+| `rrrr` | 重新采集和训练 |
+| `aaaa` | 手动触发告警弹窗 |
 | `qqqq` | 退出系统 |
 
 ## 故障排除
@@ -396,7 +387,7 @@ python user_behavior_monitor.py
         
         # 创建版本信息
         version_info = {
-            "version": "1.0.0",
+            "version": "1.2.0",
             "build_date": time.strftime("%Y-%m-%d %H:%M:%S"),
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
             "platform": platform.system(),
@@ -404,8 +395,8 @@ python user_behavior_monitor.py
                 "实时鼠标行为监控",
                 "机器学习异常检测",
                 "自动锁屏保护",
-                "不可关闭警告弹窗",
-                "快捷键控制",
+                "自动工作流程",
+                "简化快捷键控制",
                 "详细日志记录"
             ]
         }

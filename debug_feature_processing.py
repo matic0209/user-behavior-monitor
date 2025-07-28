@@ -198,7 +198,7 @@ def main():
     elif not collection_ok:
         print("\n建议:")
         print("1. 先进行数据采集")
-        print("2. 按 cccc 开始采集，ssss 停止采集")
+        print("2. 系统将自动执行数据采集")
     elif not feature_ok:
         print("\n建议:")
         print("1. 检查数据质量")

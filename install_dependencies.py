@@ -147,11 +147,10 @@ def main():
         print("\n🎉 所有检查通过！系统可以正常运行。")
         print("\n使用说明:")
         print("1. 运行 python start_monitor.py 启动系统")
-        print("2. 按 cccc 开始数据采集")
-        print("3. 按 ssss 停止数据采集")
-        print("4. 按 ffff 处理特征")
-        print("5. 按 tttt 训练模型")
-        print("6. 按 qqqq 退出系统")
+        print("2. 系统将自动执行数据采集")
+        print("3. 系统将自动处理特征")
+        print("4. 系统将自动训练模型")
+        print("5. 系统将自动开始异常检测")
     else:
         print("\n❌ 存在一些问题，请根据上述信息进行修复。")
         
