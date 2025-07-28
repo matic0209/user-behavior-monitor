@@ -176,44 +176,21 @@ class AlertService:
             warning_window.geometry("600x500")
             warning_window.configure(bg='#ff4444')
             
-            # 设置窗口置顶且不可关闭
+            # 设置窗口置顶
             warning_window.attributes('-topmost', True)
             warning_window.focus_force()
             
-            # 禁用窗口关闭按钮和所有关闭方式
-            warning_window.protocol("WM_DELETE_WINDOW", lambda: None)
+            # 禁用窗口关闭按钮
             warning_window.protocol("WM_DELETE_WINDOW", self._prevent_close)
             
-            # 禁用所有可能的关闭快捷键
+            # 禁用基本的关闭快捷键
             warning_window.bind('<Alt-F4>', self._prevent_close)
             warning_window.bind('<Escape>', self._prevent_close)
             warning_window.bind('<Control-W>', self._prevent_close)
             warning_window.bind('<Control-Q>', self._prevent_close)
-            warning_window.bind('<Control-C>', self._prevent_close)
-            warning_window.bind('<Control-Z>', self._prevent_close)
-            warning_window.bind('<Control-X>', self._prevent_close)
-            warning_window.bind('<Control-V>', self._prevent_close)
-            warning_window.bind('<Control-A>', self._prevent_close)
-            warning_window.bind('<Control-S>', self._prevent_close)
-            warning_window.bind('<Control-O>', self._prevent_close)
-            warning_window.bind('<Control-N>', self._prevent_close)
-            warning_window.bind('<Control-T>', self._prevent_close)
-            warning_window.bind('<Control-Tab>', self._prevent_close)
-            warning_window.bind('<Alt-Tab>', self._prevent_close)
-            warning_window.bind('<Windows>', self._prevent_close)
-            warning_window.bind('<F11>', self._prevent_close)
-            warning_window.bind('<F12>', self._prevent_close)
             
             # 禁用鼠标右键菜单
             warning_window.bind('<Button-3>', self._prevent_close)
-            
-            # 禁用任务管理器快捷键
-            warning_window.bind('<Control-Alt-Delete>', self._prevent_close)
-            warning_window.bind('<Control-Shift-Escape>', self._prevent_close)
-            
-            # 设置窗口为模态（阻止与其他窗口的交互）
-            warning_window.transient()
-            warning_window.grab_set()
             
             # 创建主框架
             main_frame = tk.Frame(warning_window, bg='#ff4444')
