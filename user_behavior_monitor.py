@@ -355,12 +355,12 @@ class WindowsBehaviorMonitor:
             return False
 
     # 简化的回调函数
-    def _on_retrain_model(self):
+    def _on_retrain_model(self, user_id=None):
         """重新训练回调"""
         self.logger.info("用户请求重新采集和训练")
         self._restart_workflow()
 
-    def _on_trigger_alert(self):
+    def _on_trigger_alert(self, user_id=None):
         """手动触发告警回调"""
         self.logger.info("用户请求手动触发告警")
         self._manual_trigger_alert()
