@@ -172,35 +172,81 @@ class AlertService:
         try:
             # 创建警告窗口
             warning_window = tk.Tk()
-            warning_window.title("安全警告 - 异常行为检测")
-            warning_window.geometry("500x400")
+            warning_window.title("🚨 安全警告 - 异常行为检测")
+            warning_window.geometry("600x500")
             warning_window.configure(bg='#ff4444')
             
             # 设置窗口置顶且不可关闭
             warning_window.attributes('-topmost', True)
             warning_window.focus_force()
             
-            # 禁用窗口关闭按钮
+            # 禁用窗口关闭按钮和所有关闭方式
             warning_window.protocol("WM_DELETE_WINDOW", lambda: None)
+            warning_window.protocol("WM_DELETE_WINDOW", self._prevent_close)
             
-            # 禁用Alt+F4等快捷键
-            warning_window.bind('<Alt-F4>', lambda e: None)
-            warning_window.bind('<Escape>', lambda e: None)
+            # 禁用所有可能的关闭快捷键
+            warning_window.bind('<Alt-F4>', self._prevent_close)
+            warning_window.bind('<Escape>', self._prevent_close)
+            warning_window.bind('<Control-W>', self._prevent_close)
+            warning_window.bind('<Control-Q>', self._prevent_close)
+            warning_window.bind('<Control-C>', self._prevent_close)
+            warning_window.bind('<Control-Z>', self._prevent_close)
+            warning_window.bind('<Control-X>', self._prevent_close)
+            warning_window.bind('<Control-V>', self._prevent_close)
+            warning_window.bind('<Control-A>', self._prevent_close)
+            warning_window.bind('<Control-S>', self._prevent_close)
+            warning_window.bind('<Control-O>', self._prevent_close)
+            warning_window.bind('<Control-N>', self._prevent_close)
+            warning_window.bind('<Control-T>', self._prevent_close)
+            warning_window.bind('<Control-Tab>', self._prevent_close)
+            warning_window.bind('<Alt-Tab>', self._prevent_close)
+            warning_window.bind('<Windows>', self._prevent_close)
+            warning_window.bind('<F11>', self._prevent_close)
+            warning_window.bind('<F12>', self._prevent_close)
+            
+            # 禁用鼠标右键菜单
+            warning_window.bind('<Button-3>', self._prevent_close)
+            
+            # 禁用任务管理器快捷键
+            warning_window.bind('<Control-Alt-Delete>', self._prevent_close)
+            warning_window.bind('<Control-Shift-Escape>', self._prevent_close)
+            
+            # 设置窗口为模态（阻止与其他窗口的交互）
+            warning_window.transient()
+            warning_window.grab_set()
+            
+            # 创建主框架
+            main_frame = tk.Frame(warning_window, bg='#ff4444')
+            main_frame.pack(fill='both', expand=True, padx=20, pady=20)
             
             # 创建警告内容
             title_label = tk.Label(
-                warning_window,
-                text="⚠️ 严重安全警告",
-                font=("Arial", 18, "bold"),
+                main_frame,
+                text="🚨 严重安全警告",
+                font=("Arial", 20, "bold"),
                 fg="white",
                 bg="#ff4444"
             )
-            title_label.pack(pady=20)
+            title_label.pack(pady=(20, 10))
             
+            # 异常分数显示
+            score_frame = tk.Frame(main_frame, bg='#ff4444')
+            score_frame.pack(pady=10)
+            
+            score_label = tk.Label(
+                score_frame,
+                text=f"异常分数: {anomaly_score:.3f}",
+                font=("Arial", 16, "bold"),
+                fg="yellow",
+                bg="#ff4444"
+            )
+            score_label.pack()
+            
+            # 警告消息
             message_label = tk.Label(
-                warning_window,
-                text=f"检测到异常用户行为\n\n异常分数: {anomaly_score:.3f}\n\n系统将在 {self.warning_duration} 秒后自动锁屏\n\n请确保已保存所有工作\n\n此窗口无法关闭",
-                font=("Arial", 12),
+                main_frame,
+                text="检测到异常用户行为\n\n系统将在倒计时结束后自动锁屏\n\n请确保已保存所有工作\n\n⚠️ 此窗口无法关闭",
+                font=("Arial", 14),
                 fg="white",
                 bg="#ff4444",
                 justify="center"
@@ -209,34 +255,50 @@ class AlertService:
             
             # 倒计时标签
             countdown_label = tk.Label(
-                warning_window,
+                main_frame,
                 text=f"剩余时间: {self.warning_duration} 秒",
-                font=("Arial", 16, "bold"),
+                font=("Arial", 18, "bold"),
                 fg="yellow",
                 bg="#ff4444"
             )
             countdown_label.pack(pady=15)
             
-            # 立即锁屏按钮（用户可以选择立即锁屏）
+            # 按钮框架
+            button_frame = tk.Frame(main_frame, bg='#ff4444')
+            button_frame.pack(pady=20)
+            
+            # 立即锁屏按钮
             lock_now_button = tk.Button(
-                warning_window,
-                text="立即锁屏",
-                font=("Arial", 14, "bold"),
+                button_frame,
+                text="🔒 立即锁屏",
+                font=("Arial", 16, "bold"),
                 bg="#f44336",
                 fg="white",
+                relief="raised",
+                bd=3,
                 command=lambda: self._lock_screen_now(warning_window)
             )
             lock_now_button.pack(pady=10)
             
-            # 添加说明文字
+            # 安全提示
             info_label = tk.Label(
-                warning_window,
-                text="注意：此窗口无法关闭，系统将自动锁屏",
-                font=("Arial", 10),
+                main_frame,
+                text="🔒 安全模式：此窗口无法关闭，系统将自动锁屏",
+                font=("Arial", 12),
                 fg="yellow",
                 bg="#ff4444"
             )
             info_label.pack(pady=10)
+            
+            # 系统信息
+            system_info = tk.Label(
+                main_frame,
+                text=f"系统时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                font=("Arial", 10),
+                fg="lightgray",
+                bg="#ff4444"
+            )
+            system_info.pack(pady=5)
             
             # 倒计时和自动锁屏
             self._start_countdown(warning_window, countdown_label, self.warning_duration)
@@ -251,15 +313,41 @@ class AlertService:
 
     def _start_countdown(self, window, label, remaining_time):
         """开始倒计时"""
-        if remaining_time > 0:
-            label.config(text=f"剩余时间: {remaining_time} 秒")
-            window.after(1000, lambda: self._start_countdown(window, label, remaining_time - 1))
-        else:
-            # 时间到，执行锁屏
-            self.logger.warning("警告时间结束，执行锁屏")
-            print("[系统] 倒计时结束，正在锁屏...")
-            window.destroy()
-            self._lock_screen()
+        try:
+            if remaining_time > 0:
+                # 更新倒计时显示
+                label.config(text=f"剩余时间: {remaining_time} 秒")
+                
+                # 根据剩余时间调整颜色
+                if remaining_time <= 5:
+                    label.config(fg="red", font=("Arial", 20, "bold"))
+                elif remaining_time <= 10:
+                    label.config(fg="orange", font=("Arial", 19, "bold"))
+                else:
+                    label.config(fg="yellow", font=("Arial", 18, "bold"))
+                
+                # 记录倒计时日志
+                if remaining_time % 10 == 0 or remaining_time <= 5:
+                    self.logger.info(f"安全警告倒计时: {remaining_time} 秒")
+                    print(f"[系统] 安全警告倒计时: {remaining_time} 秒")
+                
+                # 继续倒计时
+                window.after(1000, lambda: self._start_countdown(window, label, remaining_time - 1))
+            else:
+                # 时间到，执行锁屏
+                self.logger.warning("安全警告倒计时结束，执行锁屏")
+                print("[系统] 倒计时结束，正在锁屏...")
+                
+                # 显示最终警告
+                label.config(text="正在锁屏...", fg="red", font=("Arial", 20, "bold"))
+                
+                # 延迟一秒后锁屏，让用户看到最终状态
+                window.after(1000, lambda: self._execute_lock_screen(window))
+                
+        except Exception as e:
+            self.logger.error(f"倒计时异常: {str(e)}")
+            # 如果倒计时失败，直接锁屏
+            self._execute_lock_screen(window)
 
     def _cancel_lock_screen(self, window):
         """取消锁屏 - 已禁用，用户无法取消"""
@@ -268,10 +356,25 @@ class AlertService:
 
     def _lock_screen_now(self, window):
         """立即锁屏"""
-        self.logger.warning("用户选择立即锁屏")
-        print("[系统] 用户选择立即锁屏")
-        window.destroy()
-        self._lock_screen()
+        try:
+            self.logger.warning("用户选择立即锁屏")
+            print("[系统] 用户选择立即锁屏")
+            
+            # 显示锁屏确认
+            for widget in window.winfo_children():
+                if isinstance(widget, tk.Frame):
+                    for child in widget.winfo_children():
+                        if isinstance(child, tk.Label) and "剩余时间" in child.cget("text"):
+                            child.config(text="正在锁屏...", fg="red", font=("Arial", 20, "bold"))
+                            break
+            
+            # 延迟一秒后执行锁屏，让用户看到确认信息
+            window.after(1000, lambda: self._execute_lock_screen(window))
+            
+        except Exception as e:
+            self.logger.error(f"立即锁屏失败: {str(e)}")
+            # 如果失败，直接锁屏
+            self._execute_lock_screen(window)
 
     def _lock_screen(self):
         """锁屏操作"""
