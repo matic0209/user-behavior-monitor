@@ -488,8 +488,22 @@ class WindowsBehaviorMonitor:
         """处理告警后的系统操作"""
         try:
             anomaly_score = anomaly_data.get('anomaly_score', 0)
+            trigger_type = anomaly_data.get('trigger_type', 'auto')
             
-            # 检查是否需要强制登出
+            # 手动触发告警时，总是显示弹窗，不直接登出
+            if trigger_type == 'manual_test':
+                self.logger.info("📋 手动触发告警，将显示安全警告弹窗")
+                # 手动触发时，通过告警服务显示弹窗
+                self.alert_service.send_alert(
+                    user_id=self.current_user_id or "manual_test",
+                    alert_type="behavior_anomaly",
+                    message="手动触发告警测试 - 显示安全警告",
+                    severity="warning",
+                    data=anomaly_data
+                )
+                return
+            
+            # 自动检测的异常行为处理
             force_logout_enabled = self.config.get_alert_config().get('force_logout', False)
             
             if force_logout_enabled and anomaly_score >= 0.9:
