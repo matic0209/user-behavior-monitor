@@ -5,56 +5,51 @@
 ### 1. 系统启动
 
 ```bash
-python start_monitor.py
+python user_behavior_monitor.py
 ```
 
-启动后，系统会显示快捷键说明和当前用户信息。
+启动后，系统会显示快捷键说明和当前用户信息，然后自动开始工作流程。
 
-### 2. 快捷键控制流程
+### 2. 自动工作流程
 
-系统采用快捷键手动控制各个阶段，提供最大的灵活性（需要连续输入4次相同字符）：
+系统采用完全自动化的流程，无需手动干预：
 
-#### 第一阶段：数据采集
 ```
-cccc → 开始数据采集
-    ↓
-[系统开始收集鼠标行为数据]
-    ↓
-ssss → 停止数据采集
+启动系统 → 自动数据采集 → 自动特征处理 → 自动模型训练 → 自动异常检测
 ```
 
-#### 第二阶段：特征处理和模型训练
-```
-ffff → 处理特征
-    ↓
-[从采集数据中提取行为特征]
-    ↓
-tttt → 训练模型
-    ↓
-[使用特征训练异常检测模型]
-```
+#### 第一阶段：自动数据采集
+- 系统自动开始收集鼠标行为数据
+- 采集时间：最多5分钟或达到1000个数据点
+- 采集过程中可以正常使用电脑
+- 系统会显示采集进度
 
-#### 第三阶段：在线预测和监控
-```
-pppp → 开始预测
-    ↓
-[开始在线异常检测]
-    ↓
-[自动检测异常并发送告警]
-    ↓
-xxxx → 停止预测
-```
+#### 第二阶段：自动特征处理
+- 系统自动从采集数据中提取行为特征
+- 包括速度、轨迹、时间、统计等多种特征
+- 处理结果保存到特征数据库
 
-#### 其他功能
-```
-iiii → 显示系统状态
-rrrr → 重新训练（生成新用户ID）
-qqqq → 退出系统
-```
+#### 第三阶段：自动模型训练
+- 系统自动使用提取的特征训练异常检测模型
+- 采用XGBoost算法进行异常检测
+- 模型文件保存到 `models/` 目录
 
-## 详细使用说明
+#### 第四阶段：自动异常检测
+- 系统自动开始实时异常检测
+- 检测到异常时自动发送告警
+- 支持自动锁屏保护
 
-### 用户ID生成机制
+### 3. 快捷键控制
+
+系统支持以下快捷键（需要连续输入4次相同字符）：
+
+| 快捷键 | 功能 | 说明 |
+|--------|------|------|
+| `rrrr` | 重新采集和训练 | 重新启动整个工作流程 |
+| `aaaa` | 手动触发告警弹窗 | 测试告警功能 |
+| `qqqq` | 退出系统 | 安全退出系统 |
+
+### 4. 用户ID生成机制
 
 系统会自动从Windows登录用户生成用户ID：
 
@@ -64,62 +59,54 @@ qqqq → 退出系统
 - **重新训练用户**: `{Windows用户名}_retrain_{时间戳}`
   - 例如: `john_retrain_1703123457`
 
-### 数据采集阶段
+## 详细使用说明
 
-1. **开始采集**: 连续按 `cccc`
-   - 系统开始收集鼠标移动、点击、滚动事件
-   - 建议采集10-30分钟的正常行为数据
-   - 采集过程中可以正常使用电脑
+### 系统状态监控
 
-2. **停止采集**: 连续按 `ssss`
-   - 停止数据采集
-   - 数据会自动保存到数据库
+系统运行时会显示以下信息：
 
-### 特征处理阶段
-
-连续按 `ffff` 处理特征：
-- 从采集的原始数据中提取行为特征
-- 包括速度、轨迹、时间、统计等多种特征
-- 处理结果保存到特征数据库
-
-### 模型训练阶段
-
-连续按 `tttt` 训练模型：
-- 使用提取的特征训练异常检测模型
-- 采用隔离森林算法进行异常检测
-- 模型文件保存到 `models/` 目录
-
-### 在线预测阶段
-
-1. **开始预测**: 连续按 `pppp`
-   - 开始实时异常检测
-   - 系统会分析当前鼠标行为
-   - 检测到异常时自动发送告警
-
-2. **停止预测**: 连续按 `xxxx`
-   - 停止在线异常检测
-   - 可以随时重新开始
-
-### 重新训练
-
-按 `Ctrl+Alt+R` 重新训练：
-- 系统会生成新的用户ID
-- 重新处理所有会话的特征
-- 重新训练模型
-- 适用于用户行为模式发生变化的情况
-
-### 状态监控
-
-按 `Ctrl+Alt+I` 显示系统状态：
 ```
-=== 系统状态 ===
-运行状态: 运行中
+=== Windows用户行为异常检测系统启动 ===
+版本: v1.2.0 Windows版
 当前用户: john_1703123456
-数据采集: 已停止
-在线预测: 运行中
-会话ID: session_1703123456
-异常统计 (24小时): 5/1000 (0.50%)
-================
+系统初始化完成
+
+=== 步骤1: 自动数据采集 ===
+开始自动数据采集 - 用户: john_1703123456
+已采集 1000 个数据点，停止采集
+数据采集完成
+
+=== 步骤2: 自动特征处理 ===
+特征处理完成
+
+=== 步骤3: 自动模型训练 ===
+模型训练完成
+
+=== 步骤4: 自动异常检测 ===
+开始自动异常检测...
+自动异常检测已启动
+```
+
+### 日志文件
+
+系统会生成详细的日志文件：
+
+- **主日志**: `logs/monitor_*.log` - 系统运行日志
+- **错误日志**: `logs/error_*.log` - 错误和异常信息
+- **调试日志**: `logs/debug_*.log` - 详细的调试信息
+- **告警日志**: `logs/alerts/` - 异常告警记录
+
+### 查看实时日志
+
+```bash
+# 查看主日志
+tail -f logs/monitor_*.log
+
+# 查看调试日志
+tail -f logs/debug_*.log
+
+# 查看错误日志
+tail -f logs/error_*.log
 ```
 
 ## 配置说明
@@ -131,254 +118,202 @@ qqqq → 退出系统
 ```yaml
 # 数据采集配置
 data_collection:
-  sample_rate: 0.1  # 采样率（0.1表示每10个事件记录1个）
-  session_duration: 3600  # 会话时长（秒）
+  collection_interval: 0.1  # 采集间隔（秒）
+  max_buffer_size: 10000    # 最大缓冲区大小
 
 # 特征处理配置
 feature_engineering:
-  window_size: 100  # 滑动窗口大小
-  feature_types: ["statistical", "temporal", "spatial"]
+  velocity_features: true    # 速度特征
+  temporal_features: true    # 时间特征
+  trajectory_features: true  # 轨迹特征
+  statistical_features: true # 统计特征
 
 # 模型训练配置
-model_training:
-  algorithm: "isolation_forest"  # 异常检测算法
-  contamination: 0.1  # 异常比例
-  random_state: 42
+model:
+  algorithm: xgboost        # 异常检测算法
+  params:
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 100
 
 # 预测配置
 prediction:
-  threshold: 0.8  # 异常检测阈值
-  batch_size: 50  # 批处理大小
+  threshold: 0.8           # 异常检测阈值
+  window_size: 100         # 滑动窗口大小
+  min_samples: 1000        # 最小样本数
 
 # 告警配置
-alerting:
-  enabled: true
-  channels: ["console", "file"]  # 告警渠道
-  severity_levels: ["info", "warning", "error"]
+alert:
+  lock_screen_threshold: 0.8  # 锁屏阈值
+  alert_cooldown: 60          # 告警冷却时间（秒）
+  show_warning_dialog: true   # 显示警告对话框
+  warning_duration: 10        # 警告持续时间（秒）
 ```
 
-### 快捷键配置
+### 路径配置
 
-可以在 `src/core/user_manager.py` 中修改快捷键：
+系统使用以下默认路径：
 
-```python
-self.hotkeys = {
-    'start_collection': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('C')},
-    'stop_collection': {keyboard.Key.ctrl, keyboard.Key.alt, keyboard.KeyCode.from_char('S')},
-    # ... 其他快捷键
-}
-```
-
-## 数据管理
-
-### 数据导入
-
-如果有历史数据，可以先导入：
-
-```bash
-python import_training_data.py
-```
-
-### 数据目录结构
-
-```
-data/
-├── raw/                    # 原始数据
-│   ├── user_1/
-│   └── user_2/
-├── processed/              # 处理后的数据
-│   ├── features/
-│   └── sessions/
-└── user_behavior.db        # SQLite数据库
-```
-
-### 模型文件
-
-```
-models/
-├── user_1_model.pkl        # 用户1的模型
-├── user_2_model.pkl        # 用户2的模型
-└── feature_info.json       # 特征信息
-```
-
-## 日志和监控
-
-### 日志文件
-
-- **主日志**: `logs/monitor.log`
-- **告警日志**: `logs/alerts/`
-- **错误日志**: `logs/errors/`
-
-### 日志级别
-
-- `INFO`: 一般信息
-- `WARNING`: 警告信息
-- `ERROR`: 错误信息
-- `DEBUG`: 调试信息
-
-### 实时监控
-
-按 `Ctrl+Alt+I` 查看实时状态，包括：
-- 系统运行状态
-- 当前用户信息
-- 数据采集状态
-- 预测状态
-- 异常统计
+- **数据目录**: `data/`
+- **模型目录**: `models/`
+- **日志目录**: `logs/`
+- **数据库**: `data/mouse_data.db`
+- **用户配置**: `data/user_config.json`
 
 ## 故障排除
 
 ### 常见问题
 
-1. **快捷键无响应**
-   - 确保以管理员权限运行程序
-   - 检查是否有其他程序占用快捷键
-   - 重启程序
+#### 1. 系统启动失败
 
-2. **数据采集失败**
-   - 检查鼠标权限设置
-   - 确认Windows版本兼容性
-   - 查看日志文件获取详细错误信息
+**问题**: 启动时出现错误
 
-3. **模型训练失败**
-   - 检查数据量是否足够（建议至少1000个事件）
-   - 确认特征处理是否成功
-   - 查看日志文件获取详细错误信息
+**解决方案**:
+```bash
+# 检查依赖
+python install_dependencies.py
 
-4. **预测不准确**
-   - 增加训练数据量
-   - 调整模型参数（contamination、threshold等）
-   - 重新训练模型
+# 运行测试
+python test_debug_logging.py
 
-5. **告警不工作**
-   - 检查告警配置是否正确
-   - 确认告警渠道是否可用
-   - 查看告警日志
+# 查看错误日志
+cat logs/error_*.log
+```
+
+#### 2. 数据采集失败
+
+**问题**: 无法采集鼠标数据
+
+**解决方案**:
+```bash
+# 检查Windows API
+python -c "import win32api; print('Windows API正常')"
+
+# 重新安装pywin32
+pip uninstall pywin32
+pip install pywin32
+```
+
+#### 3. 模型训练失败
+
+**问题**: 模型训练过程中出错
+
+**解决方案**:
+```bash
+# 检查数据
+python check_db_structure.py
+
+# 查看训练日志
+tail -f logs/debug_*.log
+```
+
+#### 4. 快捷键不响应
+
+**问题**: 连续按键无法触发功能
+
+**解决方案**:
+```bash
+# 检查pynput
+python -c "import pynput; print('pynput正常')"
+
+# 重新安装pynput
+pip uninstall pynput
+pip install pynput
+```
 
 ### 调试模式
 
-设置环境变量启用调试模式：
+系统支持详细的调试模式：
 
 ```bash
-# Windows
-set DEBUG=1
-python start_monitor.py
+# 启用调试模式
+export DEBUG_MODE=1
+python user_behavior_monitor.py
 
-# Linux/Mac
-export DEBUG=1
-python start_monitor.py
+# 或直接查看调试日志
+tail -f logs/debug_*.log
 ```
 
-### 重置系统
+### 性能优化
 
-如果需要重置系统：
+如果系统运行缓慢，可以调整以下配置：
 
-1. 停止程序
-2. 删除数据目录：`rm -rf data/`
-3. 删除模型目录：`rm -rf models/`
-4. 删除日志目录：`rm -rf logs/`
-5. 重新启动程序
+```yaml
+# 减少采集频率
+data_collection:
+  collection_interval: 0.2  # 增加到0.2秒
 
-## 最佳实践
+# 减少缓冲区大小
+data_collection:
+  max_buffer_size: 5000     # 减少到5000
 
-### 数据采集
-
-1. **采集时间**: 建议采集10-30分钟的正常行为数据
-2. **采集环境**: 在正常的工作环境中采集
-3. **数据质量**: 确保采集期间没有异常行为
-4. **多次采集**: 可以多次采集不同时间段的数据
-
-### 模型训练
-
-1. **数据量**: 确保有足够的训练数据
-2. **数据质量**: 使用高质量的正常行为数据
-3. **参数调优**: 根据实际情况调整模型参数
-4. **定期重训**: 定期重新训练模型以适应行为变化
-
-### 异常检测
-
-1. **阈值设置**: 根据实际情况调整异常检测阈值
-2. **监控频率**: 定期检查异常统计
-3. **告警处理**: 及时处理异常告警
-4. **模型更新**: 根据检测结果更新模型
-
-### 系统维护
-
-1. **日志清理**: 定期清理日志文件
-2. **数据备份**: 定期备份重要数据
-3. **性能监控**: 监控系统性能
-4. **安全更新**: 及时更新系统和依赖
+# 调整预测间隔
+prediction:
+  interval: 60              # 增加到60秒
+```
 
 ## 高级功能
 
-### 自定义特征
-
-可以在 `src/core/feature_engineer/` 中添加新的特征提取方法。
-
-### 自定义算法
-
-可以在 `src/core/model_trainer/` 中添加新的机器学习算法。
-
 ### 自定义告警
 
-可以在 `src/core/alert/` 中添加新的告警渠道。
-
-### 批量处理
-
-系统支持批量处理多个用户的数据：
+可以修改告警服务来自定义响应：
 
 ```python
-# 批量处理示例
-for user_id in user_list:
-    feature_processor.process_all_user_sessions(user_id)
-    model_trainer.train_user_model(user_id)
+# 在 src/core/alert/alert_service.py 中修改
+def _execute_system_action(self, alert_type, severity, data):
+    # 自定义告警响应逻辑
+    pass
 ```
 
-## 性能优化
+### 添加新特征
 
-### 内存优化
+可以在特征处理器中添加新的特征提取方法：
 
-1. **数据分块**: 大文件分块处理
-2. **及时清理**: 及时清理临时数据
-3. **内存监控**: 监控内存使用情况
+```python
+# 在 src/core/feature_engineer/simple_feature_processor.py 中添加
+def extract_custom_feature(self, data):
+    # 自定义特征提取逻辑
+    pass
+```
 
-### 速度优化
+### 集成新模型
 
-1. **并行处理**: 使用多线程处理
-2. **缓存机制**: 缓存常用数据
-3. **算法优化**: 选择高效的算法
+可以添加新的机器学习算法：
 
-### 存储优化
+```python
+# 在 src/core/model_trainer/simple_model_trainer.py 中添加
+def train_custom_model(self, features, labels):
+    # 自定义模型训练逻辑
+    pass
+```
 
-1. **数据压缩**: 压缩历史数据
-2. **定期清理**: 清理过期数据
-3. **索引优化**: 优化数据库索引
+## 安全注意事项
 
-## 安全考虑
+1. **数据隐私**: 所有数据本地处理，不上传到外部
+2. **权限要求**: 某些功能可能需要管理员权限
+3. **防火墙设置**: 确保系统允许程序运行
+4. **定期清理**: 建议定期清理旧数据以节省空间
 
-1. **权限控制**: 确保程序有适当的权限
-2. **数据保护**: 保护用户隐私数据
-3. **日志安全**: 保护日志文件安全
-4. **网络安全**: 如果部署到网络环境，注意网络安全
+## 技术支持
 
-## 扩展开发
+如果遇到问题：
 
-### 添加新功能
+1. 查看日志文件获取详细错误信息
+2. 运行诊断脚本: `python test_debug_logging.py`
+3. 检查系统状态: 按 `Ctrl+Alt+I`
+4. 提交Issue到GitHub项目页面
 
-1. 在相应的模块中添加新功能
-2. 更新配置文件
-3. 添加相应的快捷键（如需要）
-4. 更新文档
+## 更新日志
 
-### 集成其他系统
+### v1.2.0 (最新)
+- ✨ 完全自动化的采集→训练→检测流程
+- 🔧 简化的快捷键系统（rrrr、aaaa、qqqq）
+- 📝 更新的使用文档
+- 🛠️ 改进的错误处理
+- 🔄 更稳定的自动工作流程
 
-1. 实现相应的接口
-2. 处理数据格式转换
-3. 处理错误和异常
-4. 添加日志记录
-
-### 部署到生产环境
-
-1. 配置生产环境
-2. 设置监控和告警
-3. 配置备份策略
-4. 设置安全策略 
+### v1.1.0
+- ✨ 自动工作流程
+- 🔧 简化的快捷键系统
+- 📝 更新的文档
+- 🛠️ 错误处理优化 
