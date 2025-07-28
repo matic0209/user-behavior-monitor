@@ -137,7 +137,7 @@ class WindowsBehaviorMonitor:
             self.logger.info("正在启动Windows用户行为异常检测系统...")
             
             # 启动用户管理（简化快捷键）
-            self.user_manager.start_listening()
+            self.user_manager.start_keyboard_listener()
             self.is_running = True
             
             # 显示系统信息
@@ -431,7 +431,7 @@ class WindowsBehaviorMonitor:
             
             # 停止用户管理
             if hasattr(self, 'user_manager'):
-                self.user_manager.stop_listening()
+                self.user_manager.stop_keyboard_listener()
             
             self.is_running = False
             self.logger.info("系统已安全停止")
