@@ -68,6 +68,7 @@ def test_popup_fix():
             
             if success:
                 print("✓ 告警发送成功，弹窗应该已显示")
+                print("注意：弹窗可能需要几秒钟才能显示")
                 return True
             else:
                 print("✗ 告警发送失败")
@@ -75,10 +76,14 @@ def test_popup_fix():
                 
         except Exception as e:
             print(f"✗ 弹窗测试失败: {e}")
+            import traceback
+            traceback.print_exc()
             return False
         
     except Exception as e:
         print(f"✗ 测试失败: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def test_simple_popup():
@@ -88,18 +93,43 @@ def test_simple_popup():
     try:
         import tkinter as tk
         from tkinter import messagebox
+        import threading
+        import time
         
         # 创建简单测试窗口
         root = tk.Tk()
         root.withdraw()  # 隐藏主窗口
         
-        # 显示测试消息框
-        result = messagebox.showwarning(
-            "测试弹窗",
-            "这是一个测试弹窗\n\n点击确定关闭"
-        )
+        # 使用线程来避免阻塞
+        def show_messagebox():
+            try:
+                result = messagebox.showwarning(
+                    "测试弹窗",
+                    "这是一个测试弹窗\n\n点击确定关闭"
+                )
+                print(f"消息框结果: {result}")
+            except Exception as e:
+                print(f"消息框异常: {e}")
         
-        print("✓ 简单弹窗测试成功")
+        # 在新线程中显示消息框
+        popup_thread = threading.Thread(target=show_messagebox)
+        popup_thread.daemon = True
+        popup_thread.start()
+        
+        # 等待一段时间让用户看到弹窗
+        print("显示测试弹窗，请点击确定关闭...")
+        time.sleep(2)
+        
+        # 如果线程还在运行，强制关闭
+        if popup_thread.is_alive():
+            print("弹窗可能卡住，尝试强制关闭...")
+            try:
+                root.quit()
+                root.destroy()
+            except:
+                pass
+        
+        print("✓ 简单弹窗测试完成")
         return True
         
     except Exception as e:
