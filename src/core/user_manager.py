@@ -55,17 +55,11 @@ class UserManager:
         self.keyboard_listener = None
         self.is_listening = False
         
-        # 快捷键配置 - 修改为单个字母
+        # 快捷键配置 - 简化为只有两个快捷键
         self.hotkeys = {
-            'start_collection': 'c',      # c 开始采集
-            'stop_collection': 's',       # s 停止采集
-            'process_features': 'f',      # f 处理特征
-            'train_model': 't',           # t 训练模型
-            'start_prediction': 'p',      # p 开始预测
-            'stop_prediction': 'x',       # x 停止预测
-            'retrain_model': 'r',         # r 重新训练
-            'show_status': 'i',           # i 显示状态
-            'quit_system': 'q'            # q 退出系统
+            'retrain_model': 'r',         # r 重新采集和训练
+            'trigger_alert': 'a',          # a 手动触发告警
+            'quit_system': 'q'             # q 退出系统
         }
         
         # 当前按下的键
@@ -79,14 +73,8 @@ class UserManager:
         
         # 回调函数
         self.callbacks = {
-            'start_collection': None,
-            'stop_collection': None,
-            'process_features': None,
-            'train_model': None,
-            'start_prediction': None,
-            'stop_prediction': None,
             'retrain_model': None,
-            'show_status': None,
+            'trigger_alert': None,
             'quit_system': None
         }
         
@@ -193,8 +181,8 @@ class UserManager:
             self.logger.info(f"创建新用户: {self.current_user_id}")
             
             # 触发回调
-            if self.callbacks['start_collection']:
-                self.callbacks['start_collection'](self.current_user_id)
+            if self.callbacks['retrain_model']:
+                self.callbacks['retrain_model'](self.current_user_id)
             
             return self.current_user_id
             
@@ -520,31 +508,13 @@ class UserManager:
                 char = key.char.lower()
                 self.logger.debug(f"检测到字符键: {char}")
                 
-                if char == 'c':
-                    self.logger.info("检测到快捷键: c x4 (开始数据采集)")
-                    self._trigger_callback('start_collection', current_user_id)
-                elif char == 's':
-                    self.logger.info("检测到快捷键: s x4 (停止数据采集)")
-                    self._trigger_callback('stop_collection', current_user_id)
-                elif char == 'f':
-                    self.logger.info("检测到快捷键: f x4 (处理特征)")
-                    self._trigger_callback('process_features')
-                elif char == 't':
-                    self.logger.info("检测到快捷键: t x4 (训练模型)")
-                    self._trigger_callback('train_model')
-                elif char == 'p':
-                    self.logger.info("检测到快捷键: p x4 (开始预测)")
-                    self._trigger_callback('start_prediction')
-                elif char == 'x':
-                    self.logger.info("检测到快捷键: x x4 (停止预测)")
-                    self._trigger_callback('stop_prediction')
-                elif char == 'r':
-                    self.logger.info("检测到快捷键: r x4 (重新训练)")
+                if char == 'r':
+                    self.logger.info("检测到快捷键: r x4 (重新采集和训练)")
                     retrain_user_id = self.create_retrain_user()
                     self._trigger_callback('retrain_model', retrain_user_id)
-                elif char == 'i':
-                    self.logger.info("检测到快捷键: i x4 (显示状态)")
-                    self._trigger_callback('show_status')
+                elif char == 'a':
+                    self.logger.info("检测到快捷键: a x4 (手动触发告警)")
+                    self._trigger_callback('trigger_alert', current_user_id)
                 elif char == 'q':
                     self.logger.info("检测到快捷键: q x4 (退出系统)")
                     self._trigger_callback('quit_system')
