@@ -236,7 +236,6 @@ class WindowsBehaviorMonitor:
         """自动数据采集"""
         try:
             self.current_user_id = self.user_manager.current_user_id
-            self.current_session_id = f"session_{int(time.time())}"
             
             self.logger.info(f"开始自动数据采集 - 用户: {self.current_user_id}")
             
@@ -250,6 +249,10 @@ class WindowsBehaviorMonitor:
             
             if not success:
                 return False
+            
+            # 获取数据采集器生成的会话ID
+            self.current_session_id = self.data_collector.session_id
+            self.logger.info(f"使用会话ID: {self.current_session_id}")
             
             self.is_collecting = True
             self.stats['collection_sessions'] += 1

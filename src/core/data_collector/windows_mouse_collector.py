@@ -175,6 +175,7 @@ class WindowsMouseCollector:
             buffer = []
             last_save_time = time.time()
             save_interval = 5.0  # 每5秒保存一次数据
+            total_collected = 0
             
             self.logger.info("开始鼠标数据采集循环...")
             
@@ -201,6 +202,7 @@ class WindowsMouseCollector:
                     
                     # 添加到缓冲区
                     buffer.append(event_data)
+                    total_collected += 1
                     
                     # 检查是否需要保存数据
                     if len(buffer) >= max_buffer_size or (time.time() - last_save_time) >= save_interval:
@@ -208,6 +210,9 @@ class WindowsMouseCollector:
                         self._save_events_to_db(buffer)
                         buffer.clear()
                         last_save_time = time.time()
+                        
+                        # 显示采集进度
+                        self.logger.info(f"📊 已采集 {total_collected} 个数据点")
                     
                     # 等待下一次采集
                     time.sleep(interval)
@@ -222,6 +227,7 @@ class WindowsMouseCollector:
                 self.logger.debug(f"保存剩余数据 - 缓冲区大小: {len(buffer)}")
                 self._save_events_to_db(buffer)
             
+            self.logger.info(f"数据采集循环结束 - 总共采集 {total_collected} 个数据点")
             self.logger.debug("=== 数据采集循环结束 ===")
             
         except Exception as e:
@@ -257,7 +263,10 @@ class WindowsMouseCollector:
             conn.commit()
             conn.close()
             
-            self.logger.debug(f"成功保存 {len(events)} 个事件到数据库")
+            self.logger.info(f"💾 成功保存 {len(events)} 个事件到数据库")
+            self.logger.debug(f"数据库路径: {self.db_path}")
+            self.logger.debug(f"用户ID: {events[0]['user_id']}")
+            self.logger.debug(f"会话ID: {events[0]['session_id']}")
             self.logger.debug("=== 保存事件数据完成 ===")
             
         except Exception as e:
