@@ -80,9 +80,9 @@ class WindowsBehaviorMonitor:
             self.logger.debug("初始化用户管理模块...")
             self.user_manager = UserManager()
             
-            # 数据采集模块
-            self.logger.debug("初始化数据采集模块...")
-            self.data_collector = WindowsMouseCollector()
+            # 数据采集模块 - 延迟创建，需要时再初始化
+            self.logger.debug("数据采集模块将在需要时初始化...")
+            self.data_collector = None
             
             # 特征处理模块
             self.logger.debug("初始化特征处理模块...")
@@ -219,8 +219,13 @@ class WindowsBehaviorMonitor:
             
             self.logger.info(f"开始自动数据采集 - 用户: {self.current_user_id}")
             
+            # 创建数据采集器（如果还没有创建）
+            if self.data_collector is None:
+                self.logger.debug("创建数据采集器...")
+                self.data_collector = WindowsMouseCollector(self.current_user_id)
+            
             # 启动数据采集
-            success = self.data_collector.start_collection(self.current_user_id, self.current_session_id)
+            success = self.data_collector.start_collection()
             
             if not success:
                 return False
@@ -416,7 +421,7 @@ class WindowsBehaviorMonitor:
             self.logger.info("正在停止系统...")
             
             # 停止各个模块
-            if self.is_collecting:
+            if self.is_collecting and self.data_collector:
                 self.data_collector.stop_collection()
                 self.is_collecting = False
             
