@@ -53,6 +53,10 @@ dist/
 build/
 *.egg-info/
 
+# Large files and dependencies
+user_behavior_monitor_uos20_offline/dependencies/wheels/
+*.whl
+
 # Unit test / coverage reports
 htmlcov/
 .tox/
