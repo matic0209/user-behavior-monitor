@@ -1,0 +1,16 @@
+# 离线安装requirements文件
+# 包含所有下载的Python包
+
+dependencies/wheels/matplotlib-3.10.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+dependencies/wheels/keyboard-0.13.5-py3-none-any.whl
+dependencies/wheels/xgboost-3.0.2-py3-none-manylinux_2_28_x86_64.whl
+dependencies/wheels/joblib-1.5.1-py3-none-any.whl
+dependencies/wheels/pynput-1.8.1-py2.py3-none-any.whl
+dependencies/wheels/PyYAML-6.0.2-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+dependencies/wheels/scikit_learn-1.7.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+dependencies/wheels/scipy-1.16.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+dependencies/wheels/psutil-7.0.0-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+dependencies/wheels/imbalanced_learn-0.13.0-py3-none-any.whl
+dependencies/wheels/seaborn-0.13.2-py3-none-any.whl
+dependencies/wheels/pandas-2.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+dependencies/wheels/numpy-2.3.2-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl
