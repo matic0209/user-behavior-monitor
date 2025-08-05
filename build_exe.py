@@ -48,18 +48,43 @@ def install_dependencies():
             print(f"已安装 {dep}")
         except subprocess.CalledProcessError as e:
             print(f"安装 {dep} 失败: {e}")
+    
+    # 检查PyInstaller是否可用
+    try:
+        result = subprocess.run(['pyinstaller', '--version'], 
+                              capture_output=True, text=True, check=True)
+        print(f"PyInstaller版本: {result.stdout.strip()}")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("警告: PyInstaller命令不可用，尝试使用python -m PyInstaller")
+        # 测试python -m PyInstaller是否可用
+        try:
+            result = subprocess.run([sys.executable, '-m', 'PyInstaller', '--version'], 
+                                  capture_output=True, text=True, check=True)
+            print(f"PyInstaller模块版本: {result.stdout.strip()}")
+        except subprocess.CalledProcessError as e:
+            print(f"错误: PyInstaller模块也不可用: {e}")
+            return False
+    return True
 
 def build_exe():
     """构建可执行文件"""
     print("开始构建可执行文件...")
     
+    # 检查PyInstaller命令是否可用
+    pyinstaller_cmd = ['pyinstaller']
+    try:
+        subprocess.run(['pyinstaller', '--version'], 
+                      capture_output=True, check=True)
+        print("使用pyinstaller命令")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("pyinstaller命令不可用，尝试使用python -m PyInstaller")
+        pyinstaller_cmd = [sys.executable, '-m', 'PyInstaller']
+    
     # PyInstaller命令
-    cmd = [
-        'pyinstaller',
+    cmd = pyinstaller_cmd + [
         '--onefile',                    # 单文件
         '--windowed',                   # 无控制台窗口
         '--name=UserBehaviorMonitor',   # 可执行文件名
-        '--icon=assets/icon.ico',       # 图标（如果有）
         '--add-data=src/utils/config;src/utils/config',  # 配置文件
         '--hidden-import=win32api',
         '--hidden-import=win32con',
@@ -90,8 +115,15 @@ def build_service_exe():
     """构建服务可执行文件"""
     print("构建Windows服务可执行文件...")
     
-    cmd = [
-        'pyinstaller',
+    # 检查PyInstaller命令是否可用
+    pyinstaller_cmd = ['pyinstaller']
+    try:
+        subprocess.run(['pyinstaller', '--version'], 
+                      capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pyinstaller_cmd = [sys.executable, '-m', 'PyInstaller']
+    
+    cmd = pyinstaller_cmd + [
         '--onefile',
         '--name=UserBehaviorMonitorService',
         '--hidden-import=win32api',
