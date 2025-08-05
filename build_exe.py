@@ -93,10 +93,24 @@ def build_exe():
         '--hidden-import=win32serviceutil',
         '--hidden-import=pynput',
         '--hidden-import=xgboost',
+        '--hidden-import=xgboost.sklearn',
         '--hidden-import=sklearn',
+        '--hidden-import=sklearn.ensemble',
+        '--hidden-import=sklearn.tree',
+        '--hidden-import=sklearn.model_selection',
         '--hidden-import=pandas',
         '--hidden-import=numpy',
         '--hidden-import=yaml',
+        '--hidden-import=psutil',
+        '--hidden-import=keyboard',
+        '--hidden-import=threading',
+        '--hidden-import=json',
+        '--hidden-import=datetime',
+        '--hidden-import=pathlib',
+        '--collect-all=xgboost',
+        '--collect-all=sklearn',
+        '--collect-all=pandas',
+        '--collect-all=numpy',
         'user_behavior_monitor.py'
     ]
     
@@ -133,6 +147,11 @@ def build_service_exe():
         '--hidden-import=win32serviceutil',
         '--hidden-import=win32event',
         '--hidden-import=servicemanager',
+        '--hidden-import=psutil',
+        '--hidden-import=threading',
+        '--hidden-import=json',
+        '--hidden-import=datetime',
+        '--hidden-import=pathlib',
         'windows_service.py'
     ]
     
