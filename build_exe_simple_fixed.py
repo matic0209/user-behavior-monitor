@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-专门解决xgboost问题的PyInstaller打包脚本
+简化的xgboost修复版打包脚本
+避免spec文件复杂性，直接使用命令行参数
 """
 
 import os
@@ -48,9 +49,53 @@ def check_pyinstaller():
         print("PyInstaller模块也不可用")
         return None
 
-def build_exe_with_xgboost_fix(pyinstaller_cmd):
-    """构建可执行文件，专门解决xgboost问题"""
-    print("开始构建可执行文件（xgboost修复版）...")
+def build_exe_simple(pyinstaller_cmd):
+    """简化的构建方法"""
+    print("开始构建可执行文件（简化版）...")
+    
+    cmd = pyinstaller_cmd + [
+        '--onefile',                    # 单文件
+        '--windowed',                   # 无控制台窗口
+        '--name=UserBehaviorMonitor',   # 可执行文件名
+        '--add-data=src/utils/config;src/utils/config',  # 配置文件
+        
+        # 核心依赖
+        '--hidden-import=win32api',
+        '--hidden-import=win32con',
+        '--hidden-import=win32gui',
+        '--hidden-import=win32service',
+        '--hidden-import=win32serviceutil',
+        '--hidden-import=pynput',
+        '--hidden-import=psutil',
+        '--hidden-import=keyboard',
+        '--hidden-import=yaml',
+        '--hidden-import=numpy',
+        '--hidden-import=pandas',
+        '--hidden-import=sklearn',
+        '--hidden-import=xgboost',
+        
+        # 强制收集关键模块
+        '--collect-all=xgboost',
+        '--collect-all=sklearn',
+        
+        'user_behavior_monitor.py'
+    ]
+    
+    print(f"执行命令: {' '.join(cmd)}")
+    
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        print("构建成功!")
+        print(result.stdout)
+        return True
+    except subprocess.CalledProcessError as e:
+        print(f"构建失败: {e}")
+        print(f"错误输出: {e.stderr}")
+        return False
+
+def build_exe_detailed(pyinstaller_cmd):
+    """详细的构建方法"""
+    print("开始构建可执行文件（详细版）...")
     
     cmd = pyinstaller_cmd + [
         '--onefile',                    # 单文件
@@ -75,7 +120,7 @@ def build_exe_with_xgboost_fix(pyinstaller_cmd):
         '--hidden-import=numpy',
         '--hidden-import=pandas',
         
-        # 机器学习 - 重点修复
+        # 机器学习 - 详细导入
         '--hidden-import=sklearn',
         '--hidden-import=sklearn.ensemble',
         '--hidden-import=sklearn.tree',
@@ -86,7 +131,7 @@ def build_exe_with_xgboost_fix(pyinstaller_cmd):
         '--hidden-import=sklearn.base',
         '--hidden-import=sklearn.exceptions',
         
-        # xgboost - 重点修复
+        # xgboost - 详细导入
         '--hidden-import=xgboost',
         '--hidden-import=xgboost.sklearn',
         '--hidden-import=xgboost.core',
@@ -122,9 +167,6 @@ def build_exe_with_xgboost_fix(pyinstaller_cmd):
         '--exclude-module=notebook',
         '--exclude-module=tkinter',
         
-        # 调试选项
-        '--debug=imports',
-        
         'user_behavior_monitor.py'
     ]
     
@@ -140,104 +182,37 @@ def build_exe_with_xgboost_fix(pyinstaller_cmd):
         print(f"错误输出: {e.stderr}")
         return False
 
-def create_spec_file():
-    """创建自定义的spec文件"""
-    print("创建自定义spec文件...")
+def build_exe_onedir(pyinstaller_cmd):
+    """使用--onedir模式构建（更容易调试）"""
+    print("开始构建可执行文件（目录模式）...")
     
-    spec_content = '''# -*- mode: python ; coding: utf-8 -*-
-
-block_cipher = None
-
-# 数据文件
-datas = [
-    ('src/utils/config', 'src/utils/config'),
-]
-
-# 隐藏导入
-hiddenimports = [
-    # Windows API
-    'win32api', 'win32con', 'win32gui', 'win32service', 'win32serviceutil',
-    
-    # 核心依赖
-    'pynput', 'psutil', 'keyboard', 'yaml',
-    
-    # 数据处理
-    'numpy', 'pandas',
-    
-    # 机器学习
-    'sklearn', 'sklearn.ensemble', 'sklearn.tree', 'sklearn.model_selection',
-    'sklearn.preprocessing', 'sklearn.metrics', 'sklearn.utils', 'sklearn.base',
-    'sklearn.exceptions',
-    
-    # xgboost
-    'xgboost', 'xgboost.sklearn', 'xgboost.core', 'xgboost.training',
-    'xgboost.callback', 'xgboost.compat', 'xgboost.libpath',
-    
-    # 标准库
-    'threading', 'json', 'datetime', 'pathlib', 'time', 'signal',
-    'os', 'sys', 'traceback',
-]
-
-# 排除模块
-excludes = [
-    'matplotlib', 'seaborn', 'IPython', 'jupyter', 'notebook', 'tkinter',
-]
-
-a = Analysis(
-    ['user_behavior_monitor.py'],
-    pathex=['.'],
-    binaries=[],
-    datas=datas,
-    hiddenimports=hiddenimports,
-    hookspath=[],
-    hooksconfig={},
-    runtime_hooks=[],
-    excludes=excludes,
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
-    noarchive=False,
-)
-
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
-
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    [],
-    name='UserBehaviorMonitor',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-)
-'''
-    
-    spec_file = Path('user_behavior_monitor.spec')
-    with open(spec_file, 'w', encoding='utf-8') as f:
-        f.write(spec_content)
-    
-    print(f"✓ 已创建spec文件: {spec_file}")
-    return spec_file
-
-def build_with_spec(pyinstaller_cmd):
-    """使用spec文件构建"""
-    print("使用spec文件构建...")
-    
-    spec_file = create_spec_file()
-    
-    cmd = pyinstaller_cmd + [str(spec_file)]
+    cmd = pyinstaller_cmd + [
+        '--onedir',                     # 目录模式
+        '--windowed',                   # 无控制台窗口
+        '--name=UserBehaviorMonitor',   # 可执行文件名
+        '--add-data=src/utils/config;src/utils/config',  # 配置文件
+        
+        # 核心依赖
+        '--hidden-import=win32api',
+        '--hidden-import=win32con',
+        '--hidden-import=win32gui',
+        '--hidden-import=win32service',
+        '--hidden-import=win32serviceutil',
+        '--hidden-import=pynput',
+        '--hidden-import=psutil',
+        '--hidden-import=keyboard',
+        '--hidden-import=yaml',
+        '--hidden-import=numpy',
+        '--hidden-import=pandas',
+        '--hidden-import=sklearn',
+        '--hidden-import=xgboost',
+        
+        # 强制收集关键模块
+        '--collect-all=xgboost',
+        '--collect-all=sklearn',
+        
+        'user_behavior_monitor.py'
+    ]
     
     print(f"执行命令: {' '.join(cmd)}")
     
@@ -245,6 +220,7 @@ def build_with_spec(pyinstaller_cmd):
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
         print("构建成功!")
         print(result.stdout)
+        print("注意: 这是目录模式，可执行文件在 dist/UserBehaviorMonitor/ 目录中")
         return True
     except subprocess.CalledProcessError as e:
         print(f"构建失败: {e}")
@@ -254,7 +230,7 @@ def build_with_spec(pyinstaller_cmd):
 def main():
     """主函数"""
     print("=" * 60)
-    print("xgboost修复版打包工具")
+    print("简化版xgboost修复打包工具")
     print("=" * 60)
     
     # 检查操作系统
@@ -274,26 +250,35 @@ def main():
         
         # 选择构建方式
         print("\n选择构建方式:")
-        print("1. 使用命令行参数构建")
-        print("2. 使用spec文件构建（推荐）")
+        print("1. 简化版构建（推荐，快速）")
+        print("2. 详细版构建（包含所有导入）")
+        print("3. 目录模式构建（便于调试）")
         
-        choice = input("请选择 (1/2): ").strip()
+        choice = input("请选择 (1/2/3): ").strip()
         
         if choice == "1":
-            success = build_exe_with_xgboost_fix(pyinstaller_cmd)
+            success = build_exe_simple(pyinstaller_cmd)
         elif choice == "2":
-            success = build_with_spec(pyinstaller_cmd)
+            success = build_exe_detailed(pyinstaller_cmd)
+        elif choice == "3":
+            success = build_exe_onedir(pyinstaller_cmd)
         else:
-            print("无效选择，使用spec文件构建")
-            success = build_with_spec(pyinstaller_cmd)
+            print("无效选择，使用简化版构建")
+            success = build_exe_simple(pyinstaller_cmd)
         
         if success:
             print("\n🎉 打包完成!")
-            print("可执行文件位置: dist/UserBehaviorMonitor.exe")
+            if choice == "3":
+                print("可执行文件位置: dist/UserBehaviorMonitor/UserBehaviorMonitor.exe")
+                print("注意: 这是目录模式，包含所有依赖文件")
+            else:
+                print("可执行文件位置: dist/UserBehaviorMonitor.exe")
+            
             print("\n如果仍有xgboost问题，请尝试:")
             print("1. 重新安装xgboost: pip install --force-reinstall xgboost")
             print("2. 使用conda环境: conda install xgboost")
             print("3. 检查Python版本兼容性")
+            print("4. 尝试目录模式构建（选项3）")
         else:
             print("\n❌ 打包失败!")
         
