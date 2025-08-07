@@ -194,7 +194,7 @@ class WindowsBehaviorMonitor:
         print("Windows用户行为异常检测系统 v1.2.0")
         print("="*60)
         print("系统将自动执行以下流程:")
-        print("1. 自动采集鼠标行为数据")
+        print("1. 自动采集鼠标行为数据 (持续等待直到采集足够数据)")
         print("2. 自动训练异常检测模型")
         print("3. 自动开始异常检测")
         print("4. 自动发送心跳信号")
@@ -208,6 +208,10 @@ class WindowsBehaviorMonitor:
         print("系统状态: 自动运行中")
         print("心跳地址:", self.heartbeat_url)
         print("心跳间隔:", self.heartbeat_interval, "秒")
+        print("最少数据点:", self.min_data_points, "个")
+        print("="*60)
+        print("重要提示: 系统会一直等待直到采集到足够的数据点")
+        print("请继续正常使用鼠标，系统会自动完成数据采集")
         print("="*60 + "\n")
 
     def _start_auto_workflow(self):
@@ -221,39 +225,52 @@ class WindowsBehaviorMonitor:
     def _auto_workflow(self):
         """自动工作流程"""
         try:
-            # 1. 自动数据采集
+            # 1. 自动数据采集 - 一直尝试直到成功
             self.logger.info("=== 步骤1: 自动数据采集 ===")
-            if self._auto_collect_data():
-                self.logger.info("数据采集完成")
-                
-                # 检查数据量是否足够
-                data_count = self._get_data_count()
-                self.logger.info(f"当前数据量: {data_count} 个数据点")
-                
-                if data_count < self.min_data_points:
-                    self.logger.warning(f"数据量不足 ({data_count} < {self.min_data_points})，跳过特征处理")
-                    self.logger.info("建议：继续使用鼠标，系统将自动重新采集数据")
-                    return False
-                
-                # 2. 自动特征处理
-                self.logger.info("=== 步骤2: 自动特征处理 ===")
-                if self._auto_process_features():
-                    self.logger.info("特征处理完成")
+            
+            while self.is_running:
+                if self._auto_collect_data():
+                    self.logger.info("[SUCCESS] 数据采集完成")
                     
-                    # 3. 自动模型训练
-                    self.logger.info("=== 步骤3: 自动模型训练 ===")
-                    if self._auto_train_model():
-                        self.logger.info("模型训练完成")
-                        
-                        # 4. 自动异常检测
-                        self.logger.info("=== 步骤4: 自动异常检测 ===")
-                        self._auto_start_prediction()
+                    # 检查数据量是否足够
+                    data_count = self._get_data_count()
+                    self.logger.info(f"当前数据量: {data_count} 个数据点")
+                    
+                    if data_count >= self.min_data_points:
+                        # 数据量足够，继续后续步骤
+                        break
                     else:
-                        self.logger.error("模型训练失败")
+                        self.logger.warning(f"[WARNING] 数据量不足 ({data_count} < {self.min_data_points})")
+                        self.logger.info("[INFO] 系统将重新开始数据采集")
+                        time.sleep(5)  # 等待5秒后重新开始
+                        continue
                 else:
-                    self.logger.error("特征处理失败")
+                    self.logger.warning("[WARNING] 数据采集失败，系统将重新尝试")
+                    time.sleep(10)  # 等待10秒后重新尝试
+                    continue
+            
+            # 如果系统停止，退出工作流程
+            if not self.is_running:
+                self.logger.info("[INFO] 系统停止，退出工作流程")
+                return False
+            
+            # 2. 自动特征处理
+            self.logger.info("=== 步骤2: 自动特征处理 ===")
+            if self._auto_process_features():
+                self.logger.info("[SUCCESS] 特征处理完成")
+                
+                # 3. 自动模型训练
+                self.logger.info("=== 步骤3: 自动模型训练 ===")
+                if self._auto_train_model():
+                    self.logger.info("[SUCCESS] 模型训练完成")
+                    
+                    # 4. 自动异常检测
+                    self.logger.info("=== 步骤4: 自动异常检测 ===")
+                    self._auto_start_prediction()
+                else:
+                    self.logger.error("[ERROR] 模型训练失败")
             else:
-                self.logger.error("数据采集失败")
+                self.logger.error("[ERROR] 特征处理失败")
                 
         except Exception as e:
             self.logger.error(f"自动工作流程失败: {str(e)}")
@@ -283,28 +300,32 @@ class WindowsBehaviorMonitor:
             self.is_collecting = True
             self.stats['collection_sessions'] += 1
             
-            # 等待足够的数据
+            # 一直等待直到采集到足够的数据点
             start_time = time.time()
-            max_wait_time = self.collection_timeout * 2  # 增加最大等待时间
+            self.logger.info(f"开始等待数据采集，需要至少 {self.min_data_points} 个数据点...")
+            self.logger.info("请继续使用鼠标，系统将持续采集数据")
             
-            while time.time() - start_time < max_wait_time:
+            while True:
                 # 检查数据量
                 data_count = self._get_data_count()
                 self.logger.debug(f"当前数据量: {data_count}/{self.min_data_points}")
                 
                 if data_count >= self.min_data_points:
-                    self.logger.info(f"✅ 已采集 {data_count} 个数据点，达到要求")
+                    self.logger.info(f"[SUCCESS] 已采集 {data_count} 个数据点，达到要求")
                     break
                 
-                # 每10秒显示一次进度
+                # 每30秒显示一次进度
                 elapsed = time.time() - start_time
-                if int(elapsed) % 10 == 0:
-                    self.logger.info(f"⏳ 数据采集中... ({data_count}/{self.min_data_points}) - 已等待 {int(elapsed)} 秒")
+                if int(elapsed) % 30 == 0:
+                    self.logger.info(f"[INFO] 数据采集中... ({data_count}/{self.min_data_points}) - 已等待 {int(elapsed)} 秒")
+                    self.logger.info("[TIP] 请继续使用鼠标，系统会一直等待直到采集到足够的数据")
                 
-                time.sleep(2)  # 每2秒检查一次
-            else:
-                self.logger.warning(f"⚠️ 采集超时，已采集 {self._get_data_count()} 个数据点")
-                self.logger.info("💡 建议：继续使用鼠标，系统将自动重新采集")
+                # 检查系统是否还在运行
+                if not self.is_running:
+                    self.logger.warning("[WARNING] 系统停止，中断数据采集")
+                    break
+                
+                time.sleep(5)  # 每5秒检查一次
             
             # 停止采集
             self.data_collector.stop_collection()
@@ -313,10 +334,11 @@ class WindowsBehaviorMonitor:
             # 最终检查数据量
             final_count = self._get_data_count()
             if final_count >= self.min_data_points:
-                self.logger.info(f"✅ 数据采集完成，共 {final_count} 个数据点")
+                self.logger.info(f"[SUCCESS] 数据采集完成，共 {final_count} 个数据点")
                 return True
             else:
-                self.logger.warning(f"⚠️ 数据量不足 ({final_count} < {self.min_data_points})")
+                self.logger.warning(f"[WARNING] 数据量不足 ({final_count} < {self.min_data_points})")
+                self.logger.info("[INFO] 系统将继续等待，请继续使用鼠标")
                 return False
             
         except Exception as e:
