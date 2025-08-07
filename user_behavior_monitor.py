@@ -497,21 +497,20 @@ class WindowsBehaviorMonitor:
                 'timestamp': time.time()
             }
             
-            # 手动触发告警时，直接显示弹窗，不通过告警服务
-            if self.alert_service.enable_system_actions and GUI_AVAILABLE:
-                self.logger.info("📋 手动触发告警，直接显示安全警告弹窗")
-                self.alert_service._show_warning_dialog(anomaly_data['anomaly_score'])
+            # 检查GUI可用性
+            if GUI_AVAILABLE and self.alert_service.enable_system_actions:
+                self.logger.info("[SUCCESS] 手动触发告警，显示安全警告弹窗")
+                try:
+                    self.alert_service._show_warning_dialog(anomaly_data['anomaly_score'])
+                    self.logger.info("[SUCCESS] 弹窗显示成功")
+                except Exception as e:
+                    self.logger.warning(f"[WARNING] 弹窗显示失败: {str(e)}")
+                    # 弹窗失败时，回退到记录告警
+                    self._record_manual_alert(anomaly_data)
             else:
-                # 如果GUI不可用，记录告警（绕过冷却时间）
-                self.logger.info("⚠️ GUI不可用，仅记录手动告警")
-                self.alert_service.send_alert(
-                    user_id=self.current_user_id or "manual_test",
-                    alert_type="behavior_anomaly",
-                    message="手动触发告警测试 - 用户行为异常检测",
-                    severity="warning",
-                    data=anomaly_data,
-                    bypass_cooldown=True  # 手动触发绕过冷却时间
-                )
+                # GUI不可用时，记录告警
+                self.logger.info("[INFO] GUI不可用，记录手动告警")
+                self._record_manual_alert(anomaly_data)
             
             self.logger.info("✅ 手动告警触发成功")
             self.logger.info("📋 告警详情:")
@@ -527,6 +526,21 @@ class WindowsBehaviorMonitor:
         except Exception as e:
             self.logger.error(f"手动触发告警失败: {str(e)}")
             self.logger.debug(f"异常详情: {traceback.format_exc()}")
+
+    def _record_manual_alert(self, anomaly_data):
+        """记录手动告警"""
+        try:
+            self.alert_service.send_alert(
+                user_id=self.current_user_id or "manual_test",
+                alert_type="behavior_anomaly",
+                message="手动触发告警测试 - 用户行为异常检测",
+                severity="warning",
+                data=anomaly_data,
+                bypass_cooldown=True  # 手动触发绕过冷却时间
+            )
+            self.logger.info("[SUCCESS] 手动告警已记录到数据库")
+        except Exception as e:
+            self.logger.error(f"[ERROR] 记录手动告警失败: {str(e)}")
 
     def _handle_post_alert_actions(self, anomaly_data):
         """处理告警后的系统操作"""
