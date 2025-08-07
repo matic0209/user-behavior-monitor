@@ -80,8 +80,10 @@ def clean_build():
                 print(f"[SUCCESS] 已删除: {dir_name}")
             except PermissionError as e:
                 print(f"[WARNING] 无法删除 {dir_name}，可能正在使用: {e}")
+                print("[INFO] 继续执行，稍后可能会影响构建")
             except Exception as e:
                 print(f"[ERROR] 删除 {dir_name} 时出错: {e}")
+                print("[INFO] 继续执行，稍后可能会影响构建")
         else:
             print(f"[INFO] 目录 {dir_name} 不存在，跳过")
     
@@ -91,7 +93,11 @@ def kill_conflicting_processes():
     """结束冲突的进程"""
     print("检查并结束冲突进程...")
     
-    processes = ['python.exe', 'UserBehaviorMonitor.exe', 'pyinstaller.exe']
+    # 获取当前进程ID
+    current_pid = os.getpid()
+    print(f"当前进程ID: {current_pid}")
+    
+    processes = ['UserBehaviorMonitor.exe', 'pyinstaller.exe']
     
     for proc in processes:
         try:
@@ -106,6 +112,20 @@ def kill_conflicting_processes():
             print(f"[WARNING] 结束进程 {proc} 超时")
         except Exception as e:
             print(f"[INFO] 进程 {proc} 检查时出错: {e}")
+    
+    # 检查其他Python进程，但不杀死当前进程
+    try:
+        print("检查其他Python进程...")
+        result = subprocess.run(['tasklist', '/FI', 'IMAGENAME eq python.exe'], 
+                              capture_output=True, shell=True, timeout=5)
+        if result.returncode == 0:
+            output = result.stdout.decode()
+            if 'python.exe' in output:
+                print("[INFO] 发现其他Python进程，但不会杀死当前进程")
+            else:
+                print("[INFO] 没有发现其他Python进程")
+    except Exception as e:
+        print(f"[INFO] 检查Python进程时出错: {e}")
     
     print("[SUCCESS] 进程检查完成")
 
