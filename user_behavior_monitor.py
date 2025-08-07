@@ -5,6 +5,34 @@
 """
 
 import sys
+
+# 条件导入模块
+try:
+    from src.classification import prepare_features, train_model, save_model, load_model
+    CLASSIFICATION_AVAILABLE = True
+except ImportError:
+    try:
+        from src.classification_mock import prepare_features, train_model, save_model, load_model
+        CLASSIFICATION_AVAILABLE = False
+    except ImportError:
+        CLASSIFICATION_AVAILABLE = False
+        def prepare_features(df, encoders=None): return df
+        def train_model(*args, **kwargs): return None
+        def save_model(*args, **kwargs): return True
+        def load_model(*args, **kwargs): return None
+
+try:
+    from src.predict import predict_anomaly, predict_user_behavior
+    PREDICT_AVAILABLE = True
+except ImportError:
+    try:
+        from src.predict_mock import predict_anomaly, predict_user_behavior
+        PREDICT_AVAILABLE = False
+    except ImportError:
+        PREDICT_AVAILABLE = False
+        def predict_anomaly(*args, **kwargs): return {"anomaly_score": 0.0, "prediction": 0}
+        def predict_user_behavior(*args, **kwargs): return {"prediction": 0, "confidence": 0.0}
+
 import os
 import time
 import signal
