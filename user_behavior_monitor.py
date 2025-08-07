@@ -50,7 +50,7 @@ import urllib.error
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from src.utils.logger.logger import Logger
+from src.utils.logger.logger_with_rotation import LoggerWithRotation as Logger
 from src.utils.config.config_loader import ConfigLoader
 from src.core.user_manager import UserManager
 from src.core.data_collector.windows_mouse_collector import WindowsMouseCollector
