@@ -45,7 +45,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
                         }
                         
                         self.wfile.write(json.dumps(response_data).encode('utf-8'))
-                        print(f"✅ 心跳响应成功: {response_data}")
+                        print(f"[SUCCESS] 心跳响应成功: {response_data}")
                         
                     else:
                         # 数据格式错误
@@ -60,7 +60,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
                         }
                         
                         self.wfile.write(json.dumps(error_data).encode('utf-8'))
-                        print(f"❌ 心跳数据格式错误: {data}")
+                        print(f"[ERROR] 心跳数据格式错误: {data}")
                         
                 except json.JSONDecodeError as e:
                     # JSON解析错误
@@ -75,7 +75,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
                     }
                     
                     self.wfile.write(json.dumps(error_data).encode('utf-8'))
-                    print(f"❌ JSON解析错误: {e}")
+                    print(f"[ERROR] JSON解析错误: {e}")
                     
             else:
                 # 路径不存在
@@ -90,7 +90,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
                 }
                 
                 self.wfile.write(json.dumps(error_data).encode('utf-8'))
-                print(f"❌ 路径不存在: {parsed_url.path}")
+                print(f"[ERROR] 路径不存在: {parsed_url.path}")
                 
         except Exception as e:
             # 服务器内部错误
@@ -105,7 +105,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
             }
             
             self.wfile.write(json.dumps(error_data).encode('utf-8'))
-            print(f"❌ 服务器内部错误: {e}")
+            print(f"[ERROR] 服务器内部错误: {e}")
     
     def do_GET(self):
         """处理GET请求"""
@@ -130,7 +130,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
             }
             
             self.wfile.write(json.dumps(info_data, indent=2).encode('utf-8'))
-            print(f"ℹ️ 服务器信息请求")
+            print(f"[INFO] 服务器信息请求")
             
         else:
             # 路径不存在
@@ -145,7 +145,7 @@ class HeartbeatHandler(BaseHTTPRequestHandler):
             }
             
             self.wfile.write(json.dumps(error_data).encode('utf-8'))
-            print(f"❌ 路径不存在: {parsed_url.path}")
+            print(f"[ERROR] 路径不存在: {parsed_url.path}")
     
     def log_message(self, format, *args):
         """自定义日志格式"""
@@ -155,23 +155,23 @@ def start_server(host='127.0.0.1', port=26002):
     """启动心跳服务器"""
     try:
         server = HTTPServer((host, port), HeartbeatHandler)
-        print(f"🚀 心跳服务器启动成功!")
-        print(f"📍 地址: http://{host}:{port}")
-        print(f"📋 支持的端点:")
+        print(f"[START] 心跳服务器启动成功!")
+        print(f"[ADDR] 地址: http://{host}:{port}")
+        print(f"[ENDP] 支持的端点:")
         print(f"   - POST /heartbeat: 接收心跳信号")
         print(f"   - GET /: 服务器信息")
-        print(f"⏹️  按 Ctrl+C 停止服务器")
+        print(f"[STOP] 按 Ctrl+C 停止服务器")
         print("=" * 50)
         
         # 启动服务器
         server.serve_forever()
         
     except KeyboardInterrupt:
-        print("\n🛑 收到停止信号，正在关闭服务器...")
+        print("\n[STOP] 收到停止信号，正在关闭服务器...")
         server.shutdown()
-        print("✅ 服务器已关闭")
+        print("[DONE] 服务器已关闭")
     except Exception as e:
-        print(f"❌ 服务器启动失败: {e}")
+        print(f"[ERROR] 服务器启动失败: {e}")
 
 def main():
     """主函数"""

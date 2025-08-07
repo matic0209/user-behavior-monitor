@@ -43,21 +43,21 @@ def test_heartbeat():
             response_code = response.getcode()
             response_data = response.read()
             
-            print(f"✅ 心跳发送成功!")
+            print(f"[SUCCESS] 心跳发送成功!")
             print(f"状态码: {response_code}")
             print(f"响应数据: {response_data.decode('utf-8')}")
             
             return True
             
     except urllib.error.URLError as e:
-        print(f"❌ 心跳发送失败 (网络错误): {str(e)}")
+        print(f"[ERROR] 心跳发送失败 (网络错误): {str(e)}")
         print("可能的原因:")
         print("1. 目标服务器未启动")
         print("2. 网络连接问题")
         print("3. 防火墙阻止")
         return False
     except Exception as e:
-        print(f"❌ 心跳发送失败: {str(e)}")
+        print(f"[ERROR] 心跳发送失败: {str(e)}")
         return False
 
 def test_continuous_heartbeat():
@@ -75,9 +75,9 @@ def test_continuous_heartbeat():
             print(f"\n第 {count} 次心跳发送...")
             
             if test_heartbeat():
-                print(f"✅ 第 {count} 次心跳成功")
+                print(f"[SUCCESS] 第 {count} 次心跳成功")
             else:
-                print(f"❌ 第 {count} 次心跳失败")
+                print(f"[ERROR] 第 {count} 次心跳失败")
             
             print(f"等待 {interval} 秒后发送下一次心跳...")
             time.sleep(interval)
@@ -97,10 +97,10 @@ def main():
         # 单次测试
         success = test_heartbeat()
         if success:
-            print("\n✅ 心跳功能测试通过")
+            print("\n[SUCCESS] 心跳功能测试通过")
             sys.exit(0)
         else:
-            print("\n❌ 心跳功能测试失败")
+            print("\n[ERROR] 心跳功能测试失败")
             sys.exit(1)
 
 if __name__ == "__main__":

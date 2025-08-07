@@ -58,25 +58,25 @@ class HeartbeatDemo:
                 response_code = response.getcode()
                 if response_code == 200:
                     self.stats['heartbeat_sent'] += 1
-                    print(f"✅ 心跳发送成功 (第{self.stats['heartbeat_sent']}次)")
+                    print(f"[SUCCESS] 心跳发送成功 (第{self.stats['heartbeat_sent']}次)")
                     return True
                 else:
-                    print(f"❌ 心跳发送失败，状态码: {response_code}")
+                    print(f"[ERROR] 心跳发送失败，状态码: {response_code}")
                     self.stats['heartbeat_failed'] += 1
                     return False
                     
         except urllib.error.URLError as e:
-            print(f"❌ 心跳发送失败 (网络错误): {str(e)}")
+            print(f"[ERROR] 心跳发送失败 (网络错误): {str(e)}")
             self.stats['heartbeat_failed'] += 1
             return False
         except Exception as e:
-            print(f"❌ 心跳发送失败: {str(e)}")
+            print(f"[ERROR] 心跳发送失败: {str(e)}")
             self.stats['heartbeat_failed'] += 1
             return False
 
     def _heartbeat_worker(self):
         """心跳工作线程"""
-        print(f"🚀 心跳线程启动，间隔: {self.heartbeat_interval} 秒")
+        print(f"[START] 心跳线程启动，间隔: {self.heartbeat_interval} 秒")
         
         while self.is_running:
             try:
@@ -91,7 +91,7 @@ class HeartbeatDemo:
                 time.sleep(1)  # 每1秒检查一次
                 
             except Exception as e:
-                print(f"❌ 心跳线程异常: {str(e)}")
+                print(f"[ERROR] 心跳线程异常: {str(e)}")
                 time.sleep(5)  # 异常时等待更长时间
 
     def _start_heartbeat(self):
@@ -104,23 +104,23 @@ class HeartbeatDemo:
                     name="HeartbeatThread"
                 )
                 self.heartbeat_thread.start()
-                print("✅ 心跳线程已启动")
+                print("[SUCCESS] 心跳线程已启动")
                 return True
             else:
-                print("ℹ️ 心跳线程已在运行")
+                print("[INFO] 心跳线程已在运行")
                 return True
         except Exception as e:
-            print(f"❌ 启动心跳线程失败: {str(e)}")
+            print(f"[ERROR] 启动心跳线程失败: {str(e)}")
             return False
 
     def _stop_heartbeat(self):
         """停止心跳线程"""
         try:
             if self.heartbeat_thread and self.heartbeat_thread.is_alive():
-                print("🛑 正在停止心跳线程...")
+                print("[STOP] 正在停止心跳线程...")
                 return True
         except Exception as e:
-            print(f"❌ 停止心跳线程失败: {str(e)}")
+            print(f"[ERROR] 停止心跳线程失败: {str(e)}")
             return False
 
     def _get_heartbeat_stats(self):
@@ -139,13 +139,13 @@ class HeartbeatDemo:
 
     def start(self):
         """启动演示"""
-        print("🚀 启动心跳功能演示...")
+        print("[START] 启动心跳功能演示...")
         self.is_running = True
         
         # 启动心跳线程
         self._start_heartbeat()
         
-        print("📋 演示说明:")
+        print("[INFO] 演示说明:")
         print("   - 系统将每10秒发送一次心跳")
         print("   - 心跳数据格式: {\"type\": 4}")
         print("   - 按 Ctrl+C 停止演示")
@@ -157,12 +157,12 @@ class HeartbeatDemo:
                 time.sleep(1)
                 
         except KeyboardInterrupt:
-            print("\n🛑 收到停止信号...")
+            print("\n[STOP] 收到停止信号...")
             self.stop()
 
     def stop(self):
         """停止演示"""
-        print("🛑 正在停止演示...")
+        print("[STOP] 正在停止演示...")
         
         # 停止心跳线程
         self._stop_heartbeat()
@@ -171,12 +171,12 @@ class HeartbeatDemo:
         
         # 显示统计信息
         stats = self._get_heartbeat_stats()
-        print("\n📊 心跳统计信息:")
+        print("\n[STATS] 心跳统计信息:")
         print(f"   - 发送成功: {stats['heartbeat_sent']} 次")
         print(f"   - 发送失败: {stats['heartbeat_failed']} 次")
         print(f"   - 成功率: {stats['success_rate']:.1f}%")
         
-        print("✅ 演示结束")
+        print("[DONE] 演示结束")
 
 def main():
     """主函数"""
@@ -191,9 +191,9 @@ def main():
     try:
         import urllib.request
         response = urllib.request.urlopen('http://127.0.0.1:26002/', timeout=5)
-        print("✅ 心跳服务器正在运行")
+        print("[SUCCESS] 心跳服务器正在运行")
     except:
-        print("❌ 心跳服务器未运行")
+        print("[ERROR] 心跳服务器未运行")
         print("请先启动模拟服务器: python3 mock_heartbeat_server.py")
         return 1
     

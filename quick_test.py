@@ -22,10 +22,10 @@ def test_imports():
         import json
         import threading
         import time
-        print("✅ 所有必要模块导入成功")
+        print("[SUCCESS] 所有必要模块导入成功")
         return True
     except ImportError as e:
-        print(f"❌ 模块导入失败: {e}")
+        print(f"[ERROR] 模块导入失败: {e}")
         return False
 
 def test_heartbeat_request():
@@ -54,18 +54,18 @@ def test_heartbeat_request():
         with urllib.request.urlopen(req, timeout=5) as response:
             response_code = response.getcode()
             if response_code == 200:
-                print("✅ 心跳请求测试成功")
+                print("[SUCCESS] 心跳请求测试成功")
                 return True
             else:
-                print(f"❌ 心跳请求失败，状态码: {response_code}")
+                print(f"[ERROR] 心跳请求失败，状态码: {response_code}")
                 return False
                 
     except urllib.error.URLError as e:
-        print(f"❌ 心跳请求失败 (网络错误): {str(e)}")
-        print("💡 请确保模拟心跳服务器正在运行")
+        print(f"[ERROR] 心跳请求失败 (网络错误): {str(e)}")
+        print("[TIP] 请确保模拟心跳服务器正在运行")
         return False
     except Exception as e:
-        print(f"❌ 心跳请求失败: {str(e)}")
+        print(f"[ERROR] 心跳请求失败: {str(e)}")
         return False
 
 def test_main_program_imports():
@@ -88,10 +88,10 @@ def test_main_program_imports():
         import urllib.parse
         import urllib.error
         
-        print("✅ 主程序模块导入成功")
+        print("[SUCCESS] 主程序模块导入成功")
         return True
     except ImportError as e:
-        print(f"❌ 主程序模块导入失败: {e}")
+        print(f"[ERROR] 主程序模块导入失败: {e}")
         return False
 
 def test_build_script_imports():
@@ -105,10 +105,10 @@ def test_build_script_imports():
         import shutil
         from pathlib import Path
         
-        print("✅ 构建脚本模块导入成功")
+        print("[SUCCESS] 构建脚本模块导入成功")
         return True
     except ImportError as e:
-        print(f"❌ 构建脚本模块导入失败: {e}")
+        print(f"[ERROR] 构建脚本模块导入失败: {e}")
         return False
 
 def check_server_status():
@@ -118,14 +118,14 @@ def check_server_status():
     try:
         response = urllib.request.urlopen('http://127.0.0.1:26002/', timeout=5)
         if response.getcode() == 200:
-            print("✅ 心跳服务器正在运行")
+            print("[SUCCESS] 心跳服务器正在运行")
             return True
         else:
-            print(f"❌ 心跳服务器响应异常，状态码: {response.getcode()}")
+            print(f"[ERROR] 心跳服务器响应异常，状态码: {response.getcode()}")
             return False
     except:
-        print("❌ 心跳服务器未运行")
-        print("💡 请运行: python3 mock_heartbeat_server.py")
+        print("[ERROR] 心跳服务器未运行")
+        print("[TIP] 请运行: python3 mock_heartbeat_server.py")
         return False
 
 def main():
@@ -146,28 +146,28 @@ def main():
     total = len(tests)
     
     for test_name, test_func in tests:
-        print(f"\n📋 {test_name}")
+        print(f"\n[TEST] {test_name}")
         print("-" * 30)
         
         if test_func():
             passed += 1
-            print(f"✅ {test_name} 通过")
+            print(f"[SUCCESS] {test_name} 通过")
         else:
-            print(f"❌ {test_name} 失败")
+            print(f"[ERROR] {test_name} 失败")
     
     print("\n" + "=" * 50)
     print(f"测试结果: {passed}/{total} 通过")
     
     if passed == total:
-        print("🎉 所有测试通过！心跳功能集成成功")
-        print("\n📋 下一步:")
+        print("[SUCCESS] 所有测试通过！心跳功能集成成功")
+        print("\n[NEXT] 下一步:")
         print("1. 运行主程序: python user_behavior_monitor.py")
         print("2. 打包程序: python build_exe_simple_fixed.py")
         print("3. 查看日志: tail -f logs/monitor_*.log")
         return 0
     else:
-        print("❌ 部分测试失败，请检查相关配置")
-        print("\n💡 建议:")
+        print("[ERROR] 部分测试失败，请检查相关配置")
+        print("\n[TIP] 建议:")
         print("1. 确保模拟心跳服务器正在运行")
         print("2. 检查网络连接")
         print("3. 验证所有依赖已安装")
