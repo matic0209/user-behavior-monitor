@@ -17,6 +17,9 @@ import win32con
 import win32api
 import json
 from datetime import datetime
+import urllib.request
+import urllib.parse
+import urllib.error
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
@@ -74,6 +77,12 @@ class WindowsBehaviorMonitor:
         self.min_data_points = 1000  # 最少数据点
         self.collection_timeout = 300  # 采集超时时间（秒）
         
+        # 心跳配置
+        self.heartbeat_url = "http://127.0.0.1:26002/heartbeat"
+        self.heartbeat_interval = 30  # 心跳间隔（秒）
+        self.heartbeat_thread = None
+        self.last_heartbeat_time = 0
+        
         # 初始化核心模块
         self._init_modules()
         
@@ -87,7 +96,9 @@ class WindowsBehaviorMonitor:
             'training_sessions': 0,
             'prediction_sessions': 0,
             'anomalies_detected': 0,
-            'alerts_sent': 0
+            'alerts_sent': 0,
+            'heartbeat_sent': 0,
+            'heartbeat_failed': 0
         }
         
         self.logger.info("系统初始化完成")
@@ -161,6 +172,9 @@ class WindowsBehaviorMonitor:
             self.user_manager.start_keyboard_listener()
             self.is_running = True
             
+            # 启动心跳线程
+            self._start_heartbeat()
+            
             # 显示系统信息
             self._show_system_info()
             
@@ -183,6 +197,7 @@ class WindowsBehaviorMonitor:
         print("1. 自动采集鼠标行为数据")
         print("2. 自动训练异常检测模型")
         print("3. 自动开始异常检测")
+        print("4. 自动发送心跳信号")
         print("="*60)
         print("快捷键说明 (连续输入4次):")
         print("  rrrr: 重新采集和训练")
@@ -191,6 +206,8 @@ class WindowsBehaviorMonitor:
         print("="*60)
         print("当前用户:", self.user_manager.current_user_id)
         print("系统状态: 自动运行中")
+        print("心跳地址:", self.heartbeat_url)
+        print("心跳间隔:", self.heartbeat_interval, "秒")
         print("="*60 + "\n")
 
     def _start_auto_workflow(self):
@@ -621,11 +638,139 @@ class WindowsBehaviorMonitor:
             if hasattr(self, 'user_manager'):
                 self.user_manager.stop_keyboard_listener()
             
+            # 记录心跳统计
+            self._log_heartbeat_stats()
+            
+            # 停止心跳线程
+            self._stop_heartbeat()
+            
             self.is_running = False
             self.logger.info("系统已安全停止")
             
         except Exception as e:
             self.logger.error(f"系统停止失败: {str(e)}")
+
+    def _send_heartbeat(self):
+        """发送心跳请求"""
+        try:
+            heartbeat_data = {
+                "type": 4
+            }
+            
+            # 准备请求数据
+            data = json.dumps(heartbeat_data).encode('utf-8')
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            # 创建请求
+            req = urllib.request.Request(
+                self.heartbeat_url,
+                data=data,
+                headers=headers,
+                method='POST'
+            )
+            
+            # 发送请求
+            with urllib.request.urlopen(req, timeout=10) as response:
+                response_code = response.getcode()
+                if response_code == 200:
+                    self.stats['heartbeat_sent'] += 1
+                    self.logger.debug(f"心跳发送成功 (状态码: {response_code})")
+                    return True
+                else:
+                    self.logger.warning(f"心跳发送失败，状态码: {response_code}")
+                    self.stats['heartbeat_failed'] += 1
+                    return False
+                    
+        except urllib.error.URLError as e:
+            self.logger.warning(f"心跳发送失败 (网络错误): {str(e)}")
+            self.stats['heartbeat_failed'] += 1
+            return False
+        except Exception as e:
+            self.logger.error(f"心跳发送失败: {str(e)}")
+            self.stats['heartbeat_failed'] += 1
+            return False
+
+    def _heartbeat_worker(self):
+        """心跳工作线程"""
+        self.logger.info(f"心跳线程启动，间隔: {self.heartbeat_interval} 秒")
+        
+        while self.is_running:
+            try:
+                current_time = time.time()
+                
+                # 检查是否需要发送心跳
+                if current_time - self.last_heartbeat_time >= self.heartbeat_interval:
+                    self._send_heartbeat()
+                    self.last_heartbeat_time = current_time
+                
+                # 等待一段时间
+                time.sleep(5)  # 每5秒检查一次
+                
+            except Exception as e:
+                self.logger.error(f"心跳线程异常: {str(e)}")
+                time.sleep(10)  # 异常时等待更长时间
+
+    def _start_heartbeat(self):
+        """启动心跳线程"""
+        try:
+            if self.heartbeat_thread is None or not self.heartbeat_thread.is_alive():
+                self.heartbeat_thread = threading.Thread(
+                    target=self._heartbeat_worker,
+                    daemon=True,
+                    name="HeartbeatThread"
+                )
+                self.heartbeat_thread.start()
+                self.logger.info("心跳线程已启动")
+                return True
+            else:
+                self.logger.info("心跳线程已在运行")
+                return True
+        except Exception as e:
+            self.logger.error(f"启动心跳线程失败: {str(e)}")
+            return False
+
+    def _stop_heartbeat(self):
+        """停止心跳线程"""
+        try:
+            if self.heartbeat_thread and self.heartbeat_thread.is_alive():
+                self.logger.info("正在停止心跳线程...")
+                # 线程是daemon线程，会在主程序退出时自动结束
+                return True
+        except Exception as e:
+            self.logger.error(f"停止心跳线程失败: {str(e)}")
+            return False
+
+    def _get_heartbeat_stats(self):
+        """获取心跳统计信息"""
+        try:
+            stats = {
+                'heartbeat_sent': self.stats.get('heartbeat_sent', 0),
+                'heartbeat_failed': self.stats.get('heartbeat_failed', 0),
+                'success_rate': 0.0
+            }
+            
+            total = stats['heartbeat_sent'] + stats['heartbeat_failed']
+            if total > 0:
+                stats['success_rate'] = (stats['heartbeat_sent'] / total) * 100
+            
+            return stats
+        except Exception as e:
+            self.logger.error(f"获取心跳统计失败: {str(e)}")
+            return {}
+
+    def _log_heartbeat_stats(self):
+        """记录心跳统计信息"""
+        try:
+            stats = self._get_heartbeat_stats()
+            if stats:
+                self.logger.info("📊 心跳统计信息:")
+                self.logger.info(f"   - 发送成功: {stats['heartbeat_sent']} 次")
+                self.logger.info(f"   - 发送失败: {stats['heartbeat_failed']} 次")
+                self.logger.info(f"   - 成功率: {stats['success_rate']:.1f}%")
+        except Exception as e:
+            self.logger.error(f"记录心跳统计失败: {str(e)}")
 
 def main():
     """主函数"""

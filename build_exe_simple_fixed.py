@@ -74,6 +74,11 @@ def build_exe_simple(pyinstaller_cmd):
         '--hidden-import=sklearn',
         '--hidden-import=xgboost',
         
+        # 网络通信模块（心跳功能）
+        '--hidden-import=urllib.request',
+        '--hidden-import=urllib.parse',
+        '--hidden-import=urllib.error',
+        
         # 强制收集关键模块
         '--collect-all=xgboost',
         '--collect-all=sklearn',
@@ -151,6 +156,13 @@ def build_exe_detailed(pyinstaller_cmd):
         '--hidden-import=sys',
         '--hidden-import=traceback',
         
+        # 网络通信模块（心跳功能）
+        '--hidden-import=urllib.request',
+        '--hidden-import=urllib.parse',
+        '--hidden-import=urllib.error',
+        '--hidden-import=http.client',
+        '--hidden-import=socket',
+        
         # 强制收集所有相关模块
         '--collect-all=xgboost',
         '--collect-all=sklearn',
@@ -206,6 +218,11 @@ def build_exe_onedir(pyinstaller_cmd):
         '--hidden-import=pandas',
         '--hidden-import=sklearn',
         '--hidden-import=xgboost',
+        
+        # 网络通信模块（心跳功能）
+        '--hidden-import=urllib.request',
+        '--hidden-import=urllib.parse',
+        '--hidden-import=urllib.error',
         
         # 强制收集关键模块
         '--collect-all=xgboost',

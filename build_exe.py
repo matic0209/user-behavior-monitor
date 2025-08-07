@@ -107,6 +107,9 @@ def build_exe():
         '--hidden-import=json',
         '--hidden-import=datetime',
         '--hidden-import=pathlib',
+        '--hidden-import=urllib.request',
+        '--hidden-import=urllib.parse',
+        '--hidden-import=urllib.error',
         '--collect-all=xgboost',
         '--collect-all=sklearn',
         '--collect-all=pandas',
@@ -152,6 +155,9 @@ def build_service_exe():
         '--hidden-import=json',
         '--hidden-import=datetime',
         '--hidden-import=pathlib',
+        '--hidden-import=urllib.request',
+        '--hidden-import=urllib.parse',
+        '--hidden-import=urllib.error',
         'windows_service.py'
     ]
     
