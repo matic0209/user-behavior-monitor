@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-简化的PyInstaller打包脚本
-专门解决Windows环境下PyInstaller命令找不到的问题
+Windows环境优化的PyInstaller打包脚本
+专门解决Windows权限问题和文件占用问题
 """
 
 import os
@@ -9,56 +9,66 @@ import sys
 import subprocess
 import shutil
 import time
+import threading
 from pathlib import Path
+
+def safe_remove_path(path, max_retries=3, delay=1):
+    """安全删除路径，带重试机制"""
+    for attempt in range(max_retries):
+        try:
+            if os.path.isfile(path):
+                os.unlink(path)
+                print(f"已删除文件: {path}")
+                return True
+            elif os.path.isdir(path):
+                shutil.rmtree(path)
+                print(f"已删除目录: {path}")
+                return True
+        except PermissionError as e:
+            if attempt < max_retries - 1:
+                print(f"警告: 无法删除 {path} (尝试 {attempt + 1}/{max_retries})")
+                print(f"错误: {e}")
+                print(f"等待 {delay} 秒后重试...")
+                time.sleep(delay)
+            else:
+                print(f"错误: 无法删除 {path}，文件可能正在使用中")
+                print(f"请关闭所有相关程序后重试")
+                return False
+        except Exception as e:
+            print(f"删除 {path} 时出错: {e}")
+            return False
+    return False
 
 def clean_build():
     """清理构建目录"""
     print("清理构建目录...")
     
+    # 需要清理的目录
     dirs_to_clean = ['build', 'dist', '__pycache__']
+    
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
-            try:
-                shutil.rmtree(dir_name)
-                print(f"已删除 {dir_name}")
-            except PermissionError as e:
-                print(f"警告: 无法删除 {dir_name}，文件可能正在使用中")
-                print(f"错误详情: {e}")
-                print("请关闭所有相关程序后重试")
-                continue
-            except Exception as e:
-                print(f"删除 {dir_name} 时出错: {e}")
-                continue
+            print(f"正在清理 {dir_name}...")
+            safe_remove_path(dir_name)
     
     # 清理spec文件
     spec_files = list(Path('.').glob('*.spec'))
     for spec_file in spec_files:
-        try:
-            spec_file.unlink()
-            print(f"已删除 {spec_file}")
-        except PermissionError as e:
-            print(f"警告: 无法删除 {spec_file}，文件可能正在使用中")
-            print(f"错误详情: {e}")
-        except Exception as e:
-            print(f"删除 {spec_file} 时出错: {e}")
+        print(f"正在清理 {spec_file}...")
+        safe_remove_path(spec_file)
     
-    # 尝试清理日志文件（如果存在）
-    try:
-        log_dirs = ['logs', 'dist/logs']
-        for log_dir in log_dirs:
-            if os.path.exists(log_dir):
-                # 只删除旧的日志文件，保留目录
+    # 清理日志文件（保留目录，只删除旧文件）
+    log_dirs = ['logs', 'dist/logs']
+    for log_dir in log_dirs:
+        if os.path.exists(log_dir):
+            print(f"正在清理 {log_dir} 中的旧日志文件...")
+            try:
                 for log_file in Path(log_dir).glob('*.log'):
-                    try:
-                        if log_file.stat().st_mtime < time.time() - 3600:  # 1小时前的文件
-                            log_file.unlink()
-                            print(f"已删除旧日志文件: {log_file}")
-                    except PermissionError:
-                        print(f"警告: 无法删除日志文件 {log_file}，可能正在使用中")
-                    except Exception as e:
-                        print(f"删除日志文件 {log_file} 时出错: {e}")
-    except Exception as e:
-        print(f"清理日志文件时出错: {e}")
+                    # 只删除1小时前的日志文件
+                    if log_file.stat().st_mtime < time.time() - 3600:
+                        safe_remove_path(log_file)
+            except Exception as e:
+                print(f"清理日志文件时出错: {e}")
 
 def check_pyinstaller():
     """检查PyInstaller是否可用"""
@@ -113,6 +123,11 @@ def build_exe(pyinstaller_cmd):
         '--hidden-import=pandas',
         '--hidden-import=numpy',
         '--hidden-import=yaml',
+        '--hidden-import=urllib.request',
+        '--hidden-import=urllib.parse',
+        '--hidden-import=urllib.error',
+        '--hidden-import=http.client',
+        '--hidden-import=socket',
         'user_behavior_monitor.py'
     ]
     
@@ -128,17 +143,27 @@ def build_exe(pyinstaller_cmd):
         print(f"错误输出: {e.stderr}")
         return False
 
-def main():
-    """主函数"""
-    print("简化版用户行为监控系统打包工具")
-    print("=" * 30)
+def check_windows_environment():
+    """检查Windows环境"""
+    print("检查Windows环境...")
     
-    # 检查操作系统
     if sys.platform != 'win32':
         print("错误: 此脚本只能在Windows系统上运行")
-        return
+        return False
+    
+    print("✅ Windows环境检查通过")
+    return True
+
+def main():
+    """主函数"""
+    print("Windows优化的用户行为监控系统打包工具")
+    print("=" * 50)
     
     try:
+        # 检查Windows环境
+        if not check_windows_environment():
+            return
+        
         # 清理构建目录
         clean_build()
         
@@ -146,19 +171,26 @@ def main():
         pyinstaller_cmd = check_pyinstaller()
         if pyinstaller_cmd is None:
             print("错误: 无法找到或安装PyInstaller")
+            print("请手动安装: pip install pyinstaller")
             return
         
         # 构建可执行文件
         if build_exe(pyinstaller_cmd):
-            print("\n打包完成!")
+            print("\n" + "=" * 50)
+            print("✅ 构建完成!")
             print("可执行文件位置: dist/UserBehaviorMonitor.exe")
+            print("=" * 50)
         else:
-            print("\n打包失败!")
-        
+            print("\n" + "=" * 50)
+            print("❌ 构建失败!")
+            print("请检查错误信息并重试")
+            print("=" * 50)
+            
+    except KeyboardInterrupt:
+        print("\n用户中断构建过程")
     except Exception as e:
-        print(f"打包过程中出现错误: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"\n构建过程中出现未知错误: {e}")
+        print("请检查环境配置并重试")
 
-if __name__ == '__main__':
-    main() 
+if __name__ == "__main__":
+    main()
