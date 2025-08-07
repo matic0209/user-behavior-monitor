@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Windows专用构建脚本
-包含完整的依赖检查和错误处理
+Windows完整构建脚本
+包含依赖检查和构建过程
 """
 
 import os
@@ -182,7 +182,7 @@ def build_executable():
 
 def main():
     """主函数"""
-    print("Windows依赖检查脚本")
+    print("Windows完整构建脚本")
     print("=" * 40)
     
     # 检查Windows环境
@@ -193,12 +193,30 @@ def main():
     if not check_dependencies():
         return
     
-    print("\n" + "=" * 40)
-    print("[SUCCESS] 依赖检查完成!")
-    print("[TIP] 现在可以运行构建脚本:")
-    print("    python build_safe.py")
-    print("    python build_cross_platform.py")
-    print("=" * 40)
+    # 设置环境
+    setup_environment()
+    
+    # 结束冲突进程
+    kill_conflicting_processes()
+    
+    # 清理构建目录
+    clean_build()
+    
+    # 等待一下确保文件释放
+    print("等待文件系统稳定...")
+    time.sleep(2)
+    
+    # 构建可执行文件
+    if build_executable():
+        print("\n" + "=" * 40)
+        print("[SUCCESS] 构建完成!")
+        print("[INFO] 可执行文件位置: dist/UserBehaviorMonitor.exe")
+        print("=" * 40)
+    else:
+        print("\n" + "=" * 40)
+        print("[ERROR] 构建失败!")
+        print("[TIP] 请检查错误信息并重试")
+        print("=" * 40)
 
 if __name__ == "__main__":
     main()

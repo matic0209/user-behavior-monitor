@@ -50,9 +50,19 @@ python build_windows.py
 
 ## 步骤3: 构建可执行文件
 
-### 方法1: 使用Windows专用构建脚本（推荐）
+### 方法1: 使用完整构建脚本（推荐）
 ```cmd
-python build_windows.py
+python build_windows_full.py
+```
+
+### 方法2: 使用通用构建脚本
+```cmd
+python build_safe.py
+```
+
+### 方法3: 使用跨平台构建脚本
+```cmd
+python build_cross_platform.py
 ```
 
 ### 方法2: 使用通用构建脚本
@@ -96,7 +106,8 @@ python build_cross_platform.py
 
 | 脚本 | 特点 | 适用场景 |
 |------|------|----------|
-| `build_windows.py` | Windows专用，完整依赖检查 | Windows环境，推荐使用 |
+| `build_windows_full.py` | Windows专用，完整依赖检查和构建 | Windows环境，推荐使用 |
+| `build_windows.py` | Windows专用，仅依赖检查 | 验证环境 |
 | `build_safe.py` | 通用脚本，基础功能 | 简单构建 |
 | `build_cross_platform.py` | 跨平台，自动适配 | 多平台环境 |
 
