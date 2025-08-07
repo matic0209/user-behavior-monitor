@@ -12,9 +12,6 @@ import threading
 import psutil
 from pathlib import Path
 import traceback
-import win32gui
-import win32con
-import win32api
 import json
 from datetime import datetime
 import urllib.request

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-安全的Windows构建脚本
-解决权限错误和编码问题
+跨平台构建脚本
+根据操作系统自动调整配置
 """
 
 import os
@@ -37,67 +37,107 @@ def clean_build():
             except Exception as e:
                 print(f"[ERROR] 删除 {dir_name} 时出错: {e}")
 
-def kill_conflicting_processes():
-    """结束冲突的进程"""
-    print("检查并结束冲突进程...")
+def get_platform_config():
+    """根据平台获取配置"""
+    is_windows = platform.system() == 'Windows'
     
-    processes = ['python.exe', 'UserBehaviorMonitor.exe', 'pyinstaller.exe']
+    config = {
+        'data_separator': ';' if is_windows else ':',
+        'exe_extension': '.exe' if is_windows else '',
+        'hidden_imports': [],
+        'collect_all': [],
+        'exclude_modules': []
+    }
     
-    for proc in processes:
-        try:
-            result = subprocess.run(['taskkill', '/f', '/im', proc], 
-                                  capture_output=True, shell=True)
-            if result.returncode == 0:
-                print(f"[SUCCESS] 已结束进程: {proc}")
-        except Exception as e:
-            print(f"[INFO] 进程 {proc} 未运行或无法结束")
+    # 通用依赖
+    config['hidden_imports'].extend([
+        'psutil',
+        'yaml',
+        'numpy',
+        'pandas',
+        'sklearn',
+        'xgboost',
+        'urllib.request',
+        'urllib.parse',
+        'urllib.error',
+        'threading',
+        'json',
+        'datetime',
+        'pathlib',
+        'time',
+        'signal',
+        'os',
+        'sys',
+        'traceback'
+    ])
+    
+    # Windows特定依赖
+    if is_windows:
+        config['hidden_imports'].extend([
+            'win32api',
+            'win32con',
+            'win32gui',
+            'win32service',
+            'win32serviceutil',
+            'pynput',
+            'keyboard'
+        ])
+    else:
+        # Linux特定依赖
+        config['hidden_imports'].extend([
+            'pynput',
+            'keyboard'
+        ])
+        config['exclude_modules'].extend([
+            'win32api',
+            'win32con',
+            'win32gui',
+            'win32service',
+            'win32serviceutil'
+        ])
+    
+    # 强制收集的模块
+    config['collect_all'].extend([
+        'xgboost',
+        'sklearn',
+        'pandas',
+        'numpy',
+        'psutil',
+        'pynput'
+    ])
+    
+    return config
 
 def build_executable():
     """构建可执行文件"""
     print("开始构建可执行文件...")
     
-    # 根据操作系统设置路径分隔符
-    if platform.system() == 'Windows':
-        data_separator = ';'
-    else:
-        data_separator = ':'
+    # 获取平台配置
+    config = get_platform_config()
     
-    # 构建命令 - 添加所有必要的配置
+    # 构建命令
     build_cmd = [
         sys.executable, '-m', 'PyInstaller',
         '--onefile',                    # 单文件
         '--windowed',                   # 无控制台窗口
         '--name=UserBehaviorMonitor',   # 可执行文件名
-        f'--add-data=src/utils/config{data_separator}src/utils/config',  # 配置文件
-        
-        # Windows API
-        '--hidden-import=win32api',
-        '--hidden-import=win32con',
-        '--hidden-import=win32gui',
-        '--hidden-import=win32service',
-        '--hidden-import=win32serviceutil',
-        
-        # 核心依赖
-        '--hidden-import=pynput',
-        '--hidden-import=psutil',
-        '--hidden-import=keyboard',
-        '--hidden-import=yaml',
-        '--hidden-import=numpy',
-        '--hidden-import=pandas',
-        '--hidden-import=sklearn',
-        '--hidden-import=xgboost',
-        
-        # 网络通信模块（心跳功能）
-        '--hidden-import=urllib.request',
-        '--hidden-import=urllib.parse',
-        '--hidden-import=urllib.error',
-        
-        # 强制收集关键模块
-        '--collect-all=xgboost',
-        '--collect-all=sklearn',
-        
-        'user_behavior_monitor.py'
+        f'--add-data=src/utils/config{config["data_separator"]}src/utils/config',  # 配置文件
     ]
+    
+    # 添加隐藏导入
+    for module in config['hidden_imports']:
+        build_cmd.append(f'--hidden-import={module}')
+    
+    # 添加强制收集模块
+    for module in config['collect_all']:
+        build_cmd.append(f'--collect-all={module}')
+    
+    # 添加排除模块
+    for module in config['exclude_modules']:
+        build_cmd.append(f'--exclude-module={module}')
+    
+    # 添加主程序文件
+    build_cmd.append('user_behavior_monitor.py')
     
     try:
         print("执行构建命令...")
@@ -111,11 +151,7 @@ def build_executable():
         print(result.stdout)
         
         # 检查生成的文件
-        if platform.system() == 'Windows':
-            exe_path = 'dist/UserBehaviorMonitor.exe'
-        else:
-            exe_path = 'dist/UserBehaviorMonitor'
-            
+        exe_path = f'dist/UserBehaviorMonitor{config["exe_extension"]}'
         if os.path.exists(exe_path):
             size = os.path.getsize(exe_path) / (1024 * 1024)  # MB
             print(f"[SUCCESS] 可执行文件已生成: {exe_path}")
@@ -136,14 +172,12 @@ def build_executable():
 
 def main():
     """主函数"""
-    print("安全的Windows构建脚本")
+    print("跨平台构建脚本")
     print("=" * 40)
+    print(f"当前平台: {platform.system()}")
     
     # 设置环境
     setup_environment()
-    
-    # 结束冲突进程
-    kill_conflicting_processes()
     
     # 清理构建目录
     clean_build()
@@ -156,7 +190,9 @@ def main():
     if build_executable():
         print("\n" + "=" * 40)
         print("[SUCCESS] 构建完成!")
-        print("[INFO] 可执行文件位置: dist/UserBehaviorMonitor.exe")
+        config = get_platform_config()
+        exe_path = f'dist/UserBehaviorMonitor{config["exe_extension"]}'
+        print(f"[INFO] 可执行文件位置: {exe_path}")
         print("=" * 40)
     else:
         print("\n" + "=" * 40)
