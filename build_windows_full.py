@@ -75,12 +75,17 @@ def clean_build():
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
             try:
+                print(f"正在删除目录: {dir_name}")
                 shutil.rmtree(dir_name)
                 print(f"[SUCCESS] 已删除: {dir_name}")
-            except PermissionError:
-                print(f"[WARNING] 无法删除 {dir_name}，可能正在使用")
+            except PermissionError as e:
+                print(f"[WARNING] 无法删除 {dir_name}，可能正在使用: {e}")
             except Exception as e:
                 print(f"[ERROR] 删除 {dir_name} 时出错: {e}")
+        else:
+            print(f"[INFO] 目录 {dir_name} 不存在，跳过")
+    
+    print("[SUCCESS] 目录清理完成")
 
 def kill_conflicting_processes():
     """结束冲突的进程"""
@@ -90,12 +95,19 @@ def kill_conflicting_processes():
     
     for proc in processes:
         try:
+            print(f"正在检查进程: {proc}")
             result = subprocess.run(['taskkill', '/f', '/im', proc], 
-                                  capture_output=True, shell=True)
+                                  capture_output=True, shell=True, timeout=10)
             if result.returncode == 0:
                 print(f"[SUCCESS] 已结束进程: {proc}")
+            else:
+                print(f"[INFO] 进程 {proc} 未运行或无法结束 (返回码: {result.returncode})")
+        except subprocess.TimeoutExpired:
+            print(f"[WARNING] 结束进程 {proc} 超时")
         except Exception as e:
-            print(f"[INFO] 进程 {proc} 未运行或无法结束")
+            print(f"[INFO] 进程 {proc} 检查时出错: {e}")
+    
+    print("[SUCCESS] 进程检查完成")
 
 def build_executable():
     """构建可执行文件"""
@@ -185,38 +197,55 @@ def main():
     print("Windows完整构建脚本")
     print("=" * 40)
     
-    # 检查Windows环境
-    if not check_windows():
-        return
-    
-    # 检查依赖
-    if not check_dependencies():
-        return
-    
-    # 设置环境
-    setup_environment()
-    
-    # 结束冲突进程
-    kill_conflicting_processes()
-    
-    # 清理构建目录
-    clean_build()
-    
-    # 等待一下确保文件释放
-    print("等待文件系统稳定...")
-    time.sleep(2)
-    
-    # 构建可执行文件
-    if build_executable():
-        print("\n" + "=" * 40)
-        print("[SUCCESS] 构建完成!")
-        print("[INFO] 可执行文件位置: dist/UserBehaviorMonitor.exe")
-        print("=" * 40)
-    else:
-        print("\n" + "=" * 40)
-        print("[ERROR] 构建失败!")
+    try:
+        # 检查Windows环境
+        print("步骤1: 检查Windows环境...")
+        if not check_windows():
+            return
+        print("[SUCCESS] Windows环境检查通过")
+        
+        # 检查依赖
+        print("\n步骤2: 检查依赖...")
+        if not check_dependencies():
+            return
+        print("[SUCCESS] 依赖检查通过")
+        
+        # 设置环境
+        print("\n步骤3: 设置环境...")
+        setup_environment()
+        
+        # 结束冲突进程
+        print("\n步骤4: 检查并结束冲突进程...")
+        kill_conflicting_processes()
+        
+        # 清理构建目录
+        print("\n步骤5: 清理构建目录...")
+        clean_build()
+        
+        # 等待一下确保文件释放
+        print("\n步骤6: 等待文件系统稳定...")
+        time.sleep(2)
+        print("[SUCCESS] 等待完成")
+        
+        # 构建可执行文件
+        print("\n步骤7: 构建可执行文件...")
+        if build_executable():
+            print("\n" + "=" * 40)
+            print("[SUCCESS] 构建完成!")
+            print("[INFO] 可执行文件位置: dist/UserBehaviorMonitor.exe")
+            print("=" * 40)
+        else:
+            print("\n" + "=" * 40)
+            print("[ERROR] 构建失败!")
+            print("[TIP] 请检查错误信息并重试")
+            print("=" * 40)
+            
+    except Exception as e:
+        print(f"\n[ERROR] 脚本执行过程中出现未预期的错误: {e}")
+        import traceback
+        traceback.print_exc()
+        print("\n[ERROR] 构建失败!")
         print("[TIP] 请检查错误信息并重试")
-        print("=" * 40)
 
 if __name__ == "__main__":
     main()
