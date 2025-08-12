@@ -183,9 +183,82 @@ class SimpleMonitor:
         # 设置运行状态
         self.is_running = True
         
+        # 智能启动：检查是否有已训练的模型
+        self._smart_startup()
+        
         self.logger.info(f"监控系统启动成功，当前用户: {self.current_user_id}")
         self.logger.debug("=== 监控系统启动完成 ===")
         return True
+
+    def _smart_startup(self):
+        """智能启动：检查模型并决定启动模式"""
+        self.logger.info("=== 智能启动检查 ===")
+        
+        try:
+            if not self.current_user_id:
+                self.logger.warning("没有当前用户ID，跳过智能启动检查")
+                return
+            
+            # 检查是否有已训练的模型
+            model_exists = self._check_user_model_exists(self.current_user_id)
+            
+            if model_exists:
+                self.logger.info(f"发现用户 {self.current_user_id} 的已训练模型")
+                print(f"[系统] 发现已训练模型，正在启动异常检测...")
+                
+                # 尝试启动预测
+                if self.start_prediction():
+                    self.logger.info("智能启动成功：已加载模型并开始异常检测")
+                    print("[系统] 异常检测已启动，系统正在监控中...")
+                    print("[系统] 如需重新训练，请按 rrrr")
+                    return True
+                else:
+                    self.logger.warning("模型加载失败，需要重新训练")
+                    print("[系统] 模型加载失败，需要重新训练")
+            else:
+                self.logger.info(f"用户 {self.current_user_id} 没有已训练的模型")
+                print(f"[系统] 用户 {self.current_user_id} 没有已训练的模型")
+            
+            # 没有模型或加载失败，提示用户训练
+            print("[系统] 请按 rrrr 开始数据采集和模型训练")
+            self.logger.info("智能启动完成：等待用户手动训练")
+            
+        except Exception as e:
+            self.logger.error(f"智能启动检查失败: {str(e)}")
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
+            print(f"[系统] 启动检查失败: {str(e)}")
+            print("[系统] 请按 rrrr 开始数据采集和模型训练")
+
+    def _check_user_model_exists(self, user_id):
+        """检查用户模型是否存在"""
+        try:
+            from pathlib import Path
+            from src.utils.config.config_loader import ConfigLoader
+            
+            config = ConfigLoader()
+            models_path = Path(config.get_paths()['models'])
+            
+            # 尝试不同的文件名格式
+            possible_model_paths = [
+                models_path / f"user_{user_id}_model.pkl",
+            ]
+            
+            # 如果user_id不包含"user"后缀，也尝试添加
+            if not user_id.endswith('_user'):
+                possible_model_paths.append(models_path / f"user_{user_id}_user_model.pkl")
+            
+            # 检查是否存在
+            for model_file in possible_model_paths:
+                if model_file.exists():
+                    self.logger.debug(f"找到模型文件: {model_file}")
+                    return True
+            
+            self.logger.debug(f"用户 {user_id} 的模型文件不存在")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"检查模型文件失败: {str(e)}")
+            return False
 
     def stop_monitoring(self):
         """停止监控系统"""

@@ -390,12 +390,32 @@ class SimpleModelTrainer:
     def load_user_model(self, user_id):
         """加载用户模型"""
         try:
-            model_path = self.models_path / f"user_{user_id}_model.pkl"
-            feature_info_path = self.models_path / f"user_{user_id}_features.json"
+            # 尝试不同的文件名格式
+            possible_model_paths = [
+                self.models_path / f"user_{user_id}_model.pkl",
+                self.models_path / f"user_{user_id}_model.pkl"
+            ]
             
-            if not model_path.exists():
+            # 如果user_id不包含"user"后缀，也尝试添加
+            if not user_id.endswith('_user'):
+                possible_model_paths.append(self.models_path / f"user_{user_id}_user_model.pkl")
+            
+            model_path = None
+            for path in possible_model_paths:
+                if path.exists():
+                    model_path = path
+                    break
+            
+            if model_path is None:
                 self.logger.error(f"用户 {user_id} 的模型文件不存在")
+                # 列出所有可用的模型文件以便调试
+                available_models = list(self.models_path.glob("user_*_model.pkl"))
+                if available_models:
+                    self.logger.debug(f"可用的模型文件: {[m.name for m in available_models]}")
                 return None, None, None
+            
+            # 对应的特征信息文件
+            feature_info_path = model_path.with_suffix('.json').with_name(model_path.stem.replace('_model', '_features'))
             
             # 加载模型
             with open(model_path, 'rb') as f:
@@ -408,7 +428,7 @@ class SimpleModelTrainer:
                     feature_info = json.load(f)
                     feature_cols = feature_info.get('feature_cols', [])
             
-            self.logger.info(f"成功加载用户 {user_id} 的模型")
+            self.logger.info(f"成功加载用户 {user_id} 的模型: {model_path.name}")
             return model, None, feature_cols  # 返回None作为scaler，因为classification模块可能不需要
             
         except Exception as e:
