@@ -108,7 +108,11 @@ class SimpleModelTrainer:
     def load_other_users_features_from_db(self, exclude_user_id, limit=None):
         """从数据库加载其他用户的特征数据作为负样本"""
         try:
+            self.logger.info(f"开始加载其他用户特征数据，排除用户: {exclude_user_id}")
+            self.logger.info(f"数据库路径: {self.db_path}")
+            
             conn = sqlite3.connect(self.db_path)
+            self.logger.info("数据库连接成功")
             
             # 优先加载其他非当前用户的数据作为负样本
             query = '''
@@ -120,19 +124,30 @@ class SimpleModelTrainer:
             if limit:
                 query += f' LIMIT {limit}'
             
+            self.logger.info(f"执行查询: {query}")
+            self.logger.info(f"查询参数: {exclude_user_id}")
+            
             df = pd.read_sql_query(query, conn, params=(exclude_user_id,))
+            self.logger.info(f"查询结果: {len(df)} 条记录")
             
             conn.close()
+            self.logger.info("数据库连接已关闭")
             
             if not df.empty:
+                self.logger.info("开始解析特征向量...")
                 # 解析特征向量
                 df = self._parse_feature_vectors(df)
+                self.logger.info(f"特征向量解析完成，最终形状: {df.shape}")
+            else:
+                self.logger.warning("查询结果为空，没有其他用户数据")
             
             self.logger.info(f"从数据库加载了 {len(df)} 条其他用户特征数据作为负样本")
             return df
             
         except Exception as e:
             self.logger.error(f"从数据库加载其他用户特征数据失败: {str(e)}")
+            import traceback
+            self.logger.error(f"异常详情: {traceback.format_exc()}")
             return pd.DataFrame()
 
     def _parse_feature_vectors(self, df):
