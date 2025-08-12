@@ -110,6 +110,7 @@ class SimpleModelTrainer:
         try:
             conn = sqlite3.connect(self.db_path)
             
+            # 首先尝试加载非测试用户的数据
             query = '''
                 SELECT feature_vector FROM features 
                 WHERE user_id != ? AND user_id NOT LIKE 'training_user%' AND user_id NOT LIKE 'test_user%'
@@ -120,6 +121,21 @@ class SimpleModelTrainer:
                 query += f' LIMIT {limit}'
             
             df = pd.read_sql_query(query, conn, params=(exclude_user_id,))
+            
+            # 如果没有找到其他用户数据，使用测试用户数据作为负样本
+            if df.empty:
+                self.logger.info("没有找到其他用户数据，使用测试用户数据作为负样本")
+                query = '''
+                    SELECT feature_vector FROM features 
+                    WHERE user_id != ? AND user_id LIKE 'test_user%'
+                    ORDER BY timestamp DESC
+                '''
+                
+                if limit:
+                    query += f' LIMIT {limit}'
+                
+                df = pd.read_sql_query(query, conn, params=(exclude_user_id,))
+            
             conn.close()
             
             if not df.empty:
