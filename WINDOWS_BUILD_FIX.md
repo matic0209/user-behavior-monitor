@@ -21,7 +21,7 @@ PermissionError: [WinError 32] 进程无法访问文件，因为另一个进程�
 我们创建了两个修复版本的构建脚本：
 
 - `build_exe_simple.py` - 改进的错误处理
-- `build_exe_windows_fixed.py` - 专门优化的Windows版本
+- `build_windows_full.py` - 专门优化的Windows版本
 
 ### 2. 主要改进
 
@@ -64,7 +64,7 @@ def safe_remove_path(path, max_retries=3, delay=1):
 python build_exe_simple.py
 
 # 或使用专门优化的脚本
-python build_exe_windows_fixed.py
+python build_windows_full.py
 ```
 
 #### 方法2: 手动解决
@@ -90,7 +90,7 @@ python build_exe_windows_fixed.py
 
 3. **重新构建**
    ```bash
-   python build_exe_windows_fixed.py
+   python build_windows_full.py
    ```
 
 ### 4. 预防措施

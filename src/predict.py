@@ -14,12 +14,18 @@ from functools import partial
 import time
 try:
     from src.classification import prepare_features
+    CLASSIFICATION_AVAILABLE = True
 except ImportError:
-    # 如果classification模块不可用，创建一个模拟版本
-    def prepare_features(df, encoders):
-        """模拟的特征准备函数"""
+    try:
+        from src.classification_mock import prepare_features
+        CLASSIFICATION_AVAILABLE = False
         print("使用模拟的prepare_features函数")
-        return df
+    except ImportError:
+        CLASSIFICATION_AVAILABLE = False
+        def prepare_features(df, encoders):
+            """模拟的特征准备函数"""
+            print("使用内置模拟的prepare_features函数")
+            return df
 import logging
 
 # 配置日志记录

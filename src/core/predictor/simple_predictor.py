@@ -16,13 +16,21 @@ sys.path.insert(0, str(project_root))
 from src.utils.logger.logger import Logger
 from src.utils.config.config_loader import ConfigLoader
 
-# 直接导入predict模块
+# 条件导入predict模块
 try:
     from src.predict import predict_anomaly
     PREDICT_AVAILABLE = True
-except (ImportError, SyntaxError):
-    PREDICT_AVAILABLE = False
-    print("警告: 无法导入predict模块")
+except ImportError:
+    try:
+        from src.predict_mock import predict_anomaly
+        PREDICT_AVAILABLE = False
+        print("警告: 使用模拟的predict模块")
+    except ImportError:
+        PREDICT_AVAILABLE = False
+        # 创建模拟函数
+        def predict_anomaly(*args, **kwargs): 
+            return {"anomaly_score": 0.0, "prediction": 0}
+        print("警告: 使用内置模拟函数")
 
 class SimplePredictor:
     def __init__(self):

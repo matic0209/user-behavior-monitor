@@ -25,7 +25,7 @@
 - ✅ 包含统计和日志功能
 - ✅ 线程安全的实现
 
-### 2. 构建脚本 (`build_exe_simple_fixed.py`)
+### 2. 构建脚本 (`build_release.py`)
 - ✅ 已添加网络模块导入
 - ✅ 支持心跳功能的打包
 - ✅ 包含所有必要的依赖
@@ -69,7 +69,7 @@ curl --location 'http://127.0.0.1:26002/heartbeat' \
 
 ### 使用简化版构建脚本
 ```bash
-python build_exe_simple_fixed.py
+python build_release.py
 ```
 
 构建脚本已更新，包含以下网络模块：

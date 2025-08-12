@@ -162,7 +162,7 @@ def main():
         print("[SUCCESS] 所有测试通过！心跳功能集成成功")
         print("\n[NEXT] 下一步:")
         print("1. 运行主程序: python user_behavior_monitor.py")
-        print("2. 打包程序: python build_exe_simple_fixed.py")
+        print("2. 打包程序: python build_release.py")
         print("3. 查看日志: tail -f logs/monitor_*.log")
         return 0
     else:

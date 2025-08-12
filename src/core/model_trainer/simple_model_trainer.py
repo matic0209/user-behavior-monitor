@@ -16,15 +16,28 @@ sys.path.insert(0, str(project_root))
 from src.utils.logger.logger import Logger
 from src.utils.config.config_loader import ConfigLoader
 
-# 直接导入classification模块
+# 条件导入classification模块
 try:
     from src.classification import (
         load_data, preprocess_data, train_model, evaluate_model, save_model
     )
     CLASSIFICATION_AVAILABLE = True
 except ImportError:
-    CLASSIFICATION_AVAILABLE = False
-    print("警告: 无法导入classification模块")
+    try:
+        from src.classification_mock import (
+            load_data, preprocess_data, train_model, evaluate_model, save_model
+        )
+        CLASSIFICATION_AVAILABLE = False
+        print("警告: 使用模拟的classification模块")
+    except ImportError:
+        CLASSIFICATION_AVAILABLE = False
+        # 创建模拟函数
+        def load_data(*args, **kwargs): return None
+        def preprocess_data(*args, **kwargs): return None
+        def train_model(*args, **kwargs): return None
+        def evaluate_model(*args, **kwargs): return None
+        def save_model(*args, **kwargs): return True
+        print("警告: 使用内置模拟函数")
 
 class SimpleModelTrainer:
     def __init__(self):
