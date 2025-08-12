@@ -46,6 +46,51 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
+# 添加单实例检查
+import tempfile
+
+def check_single_instance():
+    """检查是否已有实例在运行"""
+    try:
+        # 创建临时PID文件
+        pid_file = Path(tempfile.gettempdir()) / "user_behavior_monitor.pid"
+        
+        # 检查PID文件是否存在
+        if pid_file.exists():
+            try:
+                with open(pid_file, 'r') as f:
+                    old_pid = int(f.read().strip())
+                
+                # 检查进程是否还在运行
+                if psutil.pid_exists(old_pid):
+                    process = psutil.Process(old_pid)
+                    if "UserBehaviorMonitor" in process.name() or "python" in process.name():
+                        print(f"❌ 程序已在运行中 (PID: {old_pid})")
+                        print("请先关闭现有实例，或等待其自动退出")
+                        return False
+            except (ValueError, psutil.NoSuchProcess):
+                # PID文件无效或进程不存在，删除PID文件
+                pid_file.unlink(missing_ok=True)
+        
+        # 保存当前进程PID
+        with open(pid_file, 'w') as f:
+            f.write(str(os.getpid()))
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ 单实例检查失败: {e}")
+        return True  # 如果检查失败，允许启动
+
+def cleanup_pid_file():
+    """清理PID文件"""
+    try:
+        pid_file = Path(tempfile.gettempdir()) / "user_behavior_monitor.pid"
+        if pid_file.exists():
+            pid_file.unlink(missing_ok=True)
+    except Exception:
+        pass
+
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
@@ -838,6 +883,10 @@ def main():
     monitor = None
     
     try:
+        # 单实例检查
+        if not check_single_instance():
+            return 1
+        
         # 创建监控实例
         monitor = WindowsBehaviorMonitor()
         
@@ -866,6 +915,7 @@ def main():
     finally:
         if monitor:
             monitor.stop()
+        cleanup_pid_file()  # 清理PID文件
         print("系统已退出")
 
 if __name__ == "__main__":
