@@ -51,6 +51,7 @@ alert:
   enable_sound_alert: true    # 启用声音告警
   enable_log_alert: true      # 启用日志告警
   enable_system_notification: true  # 启用系统通知
+  enable_file_alert: true     # 启用文件告警（适用于无控制台环境）
 
 user:
   user_id: "default_user"

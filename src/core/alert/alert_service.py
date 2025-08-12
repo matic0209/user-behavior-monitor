@@ -57,6 +57,7 @@ class AlertService:
         self.enable_sound_alert = self.alert_config.get('enable_sound_alert', True)
         self.enable_log_alert = self.alert_config.get('enable_log_alert', True)
         self.enable_system_notification = self.alert_config.get('enable_system_notification', True)
+        self.enable_file_alert = self.alert_config.get('enable_file_alert', True) # 新增文件告警
         
         # 检查当前运行环境
         self.is_system_user = os.getuid() == 0 if hasattr(os, 'getuid') else False
@@ -78,6 +79,7 @@ class AlertService:
         self.logger.info(f"控制台告警: {'启用' if self.enable_console_alert else '禁用'}")
         self.logger.info(f"声音告警: {'启用' if self.enable_sound_alert else '禁用'}")
         self.logger.info(f"日志告警: {'启用' if self.enable_log_alert else '禁用'}")
+        self.logger.info(f"文件告警: {'启用' if self.enable_file_alert else '禁用'}")
 
     def send_alert(self, user_id, alert_type, message, severity="warning", data=None, bypass_cooldown=False):
         """发送告警"""
@@ -110,32 +112,180 @@ class AlertService:
     def _send_multiple_alerts(self, user_id, alert_type, message, severity, data):
         """发送多种形式的告警"""
         try:
-            # 1. 控制台告警
-            if self.enable_console_alert:
+            # 1. 控制台告警（如果控制台可见）
+            if self.enable_console_alert and self._is_console_visible():
                 self._send_console_alert(user_id, alert_type, message, severity, data)
             
-            # 2. 日志告警
+            # 2. 日志告警（始终可用）
             if self.enable_log_alert:
                 self._send_log_alert(user_id, alert_type, message, severity, data)
             
-            # 3. 声音告警
+            # 3. 文件告警（写入专门的告警文件）
+            if self.enable_file_alert:
+                self._send_file_alert(user_id, alert_type, message, severity, data)
+            
+            # 4. 声音告警
             if self.enable_sound_alert:
                 self._send_sound_alert(severity)
             
-            # 4. 系统通知
+            # 5. 系统通知
             if self.enable_system_notification:
                 self._send_system_notification(user_id, alert_type, message, severity)
             
-            # 5. GUI弹窗（如果可用）
+            # 6. GUI弹窗（如果可用）
             if self.show_warning_dialog and self.can_show_gui:
                 self._send_gui_alert(user_id, alert_type, message, severity, data)
             
-            # 6. 执行系统操作
+            # 7. 执行系统操作
             if self.enable_system_actions:
                 self._execute_system_action(alert_type, severity, data)
             
         except Exception as e:
             self.logger.error(f"发送多种告警失败: {str(e)}")
+
+    def _is_console_visible(self):
+        """检查控制台是否可见"""
+        try:
+            # 检查是否在交互式环境中
+            if hasattr(sys, 'ps1'):
+                return True
+            
+            # 检查是否有TTY
+            if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
+                return True
+            
+            # 检查是否在后台运行
+            if platform.system() == 'Windows':
+                # Windows下检查是否有控制台窗口
+                try:
+                    import ctypes
+                    kernel32 = ctypes.windll.kernel32
+                    return kernel32.GetConsoleWindow() != 0
+                except:
+                    return False
+            else:
+                # Linux/Mac下检查进程组
+                try:
+                    return os.getpgrp() == os.tcgetpgrp(sys.stdout.fileno())
+                except:
+                    return False
+                    
+        except Exception:
+            return False
+
+    def _send_file_alert(self, user_id, alert_type, message, severity, data):
+        """发送文件告警"""
+        try:
+            # 创建告警文件目录
+            alert_dir = Path('logs/alerts')
+            alert_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 生成告警文件名
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            alert_file = alert_dir / f"alert_{timestamp}.txt"
+            
+            # 创建告警内容
+            alert_content = f"""
+================================================================================
+🚨 安全告警 - {severity.upper()}
+================================================================================
+时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+用户: {user_id}
+类型: {alert_type}
+消息: {message}
+异常分数: {data.get('anomaly_score', 'N/A') if data else 'N/A'}
+严重程度: {severity}
+================================================================================
+
+⚠️  请立即检查系统安全状态
+⚠️  此告警已记录到文件: {alert_file}
+⚠️  如需查看详细日志，请检查: logs/monitor_*.log
+
+================================================================================
+"""
+            
+            # 写入告警文件
+            with open(alert_file, 'w', encoding='utf-8') as f:
+                f.write(alert_content)
+            
+            # 同时写入实时告警文件
+            realtime_alert_file = alert_dir / 'realtime_alerts.txt'
+            with open(realtime_alert_file, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] {severity.upper()}: {message}\n")
+            
+            self.logger.info(f"告警已写入文件: {alert_file}")
+            
+        except Exception as e:
+            self.logger.error(f"文件告警失败: {str(e)}")
+
+    def _send_system_log_alert(self, user_id, alert_type, message, severity, data):
+        """发送系统日志告警"""
+        try:
+            if platform.system() == 'Windows':
+                # Windows系统日志
+                self._send_windows_event_log(user_id, alert_type, message, severity)
+            else:
+                # Linux/Mac系统日志
+                self._send_syslog_alert(user_id, alert_type, message, severity)
+                
+        except Exception as e:
+            self.logger.error(f"系统日志告警失败: {str(e)}")
+
+    def _send_windows_event_log(self, user_id, alert_type, message, severity):
+        """发送Windows事件日志"""
+        try:
+            if WINDOWS_AVAILABLE:
+                import win32evtlog
+                import win32evtlogutil
+                
+                # 映射严重程度到Windows事件级别
+                severity_map = {
+                    'critical': win32evtlog.EVENTLOG_ERROR_TYPE,
+                    'warning': win32evtlog.EVENTLOG_WARNING_TYPE,
+                    'info': win32evtlog.EVENTLOG_INFORMATION_TYPE
+                }
+                
+                event_type = severity_map.get(severity.lower(), win32evtlog.EVENTLOG_WARNING_TYPE)
+                
+                # 创建事件日志消息
+                event_msg = f"用户行为监控告警 - 用户: {user_id}, 类型: {alert_type}, 消息: {message}"
+                
+                # 写入事件日志
+                win32evtlogutil.ReportEvent(
+                    'UserBehaviorMonitor',
+                    1001,  # 事件ID
+                    eventType=event_type,
+                    strings=[event_msg]
+                )
+                
+        except Exception as e:
+            self.logger.error(f"Windows事件日志失败: {str(e)}")
+
+    def _send_syslog_alert(self, user_id, alert_type, message, severity):
+        """发送syslog告警"""
+        try:
+            import subprocess
+            
+            # 映射严重程度到syslog级别
+            severity_map = {
+                'critical': 'emerg',
+                'warning': 'warning',
+                'info': 'info'
+            }
+            
+            log_level = severity_map.get(severity.lower(), 'warning')
+            
+            # 使用logger命令发送到syslog
+            log_message = f"UserBehaviorMonitor[{os.getpid()}]: 用户: {user_id}, 类型: {alert_type}, 消息: {message}"
+            
+            subprocess.run([
+                'logger', 
+                '-p', f'user.{log_level}',
+                log_message
+            ], check=False)
+            
+        except Exception as e:
+            self.logger.error(f"syslog告警失败: {str(e)}")
 
     def _send_console_alert(self, user_id, alert_type, message, severity, data):
         """发送控制台告警"""
@@ -390,12 +540,27 @@ class AlertService:
 
 {warning_border}
 """
-            print(f"\033[91m{warning_message}\033[0m")  # 红色显示
             
-            # 倒计时
-            for i in range(self.warning_duration, 0, -1):
-                print(f"\033[93m⏰ 剩余时间: {i} 秒\033[0m")
-                time.sleep(1)
+            # 如果控制台可见，显示倒计时
+            if self._is_console_visible():
+                print(f"\033[91m{warning_message}\033[0m")  # 红色显示
+                
+                # 倒计时
+                for i in range(self.warning_duration, 0, -1):
+                    print(f"\033[93m⏰ 剩余时间: {i} 秒\033[0m")
+                    time.sleep(1)
+            else:
+                # 如果控制台不可见，写入文件并等待
+                self._send_file_alert(
+                    user_id='system',
+                    alert_type='lock_screen_warning',
+                    message=f'异常分数 {anomaly_score:.3f} 达到锁屏阈值，系统将在 {self.warning_duration} 秒后锁屏',
+                    severity='critical',
+                    data={'anomaly_score': anomaly_score}
+                )
+                
+                # 等待指定时间
+                time.sleep(self.warning_duration)
                 
         except Exception as e:
             self.logger.error(f"显示控制台警告失败: {str(e)}")
