@@ -229,8 +229,17 @@ class SimpleModelTrainer:
                 aligned_negative = self._align_features(negative_samples, negative_samples.columns)
                 combined_data = pd.concat([aligned_positive, aligned_negative], ignore_index=True)
             else:
+                # 如果没有负样本，只使用正样本进行训练
                 combined_data = positive_samples
-                self.logger.warning("没有负样本数据")
+                self.logger.warning("没有负样本数据，将使用单类分类")
+                # 创建虚拟负样本（通过添加噪声）
+                aligned_positive = positive_samples.copy()
+                # 为每个特征添加少量噪声作为负样本
+                noise_samples = positive_samples.copy()
+                for col in noise_samples.select_dtypes(include=[np.number]).columns:
+                    if col not in ['id', 'timestamp', 'user_id', 'session_id']:
+                        noise_samples[col] = noise_samples[col] + np.random.normal(0, 0.1, len(noise_samples))
+                combined_data = pd.concat([aligned_positive, noise_samples], ignore_index=True)
             
             # 5. 准备特征和标签
             # 选择数值特征列

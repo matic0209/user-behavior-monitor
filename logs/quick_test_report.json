@@ -1,0 +1,13 @@
+{
+  "test_time": "2025-08-12T14:58:39.741723",
+  "test_user": "quick_test_user",
+  "events_count": 200,
+  "results": {
+    "data_generation": true,
+    "database": true,
+    "feature_processing": true,
+    "model_training": true,
+    "prediction": true
+  },
+  "success_rate": 100.0
+}
