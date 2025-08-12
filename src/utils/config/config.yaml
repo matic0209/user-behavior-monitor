@@ -46,6 +46,11 @@ alert:
   alert_cooldown: 60  # 告警冷却时间（秒）
   show_warning_dialog: true  # 显示警告对话框
   warning_duration: 10  # 警告持续时间（秒）
+  # 新增：多种告警方式配置
+  enable_console_alert: true  # 启用控制台告警
+  enable_sound_alert: true    # 启用声音告警
+  enable_log_alert: true      # 启用日志告警
+  enable_system_notification: true  # 启用系统通知
 
 user:
   user_id: "default_user"

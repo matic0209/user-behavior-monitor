@@ -7,6 +7,7 @@ import sys
 import platform
 import subprocess
 import threading
+import os
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent.parent.parent.parent
@@ -51,6 +52,17 @@ class AlertService:
         self.show_warning_dialog = self.alert_config.get('show_warning_dialog', True)
         self.warning_duration = self.alert_config.get('warning_duration', 10)  # 警告显示时间（秒）
         
+        # 新增：多种告警方式配置
+        self.enable_console_alert = self.alert_config.get('enable_console_alert', True)
+        self.enable_sound_alert = self.alert_config.get('enable_sound_alert', True)
+        self.enable_log_alert = self.alert_config.get('enable_log_alert', True)
+        self.enable_system_notification = self.alert_config.get('enable_system_notification', True)
+        
+        # 检查当前运行环境
+        self.is_system_user = os.getuid() == 0 if hasattr(os, 'getuid') else False
+        self.has_display = 'DISPLAY' in os.environ and os.environ['DISPLAY']
+        self.can_show_gui = GUI_AVAILABLE and self.has_display and not self.is_system_user
+        
         # 告警状态
         self.last_alert_time = {}
         self.alert_count = {}
@@ -60,6 +72,12 @@ class AlertService:
         self.logger.info(f"锁屏阈值: {self.lock_screen_threshold}")
         self.logger.info(f"弹窗警告: {'启用' if self.show_warning_dialog else '禁用'}")
         self.logger.info(f"警告持续时间: {self.warning_duration}秒")
+        self.logger.info(f"当前用户: {'system用户' if self.is_system_user else '普通用户'}")
+        self.logger.info(f"显示环境: {'可用' if self.has_display else '不可用'}")
+        self.logger.info(f"GUI可用: {'是' if self.can_show_gui else '否'}")
+        self.logger.info(f"控制台告警: {'启用' if self.enable_console_alert else '禁用'}")
+        self.logger.info(f"声音告警: {'启用' if self.enable_sound_alert else '禁用'}")
+        self.logger.info(f"日志告警: {'启用' if self.enable_log_alert else '禁用'}")
 
     def send_alert(self, user_id, alert_type, message, severity="warning", data=None, bypass_cooldown=False):
         """发送告警"""
@@ -80,19 +98,205 @@ class AlertService:
             # 保存告警到数据库
             self._save_alert_to_db(user_id, alert_type, message, severity, data)
             
-            # 记录日志
-            self.logger.warning(f"告警 - 用户: {user_id}, 类型: {alert_type}, 消息: {message}")
-            print(f"[告警] {message}")
-            
-            # 执行系统操作
-            if self.enable_system_actions:
-                self._execute_system_action(alert_type, severity, data)
+            # 多种告警方式
+            self._send_multiple_alerts(user_id, alert_type, message, severity, data)
             
             return True
             
         except Exception as e:
             self.logger.error(f"发送告警失败: {str(e)}")
             return False
+
+    def _send_multiple_alerts(self, user_id, alert_type, message, severity, data):
+        """发送多种形式的告警"""
+        try:
+            # 1. 控制台告警
+            if self.enable_console_alert:
+                self._send_console_alert(user_id, alert_type, message, severity, data)
+            
+            # 2. 日志告警
+            if self.enable_log_alert:
+                self._send_log_alert(user_id, alert_type, message, severity, data)
+            
+            # 3. 声音告警
+            if self.enable_sound_alert:
+                self._send_sound_alert(severity)
+            
+            # 4. 系统通知
+            if self.enable_system_notification:
+                self._send_system_notification(user_id, alert_type, message, severity)
+            
+            # 5. GUI弹窗（如果可用）
+            if self.show_warning_dialog and self.can_show_gui:
+                self._send_gui_alert(user_id, alert_type, message, severity, data)
+            
+            # 6. 执行系统操作
+            if self.enable_system_actions:
+                self._execute_system_action(alert_type, severity, data)
+            
+        except Exception as e:
+            self.logger.error(f"发送多种告警失败: {str(e)}")
+
+    def _send_console_alert(self, user_id, alert_type, message, severity, data):
+        """发送控制台告警"""
+        try:
+            # 创建醒目的控制台告警
+            alert_border = "=" * 80
+            alert_header = f"🚨 安全告警 - {severity.upper()}"
+            alert_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            console_message = f"""
+{alert_border}
+{alert_header}
+{alert_border}
+时间: {alert_time}
+用户: {user_id}
+类型: {alert_type}
+消息: {message}
+异常分数: {data.get('anomaly_score', 'N/A') if data else 'N/A'}
+{alert_border}
+"""
+            
+            # 根据严重程度使用不同的颜色（如果支持）
+            if severity.lower() == 'critical':
+                print(f"\033[91m{console_message}\033[0m")  # 红色
+            elif severity.lower() == 'warning':
+                print(f"\033[93m{console_message}\033[0m")  # 黄色
+            else:
+                print(console_message)
+                
+        except Exception as e:
+            self.logger.error(f"控制台告警失败: {str(e)}")
+
+    def _send_log_alert(self, user_id, alert_type, message, severity, data):
+        """发送日志告警"""
+        try:
+            log_message = f"告警 - 用户: {user_id}, 类型: {alert_type}, 严重程度: {severity}, 消息: {message}"
+            if data:
+                log_message += f", 数据: {json.dumps(data, ensure_ascii=False)}"
+            
+            self.logger.warning(log_message)
+            
+        except Exception as e:
+            self.logger.error(f"日志告警失败: {str(e)}")
+
+    def _send_sound_alert(self, severity):
+        """发送声音告警"""
+        try:
+            # 根据严重程度播放不同的声音
+            if severity.lower() == 'critical':
+                # 播放紧急声音
+                self._play_sound('critical')
+            elif severity.lower() == 'warning':
+                # 播放警告声音
+                self._play_sound('warning')
+            else:
+                # 播放普通告警声音
+                self._play_sound('alert')
+                
+        except Exception as e:
+            self.logger.error(f"声音告警失败: {str(e)}")
+
+    def _play_sound(self, sound_type):
+        """播放声音"""
+        try:
+            if platform.system() == 'Windows':
+                # Windows系统使用内置声音
+                if sound_type == 'critical':
+                    import winsound
+                    winsound.MessageBeep(winsound.MB_ICONHAND)
+                elif sound_type == 'warning':
+                    import winsound
+                    winsound.MessageBeep(winsound.MB_ICONEXCLAMATION)
+                else:
+                    import winsound
+                    winsound.MessageBeep(winsound.MB_ICONASTERISK)
+            else:
+                # Linux/Mac系统使用命令行工具
+                if sound_type == 'critical':
+                    subprocess.run(['echo', '-e', '\a\a\a'], check=False)
+                elif sound_type == 'warning':
+                    subprocess.run(['echo', '-e', '\a\a'], check=False)
+                else:
+                    subprocess.run(['echo', '-e', '\a'], check=False)
+                    
+        except Exception as e:
+            self.logger.error(f"播放声音失败: {str(e)}")
+
+    def _send_system_notification(self, user_id, alert_type, message, severity):
+        """发送系统通知"""
+        try:
+            if platform.system() == 'Windows':
+                # Windows系统通知
+                if WINDOWS_AVAILABLE:
+                    self._send_windows_notification(user_id, alert_type, message, severity)
+            else:
+                # Linux/Mac系统通知
+                self._send_linux_notification(user_id, alert_type, message, severity)
+                
+        except Exception as e:
+            self.logger.error(f"系统通知失败: {str(e)}")
+
+    def _send_windows_notification(self, user_id, alert_type, message, severity):
+        """发送Windows系统通知"""
+        try:
+            if WINDOWS_AVAILABLE:
+                # 使用Windows API发送通知
+                title = f"安全告警 - {severity.upper()}"
+                content = f"用户: {user_id}\n类型: {alert_type}\n消息: {message}"
+                
+                # 这里可以集成Windows通知API
+                # 暂时使用简单的消息框
+                if GUI_AVAILABLE:
+                    try:
+                        import tkinter as tk
+                        from tkinter import messagebox
+                        root = tk.Tk()
+                        root.withdraw()  # 隐藏主窗口
+                        messagebox.showwarning(title, content)
+                        root.destroy()
+                    except:
+                        pass
+                        
+        except Exception as e:
+            self.logger.error(f"Windows通知失败: {str(e)}")
+
+    def _send_linux_notification(self, user_id, alert_type, message, severity):
+        """发送Linux系统通知"""
+        try:
+            # 尝试使用notify-send命令
+            title = f"安全告警 - {severity.upper()}"
+            content = f"用户: {user_id}\n类型: {alert_type}\n消息: {message}"
+            
+            # 根据严重程度设置不同的图标
+            if severity.lower() == 'critical':
+                icon = 'dialog-error'
+            elif severity.lower() == 'warning':
+                icon = 'dialog-warning'
+            else:
+                icon = 'dialog-information'
+            
+            subprocess.run([
+                'notify-send', 
+                '--icon', icon,
+                '--urgency', 'critical' if severity.lower() == 'critical' else 'normal',
+                title, 
+                content
+            ], check=False)
+            
+        except Exception as e:
+            self.logger.error(f"Linux通知失败: {str(e)}")
+
+    def _send_gui_alert(self, user_id, alert_type, message, severity, data):
+        """发送GUI弹窗告警"""
+        try:
+            if self.can_show_gui and data and 'anomaly_score' in data:
+                self._show_warning_dialog(data['anomaly_score'])
+            else:
+                self.logger.info("GUI告警跳过：环境不支持或数据不完整")
+                
+        except Exception as e:
+            self.logger.error(f"GUI告警失败: {str(e)}")
 
     def _save_alert_to_db(self, user_id, alert_type, message, severity, data):
         """保存告警到数据库"""
@@ -154,18 +358,47 @@ class AlertService:
     def _show_lock_warning_and_execute(self, anomaly_score):
         """显示锁屏警告并执行锁屏"""
         try:
-            # 显示警告弹窗
-            if self.show_warning_dialog and GUI_AVAILABLE:
+            # 显示警告弹窗（如果环境支持）
+            if self.show_warning_dialog and self.can_show_gui:
                 self._show_warning_dialog(anomaly_score)
             else:
-                # 如果没有GUI，直接锁屏
-                self.logger.warning("GUI不可用，直接执行锁屏")
+                # 如果GUI不可用，显示控制台警告并直接锁屏
+                self.logger.warning("GUI不可用，显示控制台警告并执行锁屏")
+                self._show_console_warning(anomaly_score)
                 self._lock_screen()
                 
         except Exception as e:
             self.logger.error(f"显示锁屏警告失败: {str(e)}")
             # 如果警告失败，直接锁屏
             self._lock_screen()
+
+    def _show_console_warning(self, anomaly_score):
+        """显示控制台警告"""
+        try:
+            warning_border = "!" * 80
+            warning_message = f"""
+{warning_border}
+🚨 严重安全警告 - 异常行为检测
+{warning_border}
+异常分数: {anomaly_score:.3f}
+锁屏阈值: {self.lock_screen_threshold}
+时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+⚠️  系统将在 {self.warning_duration} 秒后自动锁屏
+⚠️  请确保已保存所有工作
+⚠️  此警告无法关闭
+
+{warning_border}
+"""
+            print(f"\033[91m{warning_message}\033[0m")  # 红色显示
+            
+            # 倒计时
+            for i in range(self.warning_duration, 0, -1):
+                print(f"\033[93m⏰ 剩余时间: {i} 秒\033[0m")
+                time.sleep(1)
+                
+        except Exception as e:
+            self.logger.error(f"显示控制台警告失败: {str(e)}")
 
     def _show_warning_dialog(self, anomaly_score):
         """显示警告对话框"""
