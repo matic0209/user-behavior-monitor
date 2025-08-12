@@ -122,6 +122,10 @@ datas = [
     (os.path.join(project_root, 'data'), 'data'),
     (os.path.join(project_root, 'models'), 'models'),
     (os.path.join(project_root, 'logs'), 'logs'),
+    # 强制收集关键模块（对应--collect-all）
+    (os.path.join(project_root, 'src/core'), 'src/core'),
+    (os.path.join(project_root, 'src/utils'), 'src/utils'),
+    (os.path.join(project_root, 'src/predict.py'), 'src/'),
 ]
 
 # 隐藏导入
@@ -136,6 +140,7 @@ hiddenimports = [
     'pynput',
     'pynput.keyboard',
     'pynput.mouse',
+    'keyboard',  # 添加keyboard模块
     'xgboost',
     'sklearn',
     'sklearn.ensemble',
@@ -155,7 +160,11 @@ hiddenimports = [
     'subprocess',
     'platform',
     'signal',
-    'traceback'
+    'traceback',
+    # 添加网络通信模块（心跳功能）
+    'urllib.request',
+    'urllib.parse',
+    'urllib.error'
 ]
 
 # 排除模块
@@ -188,6 +197,7 @@ a = Analysis(
     win_private_assemblies=False,
     cipher=None,
     noarchive=False,
+    # 数据文件已在上面定义，这里不需要重复添加
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
@@ -222,6 +232,10 @@ exe = EXE(
         
         print("✓ spec文件创建完成")
         return spec_file
+    
+    def build_executable(self):
+        """构建可执行文件（兼容build_windows_full.py的函数名）"""
+        return self.build_exe()
     
     def build_exe(self):
         """构建可执行文件"""
@@ -652,6 +666,101 @@ pause >nul
         
         print("✓ 优化配置创建完成")
     
+    def check_windows(self):
+        """检查是否在Windows环境下（兼容build_windows_full.py的功能）"""
+        if sys.platform != 'win32':
+            print("❌ 错误: 此脚本只能在Windows系统上运行")
+            return False
+        return True
+    
+    def check_dependencies(self):
+        """检查依赖是否安装（兼容build_windows_full.py的功能）"""
+        print("🔍 检查依赖...")
+        
+        required_modules = [
+            'psutil',
+            'pynput',
+            'keyboard',
+            'yaml',
+            'numpy',
+            'pandas',
+            'sklearn',
+            'xgboost',
+            'win32api',
+            'win32con',
+            'win32gui',
+            'win32service',
+            'win32serviceutil'
+        ]
+        
+        missing_modules = []
+        
+        for module in required_modules:
+            try:
+                __import__(module)
+                print(f"✓ {module} 可用")
+            except ImportError:
+                print(f"✗ {module} 缺失")
+                missing_modules.append(module)
+        
+        if missing_modules:
+            print(f"\n❌ 以下模块缺失: {missing_modules}")
+            print("💡 请先运行: python install_dependencies_windows.py")
+            return False
+        
+        print("✓ 所有依赖检查通过")
+        return True
+    
+    def setup_environment(self):
+        """设置环境（兼容build_windows_full.py的功能）"""
+        print("🔧 设置环境...")
+        
+        # 设置编码
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        os.environ['PYTHONUTF8'] = '1'
+        
+        # 设置控制台编码（Windows）
+        if sys.platform == 'win32':
+            os.system('chcp 65001 > nul 2>&1')
+        
+        print("✓ 环境设置完成")
+    
+    def kill_conflicting_processes(self):
+        """结束冲突的进程（兼容build_windows_full.py的功能）"""
+        print("🔪 检查并结束冲突进程...")
+        
+        # 获取当前进程ID
+        current_pid = os.getpid()
+        print(f"当前进程ID: {current_pid}")
+        
+        processes = ['UserBehaviorMonitor.exe', 'pyinstaller.exe']
+        
+        for process_name in processes:
+            try:
+                # 使用tasklist查找进程
+                result = subprocess.run(['tasklist', '/FI', f'IMAGENAME eq {process_name}'], 
+                                     capture_output=True, text=True, timeout=10)
+                
+                if process_name in result.stdout:
+                    print(f"发现冲突进程: {process_name}")
+                    
+                    # 尝试结束进程
+                    try:
+                        subprocess.run(['taskkill', '/F', '/IM', process_name], 
+                                     capture_output=True, timeout=10)
+                        print(f"✓ 已结束进程: {process_name}")
+                    except subprocess.TimeoutExpired:
+                        print(f"⚠ 结束进程超时: {process_name}")
+                    except Exception as e:
+                        print(f"⚠ 结束进程失败: {process_name}, 错误: {e}")
+                        
+            except subprocess.TimeoutExpired:
+                print(f"⚠ 检查进程超时: {process_name}")
+            except Exception as e:
+                print(f"⚠ 检查进程失败: {process_name}, 错误: {e}")
+        
+        print("✓ 进程检查完成")
+    
     def build(self):
         """执行完整构建流程"""
         print("🚀 开始优化构建流程...")
@@ -663,8 +772,28 @@ pause >nul
             return False
         
         try:
+            # 检查Windows环境
+            if not self.check_windows():
+                return False
+            
+            # 设置环境
+            self.setup_environment()
+            
+            # 检查依赖
+            if not self.check_dependencies():
+                return False
+            
+            # 结束冲突进程
+            self.kill_conflicting_processes()
+            
             # 清理构建目录
             self.clean_build()
+            
+            # 等待文件系统稳定
+            print("⏳ 等待文件系统稳定...")
+            import time
+            time.sleep(2)
+            print("✓ 等待完成")
             
             # 安装依赖
             if not self.install_dependencies():
