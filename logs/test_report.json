@@ -1,5 +1,5 @@
 {
-  "test_time": "2025-08-12T15:00:15.098420",
+  "test_time": "2025-08-12T15:32:18.042711",
   "test_users": [
     "test_user_1",
     "test_user_2",
@@ -9,7 +9,7 @@
   "events_per_session": 500,
   "total_events": 4500,
   "mouse_events_count": 4500,
-  "features_count": 90,
+  "features_count": 180,
   "trained_models": [
     "user_test_user_1_model.pkl",
     "user_test_user_2_model.pkl",

@@ -246,6 +246,205 @@ class CompleteWorkflowTest:
         
         self.logger.info("在线预测测试完成")
 
+    def test_smart_startup(self):
+        """测试智能启动功能"""
+        self.logger.info("开始智能启动功能测试...")
+        
+        try:
+            # 模拟系统重启后的智能启动检查
+            self.logger.info("模拟系统重启，检查智能启动功能...")
+            
+            # 测试1: 检查模型存在性
+            self.logger.info("测试1: 检查模型存在性")
+            model_check_results = {}
+            
+            for user_id in self.test_users:
+                model_exists = self._check_user_model_exists(user_id)
+                model_check_results[user_id] = model_exists
+                self.logger.info(f"  用户 {user_id}: {'✓ 模型存在' if model_exists else '✗ 模型不存在'}")
+            
+            # 测试2: 测试模型加载
+            self.logger.info("测试2: 测试模型加载")
+            model_load_results = {}
+            
+            for user_id in self.test_users:
+                if model_check_results[user_id]:
+                    model, scaler, feature_cols = self._load_user_model(user_id)
+                    load_success = model is not None
+                    model_load_results[user_id] = load_success
+                    self.logger.info(f"  用户 {user_id}: {'✓ 加载成功' if load_success else '✗ 加载失败'}")
+                    if load_success:
+                        self.logger.info(f"    模型类型: {type(model).__name__}")
+                        self.logger.info(f"    特征数量: {len(feature_cols) if feature_cols else '未知'}")
+                else:
+                    model_load_results[user_id] = False
+                    self.logger.info(f"  用户 {user_id}: 跳过（模型不存在）")
+            
+            # 测试3: 模拟智能启动决策
+            self.logger.info("测试3: 模拟智能启动决策")
+            startup_decisions = {}
+            
+            for user_id in self.test_users:
+                if model_check_results[user_id] and model_load_results[user_id]:
+                    # 有模型且加载成功，应该自动启动预测
+                    startup_decisions[user_id] = "auto_start_prediction"
+                    self.logger.info(f"  用户 {user_id}: ✓ 自动启动异常检测")
+                elif model_check_results[user_id] and not model_load_results[user_id]:
+                    # 有模型但加载失败，应该提示重新训练
+                    startup_decisions[user_id] = "prompt_retrain"
+                    self.logger.info(f"  用户 {user_id}: ⚠️ 模型加载失败，提示重新训练")
+                else:
+                    # 没有模型，应该提示训练
+                    startup_decisions[user_id] = "prompt_train"
+                    self.logger.info(f"  用户 {user_id}: ℹ️ 没有模型，提示开始训练")
+            
+            # 测试4: 验证预测功能（模拟启动后的状态）
+            self.logger.info("测试4: 验证预测功能（模拟启动后的状态）")
+            prediction_results = {}
+            
+            for user_id in self.test_users:
+                if startup_decisions[user_id] == "auto_start_prediction":
+                    # 模拟启动预测
+                    predictor = SimplePredictor()
+                    predictions = predictor.predict_user_behavior(user_id)
+                    
+                    if predictions is not None and len(predictions) > 0:
+                        prediction_results[user_id] = True
+                        self.logger.info(f"  用户 {user_id}: ✓ 预测功能正常")
+                        # 显示预测统计
+                        normal_count = sum(1 for p in predictions if p.get('is_normal', False))
+                        anomaly_count = len(predictions) - normal_count
+                        self.logger.info(f"    预测结果: 正常={normal_count}, 异常={anomaly_count}")
+                    else:
+                        prediction_results[user_id] = False
+                        self.logger.error(f"  用户 {user_id}: ✗ 预测功能异常")
+                else:
+                    prediction_results[user_id] = False
+                    self.logger.info(f"  用户 {user_id}: 跳过预测测试（需要先训练）")
+            
+            # 生成智能启动测试报告
+            self._generate_smart_startup_report(model_check_results, model_load_results, startup_decisions, prediction_results)
+            
+            self.logger.info("智能启动功能测试完成")
+            
+        except Exception as e:
+            self.logger.error(f"智能启动功能测试失败: {str(e)}")
+            import traceback
+            self.logger.debug(f"异常详情: {traceback.format_exc()}")
+            raise
+
+    def _check_user_model_exists(self, user_id):
+        """检查用户模型是否存在"""
+        try:
+            from pathlib import Path
+            from src.utils.config.config_loader import ConfigLoader
+            
+            config = ConfigLoader()
+            models_path = Path(config.get_paths()['models'])
+            
+            # 尝试不同的文件名格式
+            possible_model_paths = [
+                models_path / f"user_{user_id}_model.pkl",
+            ]
+            
+            # 如果user_id不包含"user"后缀，也尝试添加
+            if not user_id.endswith('_user'):
+                possible_model_paths.append(models_path / f"user_{user_id}_user_model.pkl")
+            
+            # 检查是否存在
+            for model_file in possible_model_paths:
+                if model_file.exists():
+                    self.logger.debug(f"找到模型文件: {model_file}")
+                    return True
+            
+            self.logger.debug(f"用户 {user_id} 的模型文件不存在")
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"检查模型文件失败: {str(e)}")
+            return False
+
+    def _load_user_model(self, user_id):
+        """加载用户模型"""
+        try:
+            from src.core.model_trainer.simple_model_trainer import SimpleModelTrainer
+            
+            trainer = SimpleModelTrainer()
+            model, scaler, feature_cols = trainer.load_user_model(user_id)
+            
+            return model, scaler, feature_cols
+            
+        except Exception as e:
+            self.logger.error(f"加载用户模型失败: {str(e)}")
+            return None, None, None
+
+    def _generate_smart_startup_report(self, model_check_results, model_load_results, startup_decisions, prediction_results):
+        """生成智能启动测试报告"""
+        self.logger.info("生成智能启动测试报告...")
+        
+        report = {
+            'test_time': datetime.now().isoformat(),
+            'test_users': self.test_users,
+            'model_check_results': model_check_results,
+            'model_load_results': model_load_results,
+            'startup_decisions': startup_decisions,
+            'prediction_results': prediction_results
+        }
+        
+        # 统计结果
+        total_users = len(self.test_users)
+        models_exist = sum(1 for exists in model_check_results.values() if exists)
+        models_loaded = sum(1 for loaded in model_load_results.values() if loaded)
+        auto_started = sum(1 for decision in startup_decisions.values() if decision == "auto_start_prediction")
+        predictions_working = sum(1 for working in prediction_results.values() if working)
+        
+        report['statistics'] = {
+            'total_users': total_users,
+            'models_exist': models_exist,
+            'models_loaded': models_loaded,
+            'auto_started': auto_started,
+            'predictions_working': predictions_working
+        }
+        
+        # 保存报告
+        report_path = Path('logs/smart_startup_test_report.json')
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(report_path, 'w', encoding='utf-8') as f:
+            import json
+            json.dump(report, f, indent=2, ensure_ascii=False)
+        
+        self.logger.info(f"智能启动测试报告已保存到: {report_path}")
+        
+        # 显示报告摘要
+        self.logger.info("\n📊 智能启动测试报告摘要:")
+        self.logger.info(f"  测试时间: {report['test_time']}")
+        self.logger.info(f"  测试用户数: {total_users}")
+        self.logger.info(f"  模型存在: {models_exist}/{total_users}")
+        self.logger.info(f"  模型加载成功: {models_loaded}/{total_users}")
+        self.logger.info(f"  自动启动: {auto_started}/{total_users}")
+        self.logger.info(f"  预测功能正常: {predictions_working}/{total_users}")
+        
+        # 显示详细结果
+        self.logger.info("\n详细结果:")
+        for user_id in self.test_users:
+            self.logger.info(f"  用户 {user_id}:")
+            self.logger.info(f"    模型存在: {'✓' if model_check_results[user_id] else '✗'}")
+            self.logger.info(f"    模型加载: {'✓' if model_load_results[user_id] else '✗'}")
+            self.logger.info(f"    启动决策: {startup_decisions[user_id]}")
+            self.logger.info(f"    预测功能: {'✓' if prediction_results[user_id] else '✗'}")
+        
+        # 总体评估
+        success_rate = (predictions_working / total_users) * 100 if total_users > 0 else 0
+        self.logger.info(f"\n🎯 智能启动功能成功率: {success_rate:.1f}%")
+        
+        if success_rate == 100:
+            self.logger.info("🎉 智能启动功能测试完全成功！")
+        elif success_rate >= 80:
+            self.logger.info("✅ 智能启动功能测试基本成功！")
+        else:
+            self.logger.warning("⚠️ 智能启动功能测试存在问题，需要检查")
+
     def _generate_test_prediction_data(self, user_id):
         """生成测试预测数据"""
         # 生成一些新的鼠标事件数据
@@ -293,6 +492,10 @@ class CompleteWorkflowTest:
             # 步骤4: 测试在线预测
             self.logger.info("\n🎯 步骤4: 测试在线预测")
             self.test_online_prediction()
+            
+            # 步骤5: 测试智能启动功能
+            self.logger.info("\n🚀 步骤5: 测试智能启动功能")
+            self.test_smart_startup()
             
             self.logger.info("\n" + "=" * 60)
             self.logger.info("✅ 完整工作流程测试成功完成！")
