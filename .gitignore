@@ -7,7 +7,7 @@ __pycache__/
 .Python
 
 # Data directories (但允许数据库文件)
-data/
+data/*
 !data/*.db
 !data/*.sqlite
 !data/*.sqlite3
