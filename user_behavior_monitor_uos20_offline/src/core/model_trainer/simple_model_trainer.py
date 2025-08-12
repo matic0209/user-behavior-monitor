@@ -93,13 +93,14 @@ class SimpleModelTrainer:
             return pd.DataFrame()
 
     def load_other_users_features_from_db(self, exclude_user_id, limit=None):
-        """从数据库加载其他用户的特征数据作为负样本（备用方案）"""
+        """从数据库加载其他用户的特征数据作为负样本"""
         try:
             conn = sqlite3.connect(self.db_path)
             
+            # 优先加载其他非当前用户的数据作为负样本
             query = '''
                 SELECT feature_vector FROM features 
-                WHERE user_id != ? AND user_id NOT LIKE 'training_user%' AND user_id NOT LIKE 'test_user%'
+                WHERE user_id != ?
                 ORDER BY timestamp DESC
             '''
             
