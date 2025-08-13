@@ -146,7 +146,7 @@ class WindowsBehaviorMonitor:
         
         # 自动流程控制
         self.auto_mode = True
-        self.min_data_points = 1000  # 最少数据点
+        self.min_data_points = 100  # 最少数据点（调低以便调试）
         self.collection_timeout = 300  # 采集超时时间（秒）
         
         # 心跳配置
