@@ -719,6 +719,15 @@ pause >nul
         os.environ['PYTHONIOENCODING'] = 'utf-8'
         os.environ['PYTHONUTF8'] = '1'
         
+        # 运行时重配置标准输出/错误编码，避免 Windows GBK 控制台下的 UnicodeEncodeError
+        try:
+            # Python 3.7+ 支持 reconfigure
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            # 老版本或非 TTY 环境下忽略
+            pass
+        
         # 设置控制台编码（Windows）
         if sys.platform == 'win32':
             os.system('chcp 65001 > nul 2>&1')
@@ -763,6 +772,8 @@ pause >nul
     
     def build(self):
         """执行完整构建流程"""
+        # 先设置环境，确保后续包含表情/中文的输出在 Windows 控制台不会因 GBK 编码报错
+        self.setup_environment()
         print("🚀 开始优化构建流程...")
         print("=" * 50)
         
@@ -775,9 +786,6 @@ pause >nul
             # 检查Windows环境
             if not self.check_windows():
                 return False
-            
-            # 设置环境
-            self.setup_environment()
             
             # 检查依赖
             if not self.check_dependencies():
