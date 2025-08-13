@@ -713,7 +713,8 @@ pause >nul
     
     def setup_environment(self):
         """设置环境（兼容build_windows_full.py的功能）"""
-        print("🔧 设置环境...")
+        # 注意：此处避免使用表情符号，防止在 GBK 控制台下触发编码错误
+        print("[SETUP] 设置环境...")
         
         # 设置编码
         os.environ['PYTHONIOENCODING'] = 'utf-8'
@@ -732,7 +733,8 @@ pause >nul
         if sys.platform == 'win32':
             os.system('chcp 65001 > nul 2>&1')
         
-        print("✓ 环境设置完成")
+        # 依然避免使用不在 GBK 的符号，保证在极端环境下也不会报错
+        print("[OK] 环境设置完成")
     
     def kill_conflicting_processes(self):
         """结束冲突的进程（兼容build_windows_full.py的功能）"""
