@@ -16,30 +16,18 @@ sys.path.insert(0, str(project_root))
 from src.utils.logger.logger import Logger
 from src.utils.config.config_loader import ConfigLoader
 
-# 条件导入classification模块
+# 仅在导入错误时才回退到mock；其他错误直接抛出，避免误用mock
 try:
     from src.classification import (
         load_data, preprocess_data, train_model, evaluate_model, save_model
     )
     CLASSIFICATION_AVAILABLE = True
-except Exception as e:
-    print(f"警告: 加载真实classification失败，将回退到模拟版: {e}")
-    try:
-        from src.classification_mock import (
-            load_data, preprocess_data, train_model, evaluate_model, save_model
-        )
-        CLASSIFICATION_AVAILABLE = False
-        print("警告: 使用模拟的classification模块")
-    except Exception as e2:
-        CLASSIFICATION_AVAILABLE = False
-        print(f"错误: 模拟classification也不可用: {e2}")
-        # 创建模拟函数
-        def load_data(*args, **kwargs): return None
-        def preprocess_data(*args, **kwargs): return None
-        def train_model(*args, **kwargs): return None
-        def evaluate_model(*args, **kwargs): return None
-        def save_model(*args, **kwargs): return True
-        print("警告: 使用内置模拟函数")
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"警告: 未找到真实classification依赖，将回退到模拟版: {e}")
+    from src.classification_mock import (
+        load_data, preprocess_data, train_model, evaluate_model, save_model
+    )
+    CLASSIFICATION_AVAILABLE = False
 
 class SimpleModelTrainer:
     def __init__(self):
