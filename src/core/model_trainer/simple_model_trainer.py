@@ -43,7 +43,12 @@ class SimpleModelTrainer:
     def __init__(self):
         self.logger = Logger()
         self.config = ConfigLoader()
-        self.db_path = Path(self.config.get_paths()['data']) / 'mouse_data.db'
+        paths_config = self.config.get_paths()
+        # 优先使用显式的 database 路径，避免工作目录差异导致的相对路径指向错误数据库
+        if 'database' in paths_config and paths_config['database']:
+            self.db_path = Path(paths_config['database'])
+        else:
+            self.db_path = Path(paths_config['data']) / 'mouse_data.db'
         self.models_path = Path(self.config.get_paths()['models'])
         self.models_path.mkdir(parents=True, exist_ok=True)
         
@@ -109,7 +114,7 @@ class SimpleModelTrainer:
         """从数据库加载其他用户的特征数据作为负样本"""
         try:
             self.logger.info(f"开始加载其他用户特征数据，排除用户: {exclude_user_id}")
-            self.logger.info(f"数据库路径: {self.db_path}")
+            self.logger.info(f"数据库路径: {Path(self.db_path).resolve()}")
             
             conn = sqlite3.connect(self.db_path)
             self.logger.info("数据库连接成功")
@@ -117,7 +122,7 @@ class SimpleModelTrainer:
             # 优先加载其他非当前用户的数据作为负样本
             query = '''
                 SELECT feature_vector FROM features 
-                WHERE user_id != ?
+                WHERE TRIM(user_id) != TRIM(?)
                 ORDER BY timestamp DESC
             '''
             
