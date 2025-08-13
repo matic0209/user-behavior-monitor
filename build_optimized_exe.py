@@ -128,6 +128,7 @@ class OptimizedExeBuilder:
 import sys
 import os
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
 
 # 添加项目根目录
 project_root = r"{project_root}"
@@ -144,6 +145,17 @@ datas = [
     (os.path.join(project_root, 'src/utils'), 'src/utils'),
     (os.path.join(project_root, 'src/predict.py'), 'src/'),
 ]
+
+# 额外二进制
+binaries = []
+
+# 使用内置收集器收集 xgboost/sklearn/pandas/numpy 的依赖与二进制
+for mod in ['xgboost', 'sklearn', 'pandas', 'numpy']:
+    try:
+        d, b, h = collect_all(mod)
+        datas += d; binaries += b
+    except Exception:
+        pass
 
 # 隐藏导入
 hiddenimports = [
@@ -201,11 +213,11 @@ excludes = [
 a = Analysis(
     [os.path.join(project_root, 'user_behavior_monitor.py')],
     pathex=[project_root],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
-    hooksconfig={{}},
+    hooksconfig={},
     runtime_hooks=[],
     excludes=excludes,
     win_no_prefer_redirects=False,
