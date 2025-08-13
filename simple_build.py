@@ -18,7 +18,7 @@ def find_pyinstaller():
                              capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
             print(f"[OK] 找到PyInstaller: {result.stdout.strip()}")
-            return 'pyinstaller'
+            return ['pyinstaller']
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     
