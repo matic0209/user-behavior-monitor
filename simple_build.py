@@ -112,6 +112,18 @@ def create_installer():
         else:
             print(f"[WARN] 文件不存在: {exe_file}")
     
+    # 复制数据库
+    try:
+        src_db = Path('data') / 'mouse_data.db'
+        if src_db.exists():
+            (installer_dir / 'data').mkdir(exist_ok=True)
+            shutil.copy2(src_db, installer_dir / 'data' / 'mouse_data.db')
+            print("[OK] 已复制数据库到安装包: installer/data/mouse_data.db")
+        else:
+            print("[WARN] 未找到 data/mouse_data.db，安装包不包含数据库")
+    except Exception as e:
+        print(f"[WARN] 复制数据库到安装包失败: {e}")
+
     # 创建README
     readme_file = installer_dir / "README.txt"
     with open(readme_file, 'w', encoding='utf-8') as f:

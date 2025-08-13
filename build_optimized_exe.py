@@ -19,6 +19,23 @@ class OptimizedExeBuilder:
         self.dist_dir = self.project_root / "dist"
         self.installer_dir = self.project_root / "installer"
         
+    def _copy_database_to_dist(self):
+        """将项目 data/mouse_data.db 复制到 dist/data/ 下，便于运行时使用真实数据库"""
+        try:
+            src_db = self.project_root / 'data' / 'mouse_data.db'
+            if not src_db.exists():
+                print("[WARN] 源数据库不存在: data/mouse_data.db，跳过复制")
+                return False
+            target_dir = self.dist_dir / 'data'
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_db = target_dir / 'mouse_data.db'
+            shutil.copy2(src_db, target_db)
+            print(f"[OK] 已复制数据库到: {target_db}")
+            return True
+        except Exception as e:
+            print(f"[WARN] 复制数据库到 dist 失败: {e}")
+            return False
+
     def clean_build(self):
         """清理构建目录"""
         print("🧹 清理构建目录...")
@@ -257,6 +274,8 @@ exe = EXE(
             print(f"执行命令: {' '.join(cmd)}")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print("✓ 构建成功!")
+            # 构建成功后，复制数据库到 dist
+            self._copy_database_to_dist()
             return True
         except subprocess.CalledProcessError as e:
             print(f"✗ 构建失败: {e}")
@@ -384,6 +403,8 @@ exe = EXE(
             print(f"执行命令: {' '.join(cmd)}")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print("✓ 服务构建成功!")
+            # 确保数据库也存在于 dist，用于主程序运行
+            self._copy_database_to_dist()
             return True
         except subprocess.CalledProcessError as e:
             print(f"✗ 服务构建失败: {e}")
@@ -410,6 +431,19 @@ exe = EXE(
                 print(f"✓ 已复制 {exe_file}")
             else:
                 print(f"⚠️ 文件不存在: {exe_file}")
+        
+        # 复制数据库到安装包
+        try:
+            src_db = self.project_root / 'data' / 'mouse_data.db'
+            if src_db.exists():
+                installer_data_dir = self.installer_dir / 'data'
+                installer_data_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_db, installer_data_dir / 'mouse_data.db')
+                print("[OK] 已将数据库复制到安装包: installer/data/mouse_data.db")
+            else:
+                print("[WARN] 未找到 data/mouse_data.db，安装包不包含数据库")
+        except Exception as e:
+            print(f"[WARN] 复制数据库到安装包失败: {e}")
         
         # 创建优化的安装脚本
         self._create_install_script()
