@@ -184,7 +184,7 @@ hiddenimports = [
     'urllib.error'
 ]
 
-# 排除模块
+# 排除模块（不要排除 unittest/doctest 等标准库）
 excludes = [
     'matplotlib',
     'seaborn',
@@ -195,9 +195,7 @@ excludes = [
     'jupyter',
     'notebook',
     'IPython',
-    'pytest',
-    'unittest',
-    'doctest'
+    'pytest'
 ]
 
 a = Analysis(
@@ -347,9 +345,7 @@ a = Analysis(
         'jupyter',
         'notebook',
         'IPython',
-        'pytest',
-        'unittest',
-        'doctest'
+        'pytest'
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
