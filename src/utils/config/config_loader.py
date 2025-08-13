@@ -1,5 +1,6 @@
 import yaml
 import os
+import sys
 from pathlib import Path
 
 class ConfigLoader:
@@ -70,7 +71,18 @@ class ConfigLoader:
 
     def get_paths(self):
         """获取路径配置"""
-        base_path = Path.cwd()
+        # 基准路径优先级：环境变量 > 冻结可执行所在目录 > 项目根目录 > 当前工作目录
+        env_base = os.getenv('UBM_BASE_PATH')
+        if env_base:
+            base_path = Path(env_base)
+        elif getattr(sys, 'frozen', False):  # PyInstaller 冻结模式
+            base_path = Path(sys.executable).parent
+        else:
+            # 以源码项目根目录为基准（src/utils/config/ -> 项目根）
+            try:
+                base_path = Path(__file__).resolve().parents[3]
+            except Exception:
+                base_path = Path.cwd()
         default_paths = {
             'models': str(base_path / 'models'),
             'data': str(base_path / 'data'),
@@ -84,6 +96,11 @@ class ConfigLoader:
         # 合并配置文件中的路径
         config_paths = self._config.get('paths', {})
         default_paths.update(config_paths)
+        
+        # 如果提供了 UBM_DATABASE 环境变量，则强制覆盖数据库路径
+        env_db = os.getenv('UBM_DATABASE')
+        if env_db:
+            default_paths['database'] = env_db
         
         return default_paths
 
