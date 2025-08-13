@@ -348,7 +348,7 @@ a = Analysis(
         'traceback'
     ],
     hookspath=[],
-    hooksconfig={{}},
+    hooksconfig={},
     runtime_hooks=[],
     excludes=[
         'matplotlib',
