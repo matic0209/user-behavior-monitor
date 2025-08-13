@@ -220,7 +220,7 @@ a = Analysis(
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=excludes,
     win_no_prefer_redirects=False,
@@ -348,7 +348,7 @@ a = Analysis(
         'traceback'
     ],
     hookspath=[],
-    hooksconfig={},
+    hooksconfig={{}},
     runtime_hooks=[],
     excludes=[
         'matplotlib',
