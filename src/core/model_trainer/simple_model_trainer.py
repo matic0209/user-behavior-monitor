@@ -372,6 +372,8 @@ class SimpleModelTrainer:
             if not save_success:
                 self.logger.error("模型保存失败")
                 return False
+            else:
+                self.logger.info(f"模型已保存: {model_path.resolve()}")
             
             # 保存特征列信息
             feature_info_path = self.models_path / f"user_{user_id}_features.json"
@@ -396,6 +398,7 @@ class SimpleModelTrainer:
                     'trained_at': datetime.now().isoformat(),
                     'model_type': 'simple_classification'
                 }, f, indent=2)
+            self.logger.info(f"特征信息已保存: {feature_info_path.resolve()}")
             
             # 清理临时文件
             temp_data_path.unlink(missing_ok=True)
@@ -422,6 +425,10 @@ class SimpleModelTrainer:
             if not user_id.endswith('_user'):
                 possible_model_paths.append(self.models_path / f"user_{user_id}_user_model.pkl")
             
+            self.logger.info("模型加载路径候选:")
+            for p in possible_model_paths:
+                self.logger.info(f"  - {p.resolve()}")
+            
             model_path = None
             for path in possible_model_paths:
                 if path.exists():
@@ -430,12 +437,16 @@ class SimpleModelTrainer:
             
             if model_path is None:
                 self.logger.error(f"用户 {user_id} 的模型文件不存在")
+                self.logger.info("已尝试的路径：")
+                for p in possible_model_paths:
+                    self.logger.info(f"  - {p.resolve()}")
                 # 列出所有可用的模型文件以便调试
                 available_models = list(self.models_path.glob("user_*_model.pkl"))
                 if available_models:
                     self.logger.debug(f"可用的模型文件: {[m.name for m in available_models]}")
                 return None, None, None
             
+            self.logger.info(f"选定模型路径: {model_path.resolve()}")
             # 对应的特征信息文件
             feature_info_path = model_path.with_suffix('.json').with_name(model_path.stem.replace('_model', '_features'))
             
