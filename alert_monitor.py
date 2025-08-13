@@ -10,6 +10,10 @@ import time
 import json
 from pathlib import Path
 from datetime import datetime, timedelta
+from src.utils.console_encoding import ensure_utf8_console
+
+# 确保控制台UTF-8，防止 Windows 控制台 GBK 编码报错
+ensure_utf8_console()
 
 def show_alert_files():
     """显示告警文件列表"""

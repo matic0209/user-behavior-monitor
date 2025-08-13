@@ -14,6 +14,10 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import argparse
 import threading
+from src.utils.console_encoding import ensure_utf8_console
+
+# 先确保控制台编码为 UTF-8，避免 Windows GBK 控制台输出错误
+ensure_utf8_console()
 
 class SystemAlertMonitor:
     def __init__(self, config_file=None):

@@ -10,6 +10,10 @@ import psutil
 import signal
 import time
 from pathlib import Path
+from src.utils.console_encoding import ensure_utf8_console
+
+# 确保控制台UTF-8，防止 GBK 编码报错
+ensure_utf8_console()
 
 def find_user_behavior_processes():
     """查找所有UserBehaviorMonitor相关进程"""

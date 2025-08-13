@@ -7,6 +7,8 @@
 import sys
 
 # 条件导入模块
+from src.utils.console_encoding import ensure_utf8_console  # 确保控制台UTF-8，避免GBK编码错误
+ensure_utf8_console()
 try:
     from src.classification import prepare_features, train_model, save_model, load_model
     CLASSIFICATION_AVAILABLE = True

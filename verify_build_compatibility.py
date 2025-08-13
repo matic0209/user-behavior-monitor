@@ -65,7 +65,7 @@ def extract_collect_all(file_path):
 
 def check_function_coverage():
     """检查函数覆盖情况"""
-    print("🔍 检查函数覆盖情况...")
+    print("[CHECK] 检查函数覆盖情况...")
     
     # 读取两个文件
     with open('build_windows_full.py', 'r', encoding='utf-8') as f:
@@ -104,7 +104,7 @@ def check_function_coverage():
 
 def main():
     """主验证函数"""
-    print("🔍 构建脚本兼容性验证")
+    print("[CHECK] 构建脚本兼容性验证")
     print("=" * 50)
     
     # 检查文件是否存在
@@ -116,10 +116,10 @@ def main():
         print("❌ build_optimized_exe.py 不存在")
         return
     
-    print("✅ 文件存在性检查通过")
+    print("[OK] 文件存在性检查通过")
     
     # 1. 检查隐藏导入
-    print("\n📦 检查隐藏导入...")
+    print("\n[PKG] 检查隐藏导入...")
     full_imports = extract_hidden_imports('build_windows_full.py')
     optimized_imports = extract_hidden_imports('build_optimized_exe.py')
     
@@ -133,7 +133,7 @@ def main():
         print("✅ 所有隐藏导入都已包含")
     
     # 2. 检查排除模块
-    print("\n🚫 检查排除模块...")
+    print("\n[EXCLUDE] 检查排除模块...")
     full_excludes = extract_excluded_modules('build_windows_full.py')
     optimized_excludes = extract_excluded_modules('build_optimized_exe.py')
     
@@ -147,7 +147,7 @@ def main():
         print("✅ 所有排除模块都已包含")
     
     # 3. 检查 collect-all
-    print("\n📚 检查 collect-all...")
+    print("\n[COLLECT] 检查 collect-all...")
     full_collect = extract_collect_all('build_windows_full.py')
     optimized_collect = extract_collect_all('build_optimized_exe.py')
     
@@ -155,12 +155,12 @@ def main():
     print(f"build_optimized_exe.py collect-all: {optimized_collect}")
     
     # 4. 检查函数覆盖
-    print("\n🔧 检查函数覆盖...")
+    print("\n[FUNC] 检查函数覆盖...")
     function_coverage = check_function_coverage()
     
     # 5. 总结
     print("\n" + "=" * 50)
-    print("📋 验证总结:")
+    print("[SUMMARY] 验证总结:")
     
     all_passed = True
     
@@ -168,24 +168,24 @@ def main():
         print(f"❌ 隐藏导入: 缺失 {len(missing_imports)} 个")
         all_passed = False
     else:
-        print("✅ 隐藏导入: 完全覆盖")
+        print("[OK] 隐藏导入: 完全覆盖")
     
     if missing_excludes:
         print(f"❌ 排除模块: 缺失 {len(missing_excludes)} 个")
         all_passed = False
     else:
-        print("✅ 排除模块: 完全覆盖")
+        print("[OK] 排除模块: 完全覆盖")
     
     if function_coverage:
-        print("✅ 函数覆盖: 完全覆盖")
+        print("[OK] 函数覆盖: 完全覆盖")
     else:
         print("❌ 函数覆盖: 部分缺失")
         all_passed = False
     
     if all_passed:
-        print("\n🎉 验证通过! build_optimized_exe.py 完全兼容 build_windows_full.py")
+        print("\n[PASS] 验证通过! build_optimized_exe.py 完全兼容 build_windows_full.py")
     else:
-        print("\n⚠️ 验证失败! 需要修复上述问题")
+        print("\n[WARN] 验证失败! 需要修复上述问题")
     
     print("=" * 50)
 
