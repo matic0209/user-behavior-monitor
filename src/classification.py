@@ -16,12 +16,21 @@ from sklearn.pipeline import Pipeline
 from multiprocessing import Pool, cpu_count, shared_memory
 import psutil
 import xgboost as xgb
-import matplotlib.pyplot as plt
-import seaborn as sns
+try:
+    import matplotlib.pyplot as plt
+except Exception:
+    plt = None
+try:
+    import seaborn as sns
+except Exception:
+    sns = None
 from scipy.stats import pearsonr
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import precision_score, recall_score, f1_score
-from imblearn.over_sampling import SMOTE
+try:
+    from imblearn.over_sampling import SMOTE
+except Exception:
+    SMOTE = None
 from sklearn.feature_selection import mutual_info_classif
 import logging
 import gc
@@ -104,6 +113,9 @@ def log_message(message, level='info'):
 def plot_feature_importance(model, user_id, feature_names=None):
     """绘制特征重要性"""
     try:
+        if plt is None or sns is None:
+            log_message("matplotlib/seaborn 不可用，跳过特征重要性可视化")
+            return
         # 获取特征重要性
         importance = model.feature_importances_
         
@@ -138,6 +150,9 @@ def plot_feature_importance(model, user_id, feature_names=None):
 
 def plot_roc_curve(y_true, y_pred, title="ROC Curve"):
     """Plot ROC curve"""
+    if plt is None:
+        log_message("matplotlib 不可用，跳过ROC曲线绘制")
+        return
     from sklearn.metrics import roc_curve
     fpr, tpr, _ = roc_curve(y_true, y_pred)
     auc = roc_auc_score(y_true, y_pred)
@@ -157,6 +172,9 @@ def plot_roc_curve(y_true, y_pred, title="ROC Curve"):
 
 def plot_pr_curve(y_true, y_pred, title="PR Curve"):
     """Plot Precision-Recall curve"""
+    if plt is None:
+        log_message("matplotlib 不可用，跳过PR曲线绘制")
+        return
     precision, recall, _ = precision_recall_curve(y_true, y_pred)
     avg_precision = average_precision_score(y_true, y_pred)
     

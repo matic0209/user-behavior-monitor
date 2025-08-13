@@ -22,15 +22,17 @@ try:
         load_data, preprocess_data, train_model, evaluate_model, save_model
     )
     CLASSIFICATION_AVAILABLE = True
-except ImportError:
+except Exception as e:
+    print(f"警告: 加载真实classification失败，将回退到模拟版: {e}")
     try:
         from src.classification_mock import (
             load_data, preprocess_data, train_model, evaluate_model, save_model
         )
         CLASSIFICATION_AVAILABLE = False
         print("警告: 使用模拟的classification模块")
-    except ImportError:
+    except Exception as e2:
         CLASSIFICATION_AVAILABLE = False
+        print(f"错误: 模拟classification也不可用: {e2}")
         # 创建模拟函数
         def load_data(*args, **kwargs): return None
         def preprocess_data(*args, **kwargs): return None
