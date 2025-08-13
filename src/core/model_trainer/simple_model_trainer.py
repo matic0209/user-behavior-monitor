@@ -410,6 +410,10 @@ class SimpleModelTrainer:
             
         except Exception as e:
             self.logger.error(f"使用classification模块训练失败: {str(e)}")
+            # 如果真实模块失败且当前是模拟模块，打印提示安装真实依赖
+            if not CLASSIFICATION_AVAILABLE:
+                self.logger.error("当前使用的是模拟classification模块。请在Windows环境安装完整依赖以启用真实训练:")
+                self.logger.error("pip install xgboost scikit-learn pandas numpy")
             import traceback
             self.logger.debug(f"异常详情: {traceback.format_exc()}")
             return False

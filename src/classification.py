@@ -24,7 +24,10 @@ try:
     import seaborn as sns
 except Exception:
     sns = None
-from scipy.stats import pearsonr
+try:
+    from scipy.stats import pearsonr
+except Exception:
+    pearsonr = None
 from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import precision_score, recall_score, f1_score
 try:
