@@ -149,8 +149,8 @@ datas = [
 # 额外二进制
 binaries = []
 
-# 使用内置收集器收集 xgboost/sklearn/pandas/numpy 的依赖与二进制
-for mod in ['xgboost', 'sklearn', 'pandas', 'numpy']:
+# 使用内置收集器收集 可能含有本地二进制 的库依赖
+for mod in ['xgboost', 'sklearn', 'pandas', 'numpy', 'scipy', 'yaml', 'imblearn', 'joblib', 'threadpoolctl']:
     try:
         d, b, h = collect_all(mod)
         datas += d; binaries += b
@@ -177,6 +177,9 @@ hiddenimports = [
     'pandas',
     'numpy',
     'yaml',
+    'imblearn',
+    'joblib',
+    'threadpoolctl',
     'psutil',
     'tkinter',
     'tkinter.messagebox',
