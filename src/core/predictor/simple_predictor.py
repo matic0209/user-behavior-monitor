@@ -124,24 +124,25 @@ class SimplePredictor:
                 self.logger.error(f"用户 {user_id} 的模型不存在，无法预测")
                 return None
             
-            # 特征对齐
+            # 特征对齐（严格一致：列集合与顺序必须与训练一致，不做补零）
             if feature_cols:
-                # 确保特征列匹配 - 排除非特征列
                 exclude_cols = ['id', 'timestamp', 'user_id', 'session_id']
                 feature_cols_filtered = [col for col in feature_cols if col not in exclude_cols]
                 
-                # 检查特征列是否在数据中
-                available_features = [col for col in feature_cols_filtered if col in features_df.columns]
+                # 将所有列尽可能转为数值，保证与训练阶段一致的输入类型
+                features_df = features_df.apply(pd.to_numeric, errors='coerce').fillna(0)
+                
+                # 检查是否有缺失特征
                 missing_features = [col for col in feature_cols_filtered if col not in features_df.columns]
-                
                 if missing_features:
-                    self.logger.warning(f"缺少特征: {missing_features}")
-                    # 用0填充缺失特征
-                    for feature in missing_features:
-                        features_df[feature] = 0.0
+                    self.logger.error(
+                        f"特征不一致：预测数据缺少训练时的特征列: {missing_features}. "
+                        f"请确保训练与预测的特征生成逻辑一致。"
+                    )
+                    return None
                 
-                # 确保X只包含模型期望的特征列，不包含timestamp等
-                X = features_df[available_features + missing_features].fillna(0)
+                # 严格按照训练时顺序取列
+                X = features_df.reindex(columns=feature_cols_filtered)
             else:
                 # 如果没有特征列信息，使用所有数值列（排除非特征列）
                 numeric_cols = features_df.select_dtypes(include=[np.number]).columns
