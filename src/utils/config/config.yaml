@@ -46,6 +46,12 @@ alert:
   alert_cooldown: 60  # 告警冷却时间（秒）
   show_warning_dialog: true  # 显示警告对话框
   warning_duration: 10  # 警告持续时间（秒）
+  # 新增：多种告警方式配置
+  enable_console_alert: true  # 启用控制台告警
+  enable_sound_alert: true    # 启用声音告警
+  enable_log_alert: true      # 启用日志告警
+  enable_system_notification: true  # 启用系统通知
+  enable_file_alert: true     # 启用文件告警（适用于无控制台环境）
 
 user:
   user_id: "default_user"
@@ -57,6 +63,7 @@ data_collection:
   window_events: false    # 暂时禁用窗口事件
   collection_interval: 0.1  # 采集间隔（秒）
   max_buffer_size: 10000   # 最大缓冲区大小
+  target_samples_per_session: 10000  # 每会话目标采集样本数，达到即自动停止
 
 feature_processing:
   batch_size: 1000
@@ -69,18 +76,18 @@ model_training:
   retrain_threshold: 0.8    # 重新训练阈值
 
 logging:
-  level: "DEBUG"  # 修改为DEBUG级别
+  level: "INFO"  # 发布版降低日志级别
   format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s"
   file_rotation: true
   max_file_size: "50MB"  # 增加文件大小限制
   backup_count: 10  # 增加备份文件数量
   console_level: "INFO"  # 控制台显示INFO级别
-  file_level: "DEBUG"    # 文件记录DEBUG级别
-  enable_debug_file: true  # 启用单独的调试日志文件
+  file_level: "INFO"    # 文件记录INFO级别
+  enable_debug_file: false  # 发布版关闭单独的调试日志文件
 
 system:
   max_workers: 4
   memory_limit: "2GB"
   timeout: 300
   platform: "windows"  # 平台标识
-  debug_mode: true     # 启用调试模式 
+  debug_mode: false     # 发布版关闭调试模式

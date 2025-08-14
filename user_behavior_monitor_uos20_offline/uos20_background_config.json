@@ -1,0 +1,9 @@
+{
+  "python_path": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/venv/bin/python3",
+  "main_script": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/user_behavior_monitor_uos20.py",
+  "project_root": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline",
+  "pid_file": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/uos20_monitor.pid",
+  "log_file": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/logs/uos20_background.log",
+  "auto_restart": true,
+  "restart_interval": 10
+}

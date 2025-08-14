@@ -16,13 +16,21 @@ sys.path.insert(0, str(project_root))
 from src.utils.logger.logger import Logger
 from src.utils.config.config_loader import ConfigLoader
 
-# 直接导入predict模块
+# 条件导入predict模块
 try:
     from src.predict import predict_anomaly
     PREDICT_AVAILABLE = True
-except (ImportError, SyntaxError):
-    PREDICT_AVAILABLE = False
-    print("警告: 无法导入predict模块")
+except ImportError:
+    try:
+        from src.predict_mock import predict_anomaly
+        PREDICT_AVAILABLE = False
+        print("警告: 使用模拟的predict模块")
+    except ImportError:
+        PREDICT_AVAILABLE = False
+        # 创建模拟函数
+        def predict_anomaly(*args, **kwargs): 
+            return {"anomaly_score": 0.0, "prediction": 0}
+        print("警告: 使用内置模拟函数")
 
 class SimplePredictor:
     def __init__(self):
@@ -116,27 +124,34 @@ class SimplePredictor:
                 self.logger.error(f"用户 {user_id} 的模型不存在，无法预测")
                 return None
             
-            # 特征对齐
+            # 特征对齐（严格一致：列集合与顺序必须与训练一致；缺失列用0补齐）
             if feature_cols:
-                # 确保特征列匹配
-                available_features = [col for col in feature_cols if col in features_df.columns]
-                missing_features = [col for col in feature_cols if col not in features_df.columns]
+                exclude_cols = ['id', 'timestamp', 'user_id', 'session_id']
+                feature_cols_filtered = [col for col in feature_cols if col not in exclude_cols]
                 
+                # 将所有列尽可能转为数值，保证与训练阶段一致的输入类型
+                features_df = features_df.apply(pd.to_numeric, errors='coerce').fillna(0)
+                
+                # 缺失特征用0补齐
+                missing_features = [col for col in feature_cols_filtered if col not in features_df.columns]
                 if missing_features:
                     self.logger.warning(f"缺少特征: {missing_features}")
-                    # 用0填充缺失特征
                     for feature in missing_features:
                         features_df[feature] = 0.0
                 
-                X = features_df[feature_cols].fillna(0)
+                # 严格按照训练时顺序取列
+                X = features_df.reindex(columns=feature_cols_filtered, fill_value=0).fillna(0)
             else:
-                # 如果没有特征列信息，使用所有数值列
+                # 如果没有特征列信息，使用所有数值列（排除非特征列）
                 numeric_cols = features_df.select_dtypes(include=[np.number]).columns
-                X = features_df[numeric_cols].fillna(0)
+                exclude_cols = ['id', 'timestamp', 'user_id', 'session_id']
+                feature_cols_filtered = [col for col in numeric_cols if col not in exclude_cols]
+                X = features_df[feature_cols_filtered].fillna(0)
             
-            # 预测
-            predictions = model.predict(X)
-            probabilities = model.predict_proba(X)
+            # 预测：传入numpy以避免XGBoost对特征名的严格校验
+            X_np = X.values
+            predictions = model.predict(X_np)
+            probabilities = model.predict_proba(X_np)
             
             # 处理预测结果
             results = []
@@ -161,7 +176,7 @@ class SimplePredictor:
             self.logger.error(f"使用训练模型预测失败: {str(e)}")
             return None
 
-    def predict_with_predict_module(self, features_df):
+    def predict_with_predict_module(self, features_df, user_id):
         """使用predict模块进行预测（备用方案）"""
         try:
             if not PREDICT_AVAILABLE:
@@ -188,7 +203,31 @@ class SimplePredictor:
             X = features_df[feature_cols].fillna(0)
             
             # 使用predict模块进行预测
-            predictions = predict_anomaly(X)
+            # 批量处理，避免重复加载模型
+            predictions = []
+            
+            # 尝试一次性加载模型，避免重复加载
+            try:
+                from src.predict import load_models
+                model_info = load_models()
+                user_model_info = model_info.get(user_id)
+                
+                if user_model_info:
+                    # 如果有模型，批量预测
+                    for i, row in X.iterrows():
+                        feature_dict = row.to_dict()
+                        result = predict_anomaly(user_id, feature_dict, model_info)
+                        if result:
+                            predictions.append(result['anomaly_score'])
+                        else:
+                            predictions.append(0.5)
+                else:
+                    # 如果没有模型，使用默认值
+                    predictions = [0.5] * len(X)
+                    
+            except Exception as e:
+                self.logger.warning(f"批量预测失败，使用默认值: {str(e)}")
+                predictions = [0.5] * len(X)
             
             # 处理预测结果
             results = []
@@ -229,7 +268,7 @@ class SimplePredictor:
             # 如果训练模型不可用，使用predict模块作为备用
             if results is None:
                 self.logger.warning("训练模型不可用，使用predict模块作为备用")
-                results = self.predict_with_predict_module(features_df)
+                results = self.predict_with_predict_module(features_df, user_id)
             
             if results:
                 # 统计预测结果

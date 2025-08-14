@@ -1,0 +1,9 @@
+{
+  "service_name": "user-behavior-monitor",
+  "python_path": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/venv/bin/python3",
+  "main_script": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/user_behavior_monitor_uos20.py",
+  "project_root": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline",
+  "log_dir": "/home/ubuntu/workspace/user-behavior-monitor/user_behavior_monitor_uos20_offline/logs",
+  "auto_restart": true,
+  "restart_interval": 10
+}

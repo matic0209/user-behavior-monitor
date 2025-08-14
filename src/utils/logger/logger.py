@@ -25,18 +25,18 @@ class Logger:
         # 获取当前时间作为文件名的一部分
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         
-        # 配置根日志记录器 - 设置为DEBUG级别以获取最详细信息
+        # 配置根日志记录器 - 发布版默认INFO
         logger = logging.getLogger()
-        logger.setLevel(logging.DEBUG)
+        logger.setLevel(logging.INFO)
         
         # 清除现有的处理器
         for handler in logger.handlers[:]:
             logger.removeHandler(handler)
         
-        # 创建文件处理器 - 详细日志（包含DEBUG级别）
+        # 创建文件处理器 - 详细日志（发布版INFO级别）
         log_file = log_dir / f'monitor_{timestamp}.log'
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
-        file_handler.setLevel(logging.DEBUG)  # 文件记录所有级别
+        file_handler.setLevel(logging.INFO)
         detailed_format = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s'
         )
@@ -60,20 +60,13 @@ class Logger:
         )
         console_handler.setFormatter(console_format)
         
-        # 创建调试文件处理器 - 仅DEBUG级别
-        debug_file = log_dir / f'debug_{timestamp}.log'
-        debug_handler = logging.FileHandler(debug_file, encoding='utf-8')
-        debug_handler.setLevel(logging.DEBUG)
-        debug_format = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s'
-        )
-        debug_handler.setFormatter(debug_format)
+        # 发布版：不写入专门的debug文件
         
         # 添加处理器到日志记录器
         logger.addHandler(file_handler)
         logger.addHandler(error_handler)
         logger.addHandler(console_handler)
-        logger.addHandler(debug_handler)
+        # 发布版不添加debug文件处理器
         
         self._logger = logger
         
@@ -82,8 +75,7 @@ class Logger:
         self._logger.info(f"日志目录: {log_dir}")
         self._logger.info(f"主日志文件: {log_file}")
         self._logger.info(f"错误日志文件: {error_file}")
-        self._logger.info(f"调试日志文件: {debug_file}")
-        self._logger.info(f"日志级别: DEBUG (文件) / INFO (控制台)")
+        self._logger.info(f"日志级别: INFO (文件) / INFO (控制台)")
         self._logger.info("=== 日志系统初始化完成 ===")
 
     def info(self, message):

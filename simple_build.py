@@ -17,8 +17,8 @@ def find_pyinstaller():
         result = subprocess.run(['pyinstaller', '--version'], 
                              capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
-            print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
-            return 'pyinstaller'
+            print(f"[OK] 找到PyInstaller: {result.stdout.strip()}")
+            return ['pyinstaller']
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     
@@ -27,40 +27,40 @@ def find_pyinstaller():
         result = subprocess.run([sys.executable, '-m', 'pyinstaller', '--version'], 
                              capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
-            print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
+            print(f"[OK] 找到PyInstaller: {result.stdout.strip()}")
             return [sys.executable, '-m', 'pyinstaller']
     except (subprocess.TimeoutExpired, FileNotFoundError):
         pass
     
-    print("✗ 找不到PyInstaller")
+    print("[ERROR] 找不到PyInstaller")
     return None
 
 def install_pyinstaller():
     """安装PyInstaller"""
     try:
         subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyinstaller'], check=True)
-        print("✓ PyInstaller安装成功")
+        print("[OK] PyInstaller安装成功")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ PyInstaller安装失败: {e}")
+        print(f"[ERROR] PyInstaller安装失败: {e}")
         return False
 
 def clean_build():
     """清理构建目录"""
-    print("🧹 清理构建目录...")
+    print("[CLEAN] 清理构建目录...")
     for dir_name in ['build', 'dist', '__pycache__']:
         if os.path.exists(dir_name):
             shutil.rmtree(dir_name)
-            print(f"✓ 已删除 {dir_name}")
+            print(f"[OK] 已删除 {dir_name}")
     
     # 清理spec文件
     for spec_file in Path('.').glob('*.spec'):
         spec_file.unlink()
-        print(f"✓ 已删除 {spec_file.name}")
+        print(f"[OK] 已删除 {spec_file.name}")
 
 def build_exe(script_name, exe_name, pyinstaller_cmd):
     """构建可执行文件"""
-    print(f"🔨 构建 {exe_name}...")
+    print(f"[BUILD] 构建 {exe_name}...")
     
     cmd = pyinstaller_cmd + [
         '--onefile',
@@ -86,16 +86,16 @@ def build_exe(script_name, exe_name, pyinstaller_cmd):
     print(f"执行命令: {' '.join(cmd)}")
     try:
         result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-        print(f"✓ {exe_name} 构建成功!")
+        print(f"[OK] {exe_name} 构建成功!")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ {exe_name} 构建失败: {e}")
+        print(f"[ERROR] {exe_name} 构建失败: {e}")
         print(f"错误输出: {e.stderr}")
         return False
 
 def create_installer():
     """创建安装包"""
-    print("📦 创建安装包...")
+    print("[PKG] 创建安装包...")
     installer_dir = Path("installer")
     installer_dir.mkdir(exist_ok=True)
     
@@ -108,10 +108,22 @@ def create_installer():
     for exe_file in exe_files:
         if os.path.exists(exe_file):
             shutil.copy2(exe_file, installer_dir)
-            print(f"✓ 已复制 {exe_file}")
+            print(f"[OK] 已复制 {exe_file}")
         else:
-            print(f"⚠️ 文件不存在: {exe_file}")
+            print(f"[WARN] 文件不存在: {exe_file}")
     
+    # 复制数据库
+    try:
+        src_db = Path('data') / 'mouse_data.db'
+        if src_db.exists():
+            (installer_dir / 'data').mkdir(exist_ok=True)
+            shutil.copy2(src_db, installer_dir / 'data' / 'mouse_data.db')
+            print("[OK] 已复制数据库到安装包: installer/data/mouse_data.db")
+        else:
+            print("[WARN] 未找到 data/mouse_data.db，安装包不包含数据库")
+    except Exception as e:
+        print(f"[WARN] 复制数据库到安装包失败: {e}")
+
     # 创建README
     readme_file = installer_dir / "README.txt"
     with open(readme_file, 'w', encoding='utf-8') as f:
@@ -138,7 +150,7 @@ def create_installer():
 - 如遇问题请查看控制台输出
 """)
     
-    print("✓ 安装包创建完成")
+    print("[OK] 安装包创建完成")
 
 def main():
     """主函数"""
@@ -147,7 +159,7 @@ def main():
     
     # 检查操作系统
     if sys.platform != 'win32':
-        print("❌ 错误: 此脚本只能在Windows系统上运行")
+        print("[ERROR] 此脚本只能在Windows系统上运行")
         return False
     
     try:
@@ -161,10 +173,10 @@ def main():
             if install_pyinstaller():
                 pyinstaller_cmd = find_pyinstaller()
                 if not pyinstaller_cmd:
-                    print("❌ 无法找到PyInstaller")
+                    print("[ERROR] 无法找到PyInstaller")
                     return False
             else:
-                print("❌ PyInstaller安装失败")
+                print("[ERROR] PyInstaller安装失败")
                 return False
         
         # 构建主程序
@@ -179,11 +191,11 @@ def main():
         create_installer()
         
         print("\n" + "=" * 30)
-        print("✅ 构建完成!")
+        print("[SUCCESS] 构建完成!")
         print("=" * 30)
-        print("📁 可执行文件位置: dist/")
-        print("📦 安装包位置: installer/")
-        print("\n📋 下一步:")
+        print("[PATH] 可执行文件位置: dist/")
+        print("[PATH] 安装包位置: installer/")
+        print("\n[TODO] 下一步:")
         print("1. 测试 dist/UserBehaviorMonitor.exe")
         print("2. 测试 dist/UserBehaviorMonitorOptimized.exe")
         print("3. 复制 installer/ 目录到目标机器")
@@ -191,7 +203,7 @@ def main():
         return True
         
     except Exception as e:
-        print(f"❌ 构建过程中出现错误: {e}")
+        print(f"[ERROR] 构建过程中出现错误: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -199,6 +211,6 @@ def main():
 if __name__ == '__main__':
     success = main()
     if success:
-        print("\n🎉 构建成功完成!")
+        print("\n[DONE] 构建成功完成!")
     else:
-        print("\n❌ 构建失败!") 
+        print("\n[ERROR] 构建失败!")

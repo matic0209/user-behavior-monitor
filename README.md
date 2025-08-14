@@ -141,7 +141,7 @@ python user_behavior_monitor.py
 
 #### 第一阶段：自动数据采集
 - 系统自动开始收集鼠标行为数据
-- 采集时间：最多5分钟或达到1000个数据点
+- 采集策略：达到配置目标样本数即停止（默认 10000，可在 `src/utils/config/config.yaml` 的 `data_collection.target_samples_per_session` 调整），或超时自动结束（默认5分钟）
 - 采集过程中可以正常使用电脑
 
 #### 第二阶段：自动特征处理

@@ -5,6 +5,36 @@
 """
 
 import sys
+
+# 条件导入模块
+from src.utils.console_encoding import ensure_utf8_console  # 确保控制台UTF-8，避免GBK编码错误
+ensure_utf8_console()
+try:
+    from src.classification import prepare_features, train_model, save_model, load_model
+    CLASSIFICATION_AVAILABLE = True
+except ImportError:
+    try:
+        from src.classification_mock import prepare_features, train_model, save_model, load_model
+        CLASSIFICATION_AVAILABLE = False
+    except ImportError:
+        CLASSIFICATION_AVAILABLE = False
+        def prepare_features(df, encoders=None): return df
+        def train_model(*args, **kwargs): return None
+        def save_model(*args, **kwargs): return True
+        def load_model(*args, **kwargs): return None
+
+try:
+    from src.predict import predict_anomaly, predict_user_behavior
+    PREDICT_AVAILABLE = True
+except ImportError:
+    try:
+        from src.predict_mock import predict_anomaly, predict_user_behavior
+        PREDICT_AVAILABLE = False
+    except ImportError:
+        PREDICT_AVAILABLE = False
+        def predict_anomaly(*args, **kwargs): return {"anomaly_score": 0.0, "prediction": 0}
+        def predict_user_behavior(*args, **kwargs): return {"prediction": 0, "confidence": 0.0}
+
 import os
 import time
 import signal
@@ -12,17 +42,62 @@ import threading
 import psutil
 from pathlib import Path
 import traceback
-import win32gui
-import win32con
-import win32api
 import json
 from datetime import datetime
+import urllib.request
+import urllib.parse
+import urllib.error
+
+# 添加单实例检查
+import tempfile
+
+def check_single_instance():
+    """检查是否已有实例在运行"""
+    try:
+        # 创建临时PID文件
+        pid_file = Path(tempfile.gettempdir()) / "user_behavior_monitor.pid"
+        
+        # 检查PID文件是否存在
+        if pid_file.exists():
+            try:
+                with open(pid_file, 'r') as f:
+                    old_pid = int(f.read().strip())
+                
+                # 检查进程是否还在运行
+                if psutil.pid_exists(old_pid):
+                    process = psutil.Process(old_pid)
+                    if "UserBehaviorMonitor" in process.name() or "python" in process.name():
+                        print(f"❌ 程序已在运行中 (PID: {old_pid})")
+                        print("请先关闭现有实例，或等待其自动退出")
+                        return False
+            except (ValueError, psutil.NoSuchProcess):
+                # PID文件无效或进程不存在，删除PID文件
+                pid_file.unlink(missing_ok=True)
+        
+        # 保存当前进程PID
+        with open(pid_file, 'w') as f:
+            f.write(str(os.getpid()))
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ 单实例检查失败: {e}")
+        return True  # 如果检查失败，允许启动
+
+def cleanup_pid_file():
+    """清理PID文件"""
+    try:
+        pid_file = Path(tempfile.gettempdir()) / "user_behavior_monitor.pid"
+        if pid_file.exists():
+            pid_file.unlink(missing_ok=True)
+    except Exception:
+        pass
 
 # 添加项目根目录到Python路径
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from src.utils.logger.logger import Logger
+from src.utils.logger.logger_with_rotation import LoggerWithRotation as Logger
 from src.utils.config.config_loader import ConfigLoader
 from src.core.user_manager import UserManager
 from src.core.data_collector.windows_mouse_collector import WindowsMouseCollector
@@ -71,8 +146,16 @@ class WindowsBehaviorMonitor:
         
         # 自动流程控制
         self.auto_mode = True
-        self.min_data_points = 1000  # 最少数据点
+        # 从配置读取目标采样数，默认 10000
+        dc_cfg = self.config.get_data_collection_config()
+        self.min_data_points = int(dc_cfg.get('target_samples_per_session', 10000))
         self.collection_timeout = 300  # 采集超时时间（秒）
+        
+        # 心跳配置
+        self.heartbeat_url = "http://127.0.0.1:26002/heartbeat"
+        self.heartbeat_interval = 30  # 心跳间隔（秒）
+        self.heartbeat_thread = None
+        self.last_heartbeat_time = 0
         
         # 初始化核心模块
         self._init_modules()
@@ -87,7 +170,9 @@ class WindowsBehaviorMonitor:
             'training_sessions': 0,
             'prediction_sessions': 0,
             'anomalies_detected': 0,
-            'alerts_sent': 0
+            'alerts_sent': 0,
+            'heartbeat_sent': 0,
+            'heartbeat_failed': 0
         }
         
         self.logger.info("系统初始化完成")
@@ -161,6 +246,9 @@ class WindowsBehaviorMonitor:
             self.user_manager.start_keyboard_listener()
             self.is_running = True
             
+            # 启动心跳线程
+            self._start_heartbeat()
+            
             # 显示系统信息
             self._show_system_info()
             
@@ -180,9 +268,10 @@ class WindowsBehaviorMonitor:
         print("Windows用户行为异常检测系统 v1.2.0")
         print("="*60)
         print("系统将自动执行以下流程:")
-        print("1. 自动采集鼠标行为数据")
+        print("1. 自动采集鼠标行为数据 (持续等待直到采集足够数据)")
         print("2. 自动训练异常检测模型")
         print("3. 自动开始异常检测")
+        print("4. 自动发送心跳信号")
         print("="*60)
         print("快捷键说明 (连续输入4次):")
         print("  rrrr: 重新采集和训练")
@@ -191,6 +280,12 @@ class WindowsBehaviorMonitor:
         print("="*60)
         print("当前用户:", self.user_manager.current_user_id)
         print("系统状态: 自动运行中")
+        print("心跳地址:", self.heartbeat_url)
+        print("心跳间隔:", self.heartbeat_interval, "秒")
+        print("最少数据点:", self.min_data_points, "个")
+        print("="*60)
+        print("重要提示: 系统会一直等待直到采集到足够的数据点")
+        print("请继续正常使用鼠标，系统会自动完成数据采集")
         print("="*60 + "\n")
 
     def _start_auto_workflow(self):
@@ -204,39 +299,52 @@ class WindowsBehaviorMonitor:
     def _auto_workflow(self):
         """自动工作流程"""
         try:
-            # 1. 自动数据采集
+            # 1. 自动数据采集 - 一直尝试直到成功
             self.logger.info("=== 步骤1: 自动数据采集 ===")
-            if self._auto_collect_data():
-                self.logger.info("数据采集完成")
-                
-                # 检查数据量是否足够
-                data_count = self._get_data_count()
-                self.logger.info(f"当前数据量: {data_count} 个数据点")
-                
-                if data_count < self.min_data_points:
-                    self.logger.warning(f"数据量不足 ({data_count} < {self.min_data_points})，跳过特征处理")
-                    self.logger.info("建议：继续使用鼠标，系统将自动重新采集数据")
-                    return False
-                
-                # 2. 自动特征处理
-                self.logger.info("=== 步骤2: 自动特征处理 ===")
-                if self._auto_process_features():
-                    self.logger.info("特征处理完成")
+            
+            while self.is_running:
+                if self._auto_collect_data():
+                    self.logger.info("[SUCCESS] 数据采集完成")
                     
-                    # 3. 自动模型训练
-                    self.logger.info("=== 步骤3: 自动模型训练 ===")
-                    if self._auto_train_model():
-                        self.logger.info("模型训练完成")
-                        
-                        # 4. 自动异常检测
-                        self.logger.info("=== 步骤4: 自动异常检测 ===")
-                        self._auto_start_prediction()
+                    # 检查数据量是否足够
+                    data_count = self._get_data_count()
+                    self.logger.info(f"当前数据量: {data_count} 个数据点")
+                    
+                    if data_count >= self.min_data_points:
+                        # 数据量足够，继续后续步骤
+                        break
                     else:
-                        self.logger.error("模型训练失败")
+                        self.logger.warning(f"[WARNING] 数据量不足 ({data_count} < {self.min_data_points})")
+                        self.logger.info("[INFO] 系统将重新开始数据采集")
+                        time.sleep(5)  # 等待5秒后重新开始
+                        continue
                 else:
-                    self.logger.error("特征处理失败")
+                    self.logger.warning("[WARNING] 数据采集失败，系统将重新尝试")
+                    time.sleep(10)  # 等待10秒后重新尝试
+                    continue
+            
+            # 如果系统停止，退出工作流程
+            if not self.is_running:
+                self.logger.info("[INFO] 系统停止，退出工作流程")
+                return False
+            
+            # 2. 自动特征处理
+            self.logger.info("=== 步骤2: 自动特征处理 ===")
+            if self._auto_process_features():
+                self.logger.info("[SUCCESS] 特征处理完成")
+                
+                # 3. 自动模型训练
+                self.logger.info("=== 步骤3: 自动模型训练 ===")
+                if self._auto_train_model():
+                    self.logger.info("[SUCCESS] 模型训练完成")
+                    
+                    # 4. 自动异常检测
+                    self.logger.info("=== 步骤4: 自动异常检测 ===")
+                    self._auto_start_prediction()
+                else:
+                    self.logger.error("[ERROR] 模型训练失败")
             else:
-                self.logger.error("数据采集失败")
+                self.logger.error("[ERROR] 特征处理失败")
                 
         except Exception as e:
             self.logger.error(f"自动工作流程失败: {str(e)}")
@@ -266,28 +374,32 @@ class WindowsBehaviorMonitor:
             self.is_collecting = True
             self.stats['collection_sessions'] += 1
             
-            # 等待足够的数据
+            # 一直等待直到采集到足够的数据点
             start_time = time.time()
-            max_wait_time = self.collection_timeout * 2  # 增加最大等待时间
+            self.logger.info(f"开始等待数据采集，需要至少 {self.min_data_points} 个数据点...")
+            self.logger.info("请继续使用鼠标，系统将持续采集数据")
             
-            while time.time() - start_time < max_wait_time:
+            while True:
                 # 检查数据量
                 data_count = self._get_data_count()
                 self.logger.debug(f"当前数据量: {data_count}/{self.min_data_points}")
                 
                 if data_count >= self.min_data_points:
-                    self.logger.info(f"✅ 已采集 {data_count} 个数据点，达到要求")
+                    self.logger.info(f"[SUCCESS] 已采集 {data_count} 个数据点，达到要求")
                     break
                 
-                # 每10秒显示一次进度
+                # 每30秒显示一次进度
                 elapsed = time.time() - start_time
-                if int(elapsed) % 10 == 0:
-                    self.logger.info(f"⏳ 数据采集中... ({data_count}/{self.min_data_points}) - 已等待 {int(elapsed)} 秒")
+                if int(elapsed) % 30 == 0:
+                    self.logger.info(f"[INFO] 数据采集中... ({data_count}/{self.min_data_points}) - 已等待 {int(elapsed)} 秒")
+                    self.logger.info("[TIP] 请继续使用鼠标，系统会一直等待直到采集到足够的数据")
                 
-                time.sleep(2)  # 每2秒检查一次
-            else:
-                self.logger.warning(f"⚠️ 采集超时，已采集 {self._get_data_count()} 个数据点")
-                self.logger.info("💡 建议：继续使用鼠标，系统将自动重新采集")
+                # 检查系统是否还在运行
+                if not self.is_running:
+                    self.logger.warning("[WARNING] 系统停止，中断数据采集")
+                    break
+                
+                time.sleep(5)  # 每5秒检查一次
             
             # 停止采集
             self.data_collector.stop_collection()
@@ -296,10 +408,11 @@ class WindowsBehaviorMonitor:
             # 最终检查数据量
             final_count = self._get_data_count()
             if final_count >= self.min_data_points:
-                self.logger.info(f"✅ 数据采集完成，共 {final_count} 个数据点")
+                self.logger.info(f"[SUCCESS] 数据采集完成，共 {final_count} 个数据点")
                 return True
             else:
-                self.logger.warning(f"⚠️ 数据量不足 ({final_count} < {self.min_data_points})")
+                self.logger.warning(f"[WARNING] 数据量不足 ({final_count} < {self.min_data_points})")
+                self.logger.info("[INFO] 系统将继续等待，请继续使用鼠标")
                 return False
             
         except Exception as e:
@@ -458,21 +571,20 @@ class WindowsBehaviorMonitor:
                 'timestamp': time.time()
             }
             
-            # 手动触发告警时，直接显示弹窗，不通过告警服务
-            if self.alert_service.enable_system_actions and GUI_AVAILABLE:
-                self.logger.info("📋 手动触发告警，直接显示安全警告弹窗")
-                self.alert_service._show_warning_dialog(anomaly_data['anomaly_score'])
+            # 检查GUI可用性
+            if GUI_AVAILABLE and self.alert_service.enable_system_actions:
+                self.logger.info("[SUCCESS] 手动触发告警，显示安全警告弹窗")
+                try:
+                    self.alert_service._show_warning_dialog(anomaly_data['anomaly_score'])
+                    self.logger.info("[SUCCESS] 弹窗显示成功")
+                except Exception as e:
+                    self.logger.warning(f"[WARNING] 弹窗显示失败: {str(e)}")
+                    # 弹窗失败时，回退到记录告警
+                    self._record_manual_alert(anomaly_data)
             else:
-                # 如果GUI不可用，记录告警（绕过冷却时间）
-                self.logger.info("⚠️ GUI不可用，仅记录手动告警")
-                self.alert_service.send_alert(
-                    user_id=self.current_user_id or "manual_test",
-                    alert_type="behavior_anomaly",
-                    message="手动触发告警测试 - 用户行为异常检测",
-                    severity="warning",
-                    data=anomaly_data,
-                    bypass_cooldown=True  # 手动触发绕过冷却时间
-                )
+                # GUI不可用时，记录告警
+                self.logger.info("[INFO] GUI不可用，记录手动告警")
+                self._record_manual_alert(anomaly_data)
             
             self.logger.info("✅ 手动告警触发成功")
             self.logger.info("📋 告警详情:")
@@ -488,6 +600,21 @@ class WindowsBehaviorMonitor:
         except Exception as e:
             self.logger.error(f"手动触发告警失败: {str(e)}")
             self.logger.debug(f"异常详情: {traceback.format_exc()}")
+
+    def _record_manual_alert(self, anomaly_data):
+        """记录手动告警"""
+        try:
+            self.alert_service.send_alert(
+                user_id=self.current_user_id or "manual_test",
+                alert_type="behavior_anomaly",
+                message="手动触发告警测试 - 用户行为异常检测",
+                severity="warning",
+                data=anomaly_data,
+                bypass_cooldown=True  # 手动触发绕过冷却时间
+            )
+            self.logger.info("[SUCCESS] 手动告警已记录到数据库")
+        except Exception as e:
+            self.logger.error(f"[ERROR] 记录手动告警失败: {str(e)}")
 
     def _handle_post_alert_actions(self, anomaly_data):
         """处理告警后的系统操作"""
@@ -621,17 +748,149 @@ class WindowsBehaviorMonitor:
             if hasattr(self, 'user_manager'):
                 self.user_manager.stop_keyboard_listener()
             
+            # 记录心跳统计
+            self._log_heartbeat_stats()
+            
+            # 停止心跳线程
+            self._stop_heartbeat()
+            
             self.is_running = False
             self.logger.info("系统已安全停止")
             
         except Exception as e:
             self.logger.error(f"系统停止失败: {str(e)}")
 
+    def _send_heartbeat(self):
+        """发送心跳请求"""
+        try:
+            heartbeat_data = {
+                "type": 4
+            }
+            
+            # 准备请求数据
+            data = json.dumps(heartbeat_data).encode('utf-8')
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            # 创建请求
+            req = urllib.request.Request(
+                self.heartbeat_url,
+                data=data,
+                headers=headers,
+                method='POST'
+            )
+            
+            # 发送请求
+            with urllib.request.urlopen(req, timeout=10) as response:
+                response_code = response.getcode()
+                if response_code == 200:
+                    self.stats['heartbeat_sent'] += 1
+                    self.logger.debug(f"心跳发送成功 (状态码: {response_code})")
+                    return True
+                else:
+                    self.logger.warning(f"心跳发送失败，状态码: {response_code}")
+                    self.stats['heartbeat_failed'] += 1
+                    return False
+                    
+        except urllib.error.URLError as e:
+            self.logger.warning(f"心跳发送失败 (网络错误): {str(e)}")
+            self.stats['heartbeat_failed'] += 1
+            return False
+        except Exception as e:
+            self.logger.error(f"心跳发送失败: {str(e)}")
+            self.stats['heartbeat_failed'] += 1
+            return False
+
+    def _heartbeat_worker(self):
+        """心跳工作线程"""
+        self.logger.info(f"心跳线程启动，间隔: {self.heartbeat_interval} 秒")
+        
+        while self.is_running:
+            try:
+                current_time = time.time()
+                
+                # 检查是否需要发送心跳
+                if current_time - self.last_heartbeat_time >= self.heartbeat_interval:
+                    self._send_heartbeat()
+                    self.last_heartbeat_time = current_time
+                
+                # 等待一段时间
+                time.sleep(5)  # 每5秒检查一次
+                
+            except Exception as e:
+                self.logger.error(f"心跳线程异常: {str(e)}")
+                time.sleep(10)  # 异常时等待更长时间
+
+    def _start_heartbeat(self):
+        """启动心跳线程"""
+        try:
+            if self.heartbeat_thread is None or not self.heartbeat_thread.is_alive():
+                self.heartbeat_thread = threading.Thread(
+                    target=self._heartbeat_worker,
+                    daemon=True,
+                    name="HeartbeatThread"
+                )
+                self.heartbeat_thread.start()
+                self.logger.info("心跳线程已启动")
+                return True
+            else:
+                self.logger.info("心跳线程已在运行")
+                return True
+        except Exception as e:
+            self.logger.error(f"启动心跳线程失败: {str(e)}")
+            return False
+
+    def _stop_heartbeat(self):
+        """停止心跳线程"""
+        try:
+            if self.heartbeat_thread and self.heartbeat_thread.is_alive():
+                self.logger.info("正在停止心跳线程...")
+                # 线程是daemon线程，会在主程序退出时自动结束
+                return True
+        except Exception as e:
+            self.logger.error(f"停止心跳线程失败: {str(e)}")
+            return False
+
+    def _get_heartbeat_stats(self):
+        """获取心跳统计信息"""
+        try:
+            stats = {
+                'heartbeat_sent': self.stats.get('heartbeat_sent', 0),
+                'heartbeat_failed': self.stats.get('heartbeat_failed', 0),
+                'success_rate': 0.0
+            }
+            
+            total = stats['heartbeat_sent'] + stats['heartbeat_failed']
+            if total > 0:
+                stats['success_rate'] = (stats['heartbeat_sent'] / total) * 100
+            
+            return stats
+        except Exception as e:
+            self.logger.error(f"获取心跳统计失败: {str(e)}")
+            return {}
+
+    def _log_heartbeat_stats(self):
+        """记录心跳统计信息"""
+        try:
+            stats = self._get_heartbeat_stats()
+            if stats:
+                self.logger.info("📊 心跳统计信息:")
+                self.logger.info(f"   - 发送成功: {stats['heartbeat_sent']} 次")
+                self.logger.info(f"   - 发送失败: {stats['heartbeat_failed']} 次")
+                self.logger.info(f"   - 成功率: {stats['success_rate']:.1f}%")
+        except Exception as e:
+            self.logger.error(f"记录心跳统计失败: {str(e)}")
+
 def main():
     """主函数"""
     monitor = None
     
     try:
+        # 单实例检查
+        if not check_single_instance():
+            return 1
+        
         # 创建监控实例
         monitor = WindowsBehaviorMonitor()
         
@@ -660,6 +919,7 @@ def main():
     finally:
         if monitor:
             monitor.stop()
+        cleanup_pid_file()  # 清理PID文件
         print("系统已退出")
 
 if __name__ == "__main__":

@@ -14,12 +14,18 @@ from functools import partial
 import time
 try:
     from src.classification import prepare_features
+    CLASSIFICATION_AVAILABLE = True
 except ImportError:
-    # 如果classification模块不可用，创建一个模拟版本
-    def prepare_features(df, encoders):
-        """模拟的特征准备函数"""
+    try:
+        from src.classification_mock import prepare_features
+        CLASSIFICATION_AVAILABLE = False
         print("使用模拟的prepare_features函数")
-        return df
+    except ImportError:
+        CLASSIFICATION_AVAILABLE = False
+        def prepare_features(df, encoders):
+            """模拟的特征准备函数"""
+            print("使用内置模拟的prepare_features函数")
+            return df
 import logging
 
 # 配置日志记录
@@ -616,8 +622,8 @@ def predict_user_behavior_agg(test_data, user_id):
         with open(feature_path, 'rb') as f:
             feature_names = pickle.load(f)
 
-        # 1. 处理异常值
-        X = test_data[feature_names].copy()
+        # 1. 处理异常值并严格按训练特征顺序对齐
+        X = test_data.reindex(columns=feature_names, fill_value=0).copy()
         X = X.replace([np.inf, -np.inf], 0)
         
         # 2. 确保所有特征都是float类型
@@ -626,8 +632,8 @@ def predict_user_behavior_agg(test_data, user_id):
         # 3. 填充缺失值
         X = X.fillna(0)
         
-        # 4. 标准化
-        X_scaled = scaler.transform(X)
+        # 4. 标准化 -> 确保传给模型的是numpy，避免XGBoost特征名校验
+        X_scaled = scaler.transform(X.values)
         
         # 5. 预测
         pred = model.predict(X_scaled)
@@ -732,17 +738,18 @@ def predict_anomaly(user_id, features, model_info=None):
         for feature in feature_names:
             if feature not in feature_df.columns:
                 feature_df[feature] = 0.0
-        
-        # 只保留需要的特征列
-        feature_df = feature_df[feature_names]
-        
-        # 标准化特征
+
+        # 严格按训练顺序对齐
+        feature_df = feature_df.reindex(columns=feature_names, fill_value=0).fillna(0)
+
+        # 标准化特征（使用numpy避免XGBoost特征名校验）
+        X_np = feature_df.values
         if scaler is not None:
-            feature_df = pd.DataFrame(scaler.transform(feature_df), columns=feature_names)
-        
-        # 预测
-        prediction = model.predict(feature_df)[0]
-        prediction_proba = model.predict_proba(feature_df)[0]
+            X_np = scaler.transform(X_np)
+
+        # 预测（numpy输入）
+        prediction = model.predict(X_np)[0]
+        prediction_proba = model.predict_proba(X_np)[0]
         
         # 计算异常分数
         if len(prediction_proba) > 1:

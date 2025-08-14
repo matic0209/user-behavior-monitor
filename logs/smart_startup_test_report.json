@@ -1,0 +1,35 @@
+{
+  "test_time": "2025-08-12T15:32:18.034041",
+  "test_users": [
+    "test_user_1",
+    "test_user_2",
+    "test_user_3"
+  ],
+  "model_check_results": {
+    "test_user_1": true,
+    "test_user_2": true,
+    "test_user_3": true
+  },
+  "model_load_results": {
+    "test_user_1": true,
+    "test_user_2": true,
+    "test_user_3": true
+  },
+  "startup_decisions": {
+    "test_user_1": "auto_start_prediction",
+    "test_user_2": "auto_start_prediction",
+    "test_user_3": "auto_start_prediction"
+  },
+  "prediction_results": {
+    "test_user_1": true,
+    "test_user_2": true,
+    "test_user_3": true
+  },
+  "statistics": {
+    "total_users": 3,
+    "models_exist": 3,
+    "models_loaded": 3,
+    "auto_started": 3,
+    "predictions_working": 3
+  }
+}

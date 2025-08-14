@@ -19,6 +19,23 @@ class OptimizedExeBuilder:
         self.dist_dir = self.project_root / "dist"
         self.installer_dir = self.project_root / "installer"
         
+    def _copy_database_to_dist(self):
+        """将项目 data/mouse_data.db 复制到 dist/data/ 下，便于运行时使用真实数据库"""
+        try:
+            src_db = self.project_root / 'data' / 'mouse_data.db'
+            if not src_db.exists():
+                print("[WARN] 源数据库不存在: data/mouse_data.db，跳过复制")
+                return False
+            target_dir = self.dist_dir / 'data'
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target_db = target_dir / 'mouse_data.db'
+            shutil.copy2(src_db, target_db)
+            print(f"[OK] 已复制数据库到: {target_db}")
+            return True
+        except Exception as e:
+            print(f"[WARN] 复制数据库到 dist 失败: {e}")
+            return False
+
     def clean_build(self):
         """清理构建目录"""
         print("🧹 清理构建目录...")
@@ -72,7 +89,7 @@ class OptimizedExeBuilder:
                                  capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 print(f"✓ 找到PyInstaller: {result.stdout.strip()}")
-                return 'pyinstaller'
+                return ['pyinstaller']
         except (subprocess.TimeoutExpired, FileNotFoundError):
             pass
         
@@ -111,18 +128,35 @@ class OptimizedExeBuilder:
 import sys
 import os
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
 
 # 添加项目根目录
 project_root = r"{project_root}"
 sys.path.insert(0, project_root)
 
-# 数据文件
+# 数据文件（包含配置、数据、模型、日志以及核心源码以支持后台无控制台运行）
 datas = [
     (os.path.join(project_root, 'src/utils/config'), 'src/utils/config'),
     (os.path.join(project_root, 'data'), 'data'),
     (os.path.join(project_root, 'models'), 'models'),
     (os.path.join(project_root, 'logs'), 'logs'),
+    # 强制收集关键模块（对应--collect-all）
+    (os.path.join(project_root, 'src/core'), 'src/core'),
+    (os.path.join(project_root, 'src/utils'), 'src/utils'),
+    (os.path.join(project_root, 'src/predict.py'), 'src/'),
+    (os.path.join(project_root, 'user_behavior_monitor.py'), '.'),
 ]
+
+# 额外二进制
+binaries = []
+
+# 使用内置收集器收集 可能含有本地二进制 的库依赖
+for mod in ['xgboost','sklearn','pandas','numpy','scipy','yaml','imblearn','joblib','threadpoolctl']:
+    try:
+        d, b, h = collect_all(mod)
+        datas += d; binaries += b
+    except Exception:
+        pass
 
 # 隐藏导入
 hiddenimports = [
@@ -136,6 +170,7 @@ hiddenimports = [
     'pynput',
     'pynput.keyboard',
     'pynput.mouse',
+    'keyboard',  # 添加keyboard模块
     'xgboost',
     'sklearn',
     'sklearn.ensemble',
@@ -143,6 +178,9 @@ hiddenimports = [
     'pandas',
     'numpy',
     'yaml',
+    'imblearn',
+    'joblib',
+    'threadpoolctl',
     'psutil',
     'tkinter',
     'tkinter.messagebox',
@@ -155,10 +193,14 @@ hiddenimports = [
     'subprocess',
     'platform',
     'signal',
-    'traceback'
+    'traceback',
+    # 添加网络通信模块（心跳功能）
+    'urllib.request',
+    'urllib.parse',
+    'urllib.error'
 ]
 
-# 排除模块
+# 排除模块（不要排除 unittest/doctest 等标准库）
 excludes = [
     'matplotlib',
     'seaborn',
@@ -169,15 +211,13 @@ excludes = [
     'jupyter',
     'notebook',
     'IPython',
-    'pytest',
-    'unittest',
-    'doctest'
+    'pytest'
 ]
 
 a = Analysis(
     [os.path.join(project_root, 'user_behavior_monitor.py')],
     pathex=[project_root],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
@@ -188,6 +228,7 @@ a = Analysis(
     win_private_assemblies=False,
     cipher=None,
     noarchive=False,
+    # 数据文件已在上面定义，这里不需要重复添加
 )
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
@@ -206,7 +247,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # 保留控制台用于调试
+    console=False,  # 改为无控制台，后台运行
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -222,6 +263,10 @@ exe = EXE(
         
         print("✓ spec文件创建完成")
         return spec_file
+    
+    def build_executable(self):
+        """构建可执行文件（兼容build_windows_full.py的函数名）"""
+        return self.build_exe()
     
     def build_exe(self):
         """构建可执行文件"""
@@ -243,6 +288,8 @@ exe = EXE(
             print(f"执行命令: {' '.join(cmd)}")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print("✓ 构建成功!")
+            # 构建成功后，复制数据库到 dist
+            self._copy_database_to_dist()
             return True
         except subprocess.CalledProcessError as e:
             print(f"✗ 构建失败: {e}")
@@ -314,9 +361,7 @@ a = Analysis(
         'jupyter',
         'notebook',
         'IPython',
-        'pytest',
-        'unittest',
-        'doctest'
+        'pytest'
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -370,6 +415,8 @@ exe = EXE(
             print(f"执行命令: {' '.join(cmd)}")
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             print("✓ 服务构建成功!")
+            # 确保数据库也存在于 dist，用于主程序运行
+            self._copy_database_to_dist()
             return True
         except subprocess.CalledProcessError as e:
             print(f"✗ 服务构建失败: {e}")
@@ -396,6 +443,19 @@ exe = EXE(
                 print(f"✓ 已复制 {exe_file}")
             else:
                 print(f"⚠️ 文件不存在: {exe_file}")
+        
+        # 复制数据库到安装包
+        try:
+            src_db = self.project_root / 'data' / 'mouse_data.db'
+            if src_db.exists():
+                installer_data_dir = self.installer_dir / 'data'
+                installer_data_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_db, installer_data_dir / 'mouse_data.db')
+                print("[OK] 已将数据库复制到安装包: installer/data/mouse_data.db")
+            else:
+                print("[WARN] 未找到 data/mouse_data.db，安装包不包含数据库")
+        except Exception as e:
+            print(f"[WARN] 复制数据库到安装包失败: {e}")
         
         # 创建优化的安装脚本
         self._create_install_script()
@@ -573,9 +633,9 @@ pause >nul
 ✓ 后台服务运行
 
 安装说明:
-1. 以管理员身份运行 install.bat
-2. 系统将自动安装并启动服务
-3. 服务将在后台运行，无需用户干预
+1. 以管理员身份运行 install.bat（或直接使用 dist/UserBehaviorMonitor.exe 手动运行）
+2. 系统将自动安装并启动服务（后台运行，无控制台）
+3. 如无需服务，可直接运行主程序（同样无控制台）
 
 卸载说明:
 1. 以管理员身份运行 uninstall.bat
@@ -652,8 +712,116 @@ pause >nul
         
         print("✓ 优化配置创建完成")
     
+    def check_windows(self):
+        """检查是否在Windows环境下（兼容build_windows_full.py的功能）"""
+        if sys.platform != 'win32':
+            print("❌ 错误: 此脚本只能在Windows系统上运行")
+            return False
+        return True
+    
+    def check_dependencies(self):
+        """检查依赖是否安装（兼容build_windows_full.py的功能）"""
+        print("🔍 检查依赖...")
+        
+        required_modules = [
+            'psutil',
+            'pynput',
+            'keyboard',
+            'yaml',
+            'numpy',
+            'pandas',
+            'sklearn',
+            'xgboost',
+            'win32api',
+            'win32con',
+            'win32gui',
+            'win32service',
+            'win32serviceutil'
+        ]
+        
+        missing_modules = []
+        
+        for module in required_modules:
+            try:
+                __import__(module)
+                print(f"✓ {module} 可用")
+            except ImportError:
+                print(f"✗ {module} 缺失")
+                missing_modules.append(module)
+        
+        if missing_modules:
+            print(f"\n❌ 以下模块缺失: {missing_modules}")
+            print("💡 请先运行: python install_dependencies_windows.py")
+            return False
+        
+        print("✓ 所有依赖检查通过")
+        return True
+    
+    def setup_environment(self):
+        """设置环境（兼容build_windows_full.py的功能）"""
+        # 注意：此处避免使用表情符号，防止在 GBK 控制台下触发编码错误
+        print("[SETUP] 设置环境...")
+        
+        # 设置编码
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        os.environ['PYTHONUTF8'] = '1'
+        
+        # 运行时重配置标准输出/错误编码，避免 Windows GBK 控制台下的 UnicodeEncodeError
+        try:
+            # Python 3.7+ 支持 reconfigure
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+        except Exception:
+            # 老版本或非 TTY 环境下忽略
+            pass
+        
+        # 设置控制台编码（Windows）
+        if sys.platform == 'win32':
+            os.system('chcp 65001 > nul 2>&1')
+        
+        # 依然避免使用不在 GBK 的符号，保证在极端环境下也不会报错
+        print("[OK] 环境设置完成")
+    
+    def kill_conflicting_processes(self):
+        """结束冲突的进程（兼容build_windows_full.py的功能）"""
+        print("🔪 检查并结束冲突进程...")
+        
+        # 获取当前进程ID
+        current_pid = os.getpid()
+        print(f"当前进程ID: {current_pid}")
+        
+        processes = ['UserBehaviorMonitor.exe', 'pyinstaller.exe']
+        
+        for process_name in processes:
+            try:
+                # 使用tasklist查找进程
+                result = subprocess.run(['tasklist', '/FI', f'IMAGENAME eq {process_name}'], 
+                                     capture_output=True, text=True, timeout=10)
+                
+                if process_name in result.stdout:
+                    print(f"发现冲突进程: {process_name}")
+                    
+                    # 尝试结束进程
+                    try:
+                        subprocess.run(['taskkill', '/F', '/IM', process_name], 
+                                     capture_output=True, timeout=10)
+                        print(f"✓ 已结束进程: {process_name}")
+                    except subprocess.TimeoutExpired:
+                        print(f"⚠ 结束进程超时: {process_name}")
+                    except Exception as e:
+                        print(f"⚠ 结束进程失败: {process_name}, 错误: {e}")
+                        
+            except subprocess.TimeoutExpired:
+                print(f"⚠ 检查进程超时: {process_name}")
+            except Exception as e:
+                print(f"⚠ 检查进程失败: {process_name}, 错误: {e}")
+        
+        print("✓ 进程检查完成")
+    
     def build(self):
         """执行完整构建流程"""
+        # 先设置环境，确保后续包含表情/中文的输出在 Windows 控制台不会因 GBK 编码报错
+        self.setup_environment()
         print("🚀 开始优化构建流程...")
         print("=" * 50)
         
@@ -663,8 +831,25 @@ pause >nul
             return False
         
         try:
+            # 检查Windows环境
+            if not self.check_windows():
+                return False
+            
+            # 检查依赖
+            if not self.check_dependencies():
+                return False
+            
+            # 结束冲突进程
+            self.kill_conflicting_processes()
+            
             # 清理构建目录
             self.clean_build()
+            
+            # 等待文件系统稳定
+            print("⏳ 等待文件系统稳定...")
+            import time
+            time.sleep(2)
+            print("✓ 等待完成")
             
             # 安装依赖
             if not self.install_dependencies():

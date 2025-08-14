@@ -1,0 +1,90 @@
+# System用户告警配置
+# 专门针对UID 0环境下的告警优化
+
+alert:
+  # 基础告警配置
+  max_alert_count: 5
+  alert_threshold: 0.7  # 降低阈值，提高敏感度
+  alert_cooldown: 30    # 缩短冷却时间
+  
+  # GUI相关配置（system用户环境下禁用）
+  show_warning_dialog: false  # 禁用GUI弹窗
+  popup_enabled: false        # 禁用弹窗
+  
+  # 多模态告警配置（system用户环境下启用）
+  enable_console_alert: true      # 启用控制台告警
+  enable_file_alert: true         # 启用文件告警
+  enable_log_alert: true          # 启用日志告警
+  enable_system_notification: true # 启用系统通知
+  enable_sound_alert: true        # 启用声音告警
+  
+  # 系统操作配置
+  enable_system_actions: true     # 启用系统操作
+  lock_screen_threshold: 0.8      # 锁屏阈值
+  force_logout: true              # 启用强制登出
+  
+  # 文件告警配置
+  file_alert:
+    directory: "logs/alerts"      # 告警文件目录
+    realtime_file: "realtime_alerts.txt"  # 实时告警文件
+    max_files: 100               # 最大告警文件数
+    compress_old: true           # 压缩旧文件
+    
+  # 系统日志配置
+  system_log:
+    enable_syslog: true          # 启用syslog
+    enable_windows_event: true   # 启用Windows事件日志
+    log_level: "warning"         # 日志级别
+    
+  # 声音告警配置
+  sound_alert:
+    enable_beep: true            # 启用蜂鸣声
+    enable_system_sound: true    # 启用系统音效
+    repeat_count: 3              # 重复次数
+    
+  # 控制台告警配置
+  console_alert:
+    enable_colors: true          # 启用颜色
+    enable_unicode: true         # 启用Unicode字符
+    show_border: true            # 显示边框
+    
+  # 监控配置
+  monitoring:
+    check_interval: 60           # 检查间隔（秒）
+    max_alert_age: 86400         # 最大告警年龄（秒）
+    auto_cleanup: true           # 自动清理
+    
+  # 紧急情况配置
+  emergency:
+    enable_emergency_mode: true  # 启用紧急模式
+    emergency_threshold: 0.9     # 紧急阈值
+    emergency_actions:           # 紧急操作
+      - "lock_screen"
+      - "force_logout"
+      - "send_syslog"
+      - "create_emergency_file"
+      
+  # 通知配置
+  notification:
+    enable_email: false          # 禁用邮件通知（需要额外配置）
+    enable_sms: false            # 禁用短信通知（需要额外配置）
+    enable_webhook: false        # 禁用webhook（需要额外配置）
+    
+  # 调试配置
+  debug:
+    enable_debug_logging: true   # 启用调试日志
+    log_alert_details: true      # 记录告警详情
+    show_environment_info: true  # 显示环境信息
+
+# 环境检测配置
+environment:
+  detect_system_user: true       # 检测system用户
+  detect_display: true           # 检测显示环境
+  detect_gui: true               # 检测GUI可用性
+  auto_adjust: true              # 自动调整配置
+  
+# 兼容性配置
+compatibility:
+  windows_service: true          # Windows服务兼容
+  linux_systemd: true            # Linux systemd兼容
+  mac_launchd: true              # macOS launchd兼容

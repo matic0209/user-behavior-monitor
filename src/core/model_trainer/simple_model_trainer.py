@@ -16,21 +16,29 @@ sys.path.insert(0, str(project_root))
 from src.utils.logger.logger import Logger
 from src.utils.config.config_loader import ConfigLoader
 
-# 直接导入classification模块
+# 仅在导入错误时才回退到mock；其他错误直接抛出，避免误用mock
 try:
     from src.classification import (
         load_data, preprocess_data, train_model, evaluate_model, save_model
     )
     CLASSIFICATION_AVAILABLE = True
-except ImportError:
+except (ImportError, ModuleNotFoundError) as e:
+    print(f"警告: 未找到真实classification依赖，将回退到模拟版: {e}")
+    from src.classification_mock import (
+        load_data, preprocess_data, train_model, evaluate_model, save_model
+    )
     CLASSIFICATION_AVAILABLE = False
-    print("警告: 无法导入classification模块")
 
 class SimpleModelTrainer:
     def __init__(self):
         self.logger = Logger()
         self.config = ConfigLoader()
-        self.db_path = Path(self.config.get_paths()['data']) / 'mouse_data.db'
+        paths_config = self.config.get_paths()
+        # 优先使用显式的 database 路径，避免工作目录差异导致的相对路径指向错误数据库
+        if 'database' in paths_config and paths_config['database']:
+            self.db_path = Path(paths_config['database'])
+        else:
+            self.db_path = Path(paths_config['data']) / 'mouse_data.db'
         self.models_path = Path(self.config.get_paths()['models'])
         self.models_path.mkdir(parents=True, exist_ok=True)
         
@@ -93,31 +101,48 @@ class SimpleModelTrainer:
             return pd.DataFrame()
 
     def load_other_users_features_from_db(self, exclude_user_id, limit=None):
-        """从数据库加载其他用户的特征数据作为负样本（备用方案）"""
+        """从数据库加载其他用户的特征数据作为负样本"""
         try:
-            conn = sqlite3.connect(self.db_path)
+            self.logger.info(f"开始加载其他用户特征数据，排除用户: {exclude_user_id}")
+            self.logger.info(f"数据库路径: {Path(self.db_path).resolve()}")
             
+            conn = sqlite3.connect(self.db_path)
+            self.logger.info("数据库连接成功")
+            
+            # 优先加载其他非当前用户的数据作为负样本
             query = '''
                 SELECT feature_vector FROM features 
-                WHERE user_id != ? AND user_id NOT LIKE 'training_user%' AND user_id NOT LIKE 'test_user%'
+                WHERE TRIM(user_id) != TRIM(?)
                 ORDER BY timestamp DESC
             '''
             
             if limit:
                 query += f' LIMIT {limit}'
             
+            self.logger.info(f"执行查询: {query}")
+            self.logger.info(f"查询参数: {exclude_user_id}")
+            
             df = pd.read_sql_query(query, conn, params=(exclude_user_id,))
+            self.logger.info(f"查询结果: {len(df)} 条记录")
+            
             conn.close()
+            self.logger.info("数据库连接已关闭")
             
             if not df.empty:
+                self.logger.info("开始解析特征向量...")
                 # 解析特征向量
                 df = self._parse_feature_vectors(df)
+                self.logger.info(f"特征向量解析完成，最终形状: {df.shape}")
+            else:
+                self.logger.warning("查询结果为空，没有其他用户数据")
             
             self.logger.info(f"从数据库加载了 {len(df)} 条其他用户特征数据作为负样本")
             return df
             
         except Exception as e:
             self.logger.error(f"从数据库加载其他用户特征数据失败: {str(e)}")
+            import traceback
+            self.logger.error(f"异常详情: {traceback.format_exc()}")
             return pd.DataFrame()
 
     def _parse_feature_vectors(self, df):
@@ -188,8 +213,8 @@ class SimpleModelTrainer:
             self.logger.error(f"特征对齐失败: {str(e)}")
             return features_df
 
-    def prepare_training_data(self, user_id, negative_sample_limit=1000):
-        """准备训练数据：当前用户作为正样本，训练数据作为负样本"""
+    def prepare_training_data(self, user_id, negative_sample_limit=100000):
+        """准备训练数据：当前用户作为正样本，负样本仅使用非当前用户的全部样本"""
         try:
             self.logger.info(f"开始准备用户 {user_id} 的训练数据")
             
@@ -199,25 +224,35 @@ class SimpleModelTrainer:
                 self.logger.error(f"用户 {user_id} 没有特征数据")
                 return None, None, None
             
-            # 2. 优先加载训练数据作为负样本
-            negative_samples = self.load_training_data_as_negative_samples(user_id, negative_sample_limit)
-            
-            # 3. 如果训练数据不够，补充其他用户数据
-            if len(negative_samples) < negative_sample_limit // 2:
-                additional_samples = self.load_other_users_features_from_db(user_id, negative_sample_limit - len(negative_samples))
-                if not additional_samples.empty:
-                    negative_samples = pd.concat([negative_samples, additional_samples], ignore_index=True)
-                    self.logger.info(f"补充了 {len(additional_samples)} 条其他用户数据")
+            # 2. 负样本：仅使用非当前用户的全部样本（不再补充训练数据，不限数量）
+            negative_samples = self.load_other_users_features_from_db(user_id, limit=None)
             
             # 4. 特征对齐
             if not negative_samples.empty:
                 # 使用训练数据的特征作为标准
                 aligned_positive = self._align_features(positive_samples, negative_samples.columns)
                 aligned_negative = self._align_features(negative_samples, negative_samples.columns)
+
+                # 平衡样本：若正样本多于负样本，则下采样正样本至与负样本相同数量
+                if len(aligned_positive) > len(aligned_negative) and len(aligned_negative) > 0:
+                    self.logger.info(
+                        f"正样本过多，执行下采样: 正 {len(aligned_positive)} → {len(aligned_negative)}"
+                    )
+                    aligned_positive = aligned_positive.sample(n=len(aligned_negative), random_state=42)
+
                 combined_data = pd.concat([aligned_positive, aligned_negative], ignore_index=True)
             else:
+                # 如果没有负样本，只使用正样本进行训练
                 combined_data = positive_samples
-                self.logger.warning("没有负样本数据")
+                self.logger.warning("没有负样本数据，将使用单类分类")
+                # 创建虚拟负样本（通过添加噪声）
+                aligned_positive = positive_samples.copy()
+                # 为每个特征添加少量噪声作为负样本
+                noise_samples = positive_samples.copy()
+                for col in noise_samples.select_dtypes(include=[np.number]).columns:
+                    if col not in ['id', 'timestamp', 'user_id', 'session_id']:
+                        noise_samples[col] = noise_samples[col] + np.random.normal(0, 0.1, len(noise_samples))
+                combined_data = pd.concat([aligned_positive, noise_samples], ignore_index=True)
             
             # 5. 准备特征和标签
             # 选择数值特征列
@@ -243,7 +278,7 @@ class SimpleModelTrainer:
             
             self.logger.info(f"训练数据统计:")
             self.logger.info(f"  正样本（用户 {user_id}）: {positive_count}")
-            self.logger.info(f"  负样本（训练数据）: {negative_count}")
+            self.logger.info(f"  负样本（其他用户）: {negative_count}")
             self.logger.info(f"  总计: {len(X)} 个样本, {len(feature_cols)} 个特征")
             
             return X, y, feature_cols
@@ -328,30 +363,24 @@ class SimpleModelTrainer:
             if not save_success:
                 self.logger.error("模型保存失败")
                 return False
+            else:
+                self.logger.info(f"模型已保存: {model_path.resolve()}")
             
-            # 保存特征列信息
+            # 保存特征列信息（以实际用于训练的数据列为准，避免后续预测特征名不一致）
             feature_info_path = self.models_path / f"user_{user_id}_features.json"
             
-            # 调试信息
-            self.logger.debug(f"feature_cols type: {type(feature_cols)}")
-            self.logger.debug(f"feature_cols content: {feature_cols}")
-            
             with open(feature_info_path, 'w') as f:
-                # 确保feature_cols是列表格式
-                if hasattr(feature_cols, 'tolist'):
-                    feature_cols_list = feature_cols.tolist()
-                else:
-                    feature_cols_list = list(feature_cols)
-                
+                used_feature_cols = list(X_processed.columns) if hasattr(X_processed, 'columns') else list(feature_cols)
                 json.dump({
-                    'feature_cols': feature_cols_list,
-                    'n_features': len(feature_cols),
-                    'training_samples': len(X),
+                    'feature_cols': used_feature_cols,
+                    'n_features': len(used_feature_cols),
+                    'training_samples': int(len(X_processed) if hasattr(X_processed, '__len__') else len(X)),
                     'accuracy': accuracy,
                     'metrics': metrics,
                     'trained_at': datetime.now().isoformat(),
                     'model_type': 'simple_classification'
                 }, f, indent=2)
+            self.logger.info(f"特征信息已保存: {feature_info_path.resolve()}")
             
             # 清理临时文件
             temp_data_path.unlink(missing_ok=True)
@@ -361,6 +390,10 @@ class SimpleModelTrainer:
             
         except Exception as e:
             self.logger.error(f"使用classification模块训练失败: {str(e)}")
+            # 如果真实模块失败且当前是模拟模块，打印提示安装真实依赖
+            if not CLASSIFICATION_AVAILABLE:
+                self.logger.error("当前使用的是模拟classification模块。请在Windows环境安装完整依赖以启用真实训练:")
+                self.logger.error("pip install xgboost scikit-learn pandas numpy")
             import traceback
             self.logger.debug(f"异常详情: {traceback.format_exc()}")
             return False
@@ -368,12 +401,41 @@ class SimpleModelTrainer:
     def load_user_model(self, user_id):
         """加载用户模型"""
         try:
-            model_path = self.models_path / f"user_{user_id}_model.pkl"
-            feature_info_path = self.models_path / f"user_{user_id}_features.json"
+            # 尝试不同的文件名格式
+            possible_model_paths = [
+                self.models_path / f"user_{user_id}_model.pkl",
+                self.models_path / f"user_{user_id}_model.pkl"
+            ]
             
-            if not model_path.exists():
+            # 如果user_id不包含"user"后缀，也尝试添加
+            if not user_id.endswith('_user'):
+                possible_model_paths.append(self.models_path / f"user_{user_id}_user_model.pkl")
+            
+            self.logger.info("模型加载路径候选:")
+            for p in possible_model_paths:
+                self.logger.info(f"  - {p.resolve()}")
+            
+            model_path = None
+            for path in possible_model_paths:
+                if path.exists():
+                    model_path = path
+                    break
+            
+            if model_path is None:
                 self.logger.error(f"用户 {user_id} 的模型文件不存在")
+                self.logger.info("已尝试的路径：")
+                for p in possible_model_paths:
+                    self.logger.info(f"  - {p.resolve()}")
+                # 列出所有可用的模型文件以便调试
+                available_models = list(self.models_path.glob("user_*_model.pkl"))
+                if available_models:
+                    self.logger.debug(f"可用的模型文件: {[m.name for m in available_models]}")
                 return None, None, None
+            
+            self.logger.info(f"选定模型路径: {model_path.resolve()}")
+            # 对应的特征信息文件（修正文件名与后缀构造）
+            feature_info_name = model_path.stem.replace('_model', '_features') + '.json'
+            feature_info_path = model_path.with_name(feature_info_name)
             
             # 加载模型
             with open(model_path, 'rb') as f:
@@ -385,8 +447,10 @@ class SimpleModelTrainer:
                 with open(feature_info_path, 'r') as f:
                     feature_info = json.load(f)
                     feature_cols = feature_info.get('feature_cols', [])
+            else:
+                self.logger.warning(f"未找到特征信息文件: {feature_info_path}")
             
-            self.logger.info(f"成功加载用户 {user_id} 的模型")
+            self.logger.info(f"成功加载用户 {user_id} 的模型: {model_path.name}")
             return model, None, feature_cols  # 返回None作为scaler，因为classification模块可能不需要
             
         except Exception as e:
@@ -401,22 +465,22 @@ class SimpleModelTrainer:
             if model is None:
                 return None
             
-            # 准备特征
+            # 准备特征：严格对齐训练列，缺失列补0，并按顺序重排
             if feature_cols:
-                # 确保特征列匹配
-                available_features = [col for col in feature_cols if col in features.columns]
-                if len(available_features) != len(feature_cols):
-                    self.logger.warning(f"特征列不匹配: 期望 {len(feature_cols)}, 实际 {len(available_features)}")
-                
-                X = features[available_features].fillna(0)
+                features = features.apply(pd.to_numeric, errors='coerce').fillna(0)
+                for col in feature_cols:
+                    if col not in features.columns:
+                        features[col] = 0.0
+                X = features.reindex(columns=feature_cols, fill_value=0).fillna(0)
             else:
                 # 如果没有特征列信息，使用所有数值列
                 numeric_cols = features.select_dtypes(include=[np.number]).columns
                 X = features[numeric_cols].fillna(0)
             
-            # 预测
-            predictions = model.predict(X)
-            probabilities = model.predict_proba(X)
+            # 预测：传numpy避免xgboost特征名校验
+            X_np = X.values
+            predictions = model.predict(X_np)
+            probabilities = model.predict_proba(X_np)
             
             # 返回结果
             results = []
