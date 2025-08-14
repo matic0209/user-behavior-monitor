@@ -20,7 +20,7 @@ python user_behavior_monitor.py
 
 #### 第一阶段：自动数据采集
 - 系统自动开始收集鼠标行为数据
-- 采集时间：最多5分钟或达到1000个数据点
+- 采样停止条件：`data_collection.target_samples_per_session`（默认10000）或 5 分钟超时
 - 采集过程中可以正常使用电脑
 - 系统会显示采集进度
 
