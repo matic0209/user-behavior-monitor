@@ -134,7 +134,7 @@ from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
 project_root = r"{project_root}"
 sys.path.insert(0, project_root)
 
-        # 数据文件（包含配置、数据、模型、日志以及核心源码以支持后台无控制台运行）
+# 数据文件（包含配置、数据、模型、日志以及核心源码以支持后台无控制台运行）
 datas = [
     (os.path.join(project_root, 'src/utils/config'), 'src/utils/config'),
     (os.path.join(project_root, 'data'), 'data'),
@@ -144,14 +144,14 @@ datas = [
     (os.path.join(project_root, 'src/core'), 'src/core'),
     (os.path.join(project_root, 'src/utils'), 'src/utils'),
     (os.path.join(project_root, 'src/predict.py'), 'src/'),
-            (os.path.join(project_root, 'user_behavior_monitor.py'), '.'),
+    (os.path.join(project_root, 'user_behavior_monitor.py'), '.'),
 ]
 
 # 额外二进制
 binaries = []
 
 # 使用内置收集器收集 可能含有本地二进制 的库依赖
-for mod in ['xgboost', 'sklearn', 'pandas', 'numpy', 'scipy', 'yaml', 'imblearn', 'joblib', 'threadpoolctl']:
+for mod in ['xgboost','sklearn','pandas','numpy','scipy','yaml','imblearn','joblib','threadpoolctl']:
     try:
         d, b, h = collect_all(mod)
         datas += d; binaries += b
@@ -233,21 +233,21 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
-        exe = EXE(
+exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
     a.zipfiles,
     a.datas,
     [],
-        name='UserBehaviorMonitor',
+    name='UserBehaviorMonitor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-        console=False,  # 改为无控制台，后台运行
+    console=False,  # 改为无控制台，后台运行
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
