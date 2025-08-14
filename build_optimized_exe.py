@@ -134,7 +134,7 @@ from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
 project_root = r"{project_root}"
 sys.path.insert(0, project_root)
 
-# 数据文件
+        # 数据文件（包含配置、数据、模型、日志以及核心源码以支持后台无控制台运行）
 datas = [
     (os.path.join(project_root, 'src/utils/config'), 'src/utils/config'),
     (os.path.join(project_root, 'data'), 'data'),
@@ -144,6 +144,7 @@ datas = [
     (os.path.join(project_root, 'src/core'), 'src/core'),
     (os.path.join(project_root, 'src/utils'), 'src/utils'),
     (os.path.join(project_root, 'src/predict.py'), 'src/'),
+            (os.path.join(project_root, 'user_behavior_monitor.py'), '.'),
 ]
 
 # 额外二进制
@@ -232,21 +233,21 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=None)
 
-exe = EXE(
+        exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
     a.zipfiles,
     a.datas,
     [],
-    name='UserBehaviorMonitor',
+        name='UserBehaviorMonitor',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,  # 保留控制台用于调试
+        console=False,  # 改为无控制台，后台运行
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
@@ -632,9 +633,9 @@ pause >nul
 ✓ 后台服务运行
 
 安装说明:
-1. 以管理员身份运行 install.bat
-2. 系统将自动安装并启动服务
-3. 服务将在后台运行，无需用户干预
+1. 以管理员身份运行 install.bat（或直接使用 dist/UserBehaviorMonitor.exe 手动运行）
+2. 系统将自动安装并启动服务（后台运行，无控制台）
+3. 如无需服务，可直接运行主程序（同样无控制台）
 
 卸载说明:
 1. 以管理员身份运行 uninstall.bat
