@@ -63,6 +63,7 @@ data_collection:
   window_events: false    # 暂时禁用窗口事件
   collection_interval: 0.1  # 采集间隔（秒）
   max_buffer_size: 10000   # 最大缓冲区大小
+  target_samples_per_session: 100000  # 每会话目标采集样本数，达到即自动停止
 
 feature_processing:
   batch_size: 1000

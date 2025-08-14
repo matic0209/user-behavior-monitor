@@ -170,6 +170,13 @@ class WindowsMouseCollector:
             # 获取最大缓冲区大小
             max_buffer_size = data_collection_config.get('max_buffer_size', 10000)
             self.logger.debug(f"最大缓冲区大小: {max_buffer_size}")
+            # 每会话目标样本数（达到后自动停止）
+            target_samples = data_collection_config.get('target_samples_per_session', None)
+            if target_samples is not None:
+                try:
+                    target_samples = int(target_samples)
+                except Exception:
+                    target_samples = None
             
             # 数据缓冲区
             buffer = []
@@ -213,6 +220,16 @@ class WindowsMouseCollector:
                         
                         # 显示采集进度
                         self.logger.info(f"📊 已采集 {total_collected} 个数据点")
+
+                    # 达到每会话目标样本数后自动停止
+                    if target_samples is not None and total_collected >= target_samples:
+                        self.logger.info(f"达到目标样本数 {target_samples}，自动停止采集")
+                        # 先保存缓冲区
+                        if buffer:
+                            self._save_events_to_db(buffer)
+                            buffer.clear()
+                        self.is_collecting = False
+                        break
                     
                     # 等待下一次采集
                     time.sleep(interval)
