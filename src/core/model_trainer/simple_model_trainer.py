@@ -232,6 +232,14 @@ class SimpleModelTrainer:
                 # 使用训练数据的特征作为标准
                 aligned_positive = self._align_features(positive_samples, negative_samples.columns)
                 aligned_negative = self._align_features(negative_samples, negative_samples.columns)
+
+                # 平衡样本：若正样本多于负样本，则下采样正样本至与负样本相同数量
+                if len(aligned_positive) > len(aligned_negative) and len(aligned_negative) > 0:
+                    self.logger.info(
+                        f"正样本过多，执行下采样: 正 {len(aligned_positive)} → {len(aligned_negative)}"
+                    )
+                    aligned_positive = aligned_positive.sample(n=len(aligned_negative), random_state=42)
+
                 combined_data = pd.concat([aligned_positive, aligned_negative], ignore_index=True)
             else:
                 # 如果没有负样本，只使用正样本进行训练
