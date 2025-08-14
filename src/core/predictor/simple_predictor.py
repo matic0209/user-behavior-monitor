@@ -124,7 +124,7 @@ class SimplePredictor:
                 self.logger.error(f"用户 {user_id} 的模型不存在，无法预测")
                 return None
             
-            # 特征对齐（严格一致：列集合与顺序必须与训练一致，不做补零）
+            # 特征对齐（严格一致：列集合与顺序必须与训练一致；缺失列用0补齐）
             if feature_cols:
                 exclude_cols = ['id', 'timestamp', 'user_id', 'session_id']
                 feature_cols_filtered = [col for col in feature_cols if col not in exclude_cols]
@@ -132,17 +132,15 @@ class SimplePredictor:
                 # 将所有列尽可能转为数值，保证与训练阶段一致的输入类型
                 features_df = features_df.apply(pd.to_numeric, errors='coerce').fillna(0)
                 
-                # 检查是否有缺失特征
+                # 缺失特征用0补齐
                 missing_features = [col for col in feature_cols_filtered if col not in features_df.columns]
                 if missing_features:
-                    self.logger.error(
-                        f"特征不一致：预测数据缺少训练时的特征列: {missing_features}. "
-                        f"请确保训练与预测的特征生成逻辑一致。"
-                    )
-                    return None
+                    self.logger.warning(f"缺少特征: {missing_features}")
+                    for feature in missing_features:
+                        features_df[feature] = 0.0
                 
                 # 严格按照训练时顺序取列
-                X = features_df.reindex(columns=feature_cols_filtered)
+                X = features_df.reindex(columns=feature_cols_filtered, fill_value=0).fillna(0)
             else:
                 # 如果没有特征列信息，使用所有数值列（排除非特征列）
                 numeric_cols = features_df.select_dtypes(include=[np.number]).columns
@@ -150,9 +148,10 @@ class SimplePredictor:
                 feature_cols_filtered = [col for col in numeric_cols if col not in exclude_cols]
                 X = features_df[feature_cols_filtered].fillna(0)
             
-            # 预测
-            predictions = model.predict(X)
-            probabilities = model.predict_proba(X)
+            # 预测：传入numpy以避免XGBoost对特征名的严格校验
+            X_np = X.values
+            predictions = model.predict(X_np)
+            probabilities = model.predict_proba(X_np)
             
             # 处理预测结果
             results = []

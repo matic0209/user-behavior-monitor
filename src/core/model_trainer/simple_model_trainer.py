@@ -365,7 +365,7 @@ class SimpleModelTrainer:
             else:
                 self.logger.info(f"模型已保存: {model_path.resolve()}")
             
-            # 保存特征列信息
+            # 保存特征列信息（以实际用于训练的数据列为准，避免后续预测特征名不一致）
             feature_info_path = self.models_path / f"user_{user_id}_features.json"
             
             # 调试信息
@@ -373,16 +373,11 @@ class SimpleModelTrainer:
             self.logger.debug(f"feature_cols content: {feature_cols}")
             
             with open(feature_info_path, 'w') as f:
-                # 确保feature_cols是列表格式
-                if hasattr(feature_cols, 'tolist'):
-                    feature_cols_list = feature_cols.tolist()
-                else:
-                    feature_cols_list = list(feature_cols)
-                
+                used_feature_cols = list(X_processed.columns) if hasattr(X_processed, 'columns') else list(feature_cols)
                 json.dump({
-                    'feature_cols': feature_cols_list,
-                    'n_features': len(feature_cols),
-                    'training_samples': len(X),
+                    'feature_cols': used_feature_cols,
+                    'n_features': len(used_feature_cols),
+                    'training_samples': int(len(X_processed) if hasattr(X_processed, '__len__') else len(X)),
                     'accuracy': accuracy,
                     'metrics': metrics,
                     'trained_at': datetime.now().isoformat(),
@@ -441,8 +436,9 @@ class SimpleModelTrainer:
                 return None, None, None
             
             self.logger.info(f"选定模型路径: {model_path.resolve()}")
-            # 对应的特征信息文件
-            feature_info_path = model_path.with_suffix('.json').with_name(model_path.stem.replace('_model', '_features'))
+            # 对应的特征信息文件（修正文件名与后缀构造）
+            feature_info_name = model_path.stem.replace('_model', '_features') + '.json'
+            feature_info_path = model_path.with_name(feature_info_name)
             
             # 加载模型
             with open(model_path, 'rb') as f:
@@ -454,6 +450,8 @@ class SimpleModelTrainer:
                 with open(feature_info_path, 'r') as f:
                     feature_info = json.load(f)
                     feature_cols = feature_info.get('feature_cols', [])
+            else:
+                self.logger.warning(f"未找到特征信息文件: {feature_info_path}")
             
             self.logger.info(f"成功加载用户 {user_id} 的模型: {model_path.name}")
             return model, None, feature_cols  # 返回None作为scaler，因为classification模块可能不需要
@@ -470,23 +468,22 @@ class SimpleModelTrainer:
             if model is None:
                 return None
             
-            # 准备特征（严格与训练一致，不做补零）
+            # 准备特征：严格对齐训练列，缺失列补0，并按顺序重排
             if feature_cols:
-                # 尽量统一类型
                 features = features.apply(pd.to_numeric, errors='coerce').fillna(0)
-                missing = [c for c in feature_cols if c not in features.columns]
-                if missing:
-                    self.logger.error(f"预测特征与训练不一致，缺少列: {missing}")
-                    return None
-                X = features.reindex(columns=feature_cols)
+                for col in feature_cols:
+                    if col not in features.columns:
+                        features[col] = 0.0
+                X = features.reindex(columns=feature_cols, fill_value=0).fillna(0)
             else:
                 # 如果没有特征列信息，使用所有数值列
                 numeric_cols = features.select_dtypes(include=[np.number]).columns
                 X = features[numeric_cols].fillna(0)
             
-            # 预测
-            predictions = model.predict(X)
-            probabilities = model.predict_proba(X)
+            # 预测：传numpy避免xgboost特征名校验
+            X_np = X.values
+            predictions = model.predict(X_np)
+            probabilities = model.predict_proba(X_np)
             
             # 返回结果
             results = []

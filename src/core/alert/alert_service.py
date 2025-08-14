@@ -59,10 +59,10 @@ class AlertService:
         self.enable_system_notification = self.alert_config.get('enable_system_notification', True)
         self.enable_file_alert = self.alert_config.get('enable_file_alert', True) # 新增文件告警
         
-        # 检查当前运行环境
+        # 检查当前运行环境（按需求：不再检测GUI环境，强制允许弹窗）
         self.is_system_user = os.getuid() == 0 if hasattr(os, 'getuid') else False
-        self.has_display = 'DISPLAY' in os.environ and os.environ['DISPLAY']
-        self.can_show_gui = GUI_AVAILABLE and self.has_display and not self.is_system_user
+        self.has_display = True
+        self.can_show_gui = True
         
         # 告警状态
         self.last_alert_time = {}
@@ -74,8 +74,8 @@ class AlertService:
         self.logger.info(f"弹窗警告: {'启用' if self.show_warning_dialog else '禁用'}")
         self.logger.info(f"警告持续时间: {self.warning_duration}秒")
         self.logger.info(f"当前用户: {'system用户' if self.is_system_user else '普通用户'}")
-        self.logger.info(f"显示环境: {'可用' if self.has_display else '不可用'}")
-        self.logger.info(f"GUI可用: {'是' if self.can_show_gui else '否'}")
+        self.logger.info(f"显示环境: 可用 (强制)")
+        self.logger.info(f"GUI可用: 是 (强制)")
         self.logger.info(f"控制台告警: {'启用' if self.enable_console_alert else '禁用'}")
         self.logger.info(f"声音告警: {'启用' if self.enable_sound_alert else '禁用'}")
         self.logger.info(f"日志告警: {'启用' if self.enable_log_alert else '禁用'}")
@@ -132,8 +132,8 @@ class AlertService:
             if self.enable_system_notification:
                 self._send_system_notification(user_id, alert_type, message, severity)
             
-            # 6. GUI弹窗（如果可用）
-            if self.show_warning_dialog and self.can_show_gui:
+            # 6. GUI弹窗（按需：不检测环境，直接弹窗）
+            if self.show_warning_dialog:
                 self._send_gui_alert(user_id, alert_type, message, severity, data)
             
             # 7. 执行系统操作
@@ -508,12 +508,11 @@ class AlertService:
     def _show_lock_warning_and_execute(self, anomaly_score):
         """显示锁屏警告并执行锁屏"""
         try:
-            # 显示警告弹窗（如果环境支持）
-            if self.show_warning_dialog and self.can_show_gui:
+            # 显示警告弹窗（不检测环境，直接弹窗）
+            if self.show_warning_dialog:
                 self._show_warning_dialog(anomaly_score)
             else:
-                # 如果GUI不可用，显示控制台警告并直接锁屏
-                self.logger.warning("GUI不可用，显示控制台警告并执行锁屏")
+                # 直接锁屏提示
                 self._show_console_warning(anomaly_score)
                 self._lock_screen()
                 
