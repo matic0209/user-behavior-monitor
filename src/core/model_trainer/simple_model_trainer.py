@@ -462,7 +462,7 @@ class SimpleModelTrainer:
             self.logger.error(f"加载用户 {user_id} 模型失败: {str(e)}")
             return None, None, None
 
-        def predict_user_behavior(self, user_id, features):
+    def predict_user_behavior(self, user_id, features):
         """预测用户行为"""
         try:
             # 加载模型
