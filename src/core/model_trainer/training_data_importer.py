@@ -121,7 +121,8 @@ class TrainingDataImporter:
         """导入所有训练数据"""
         try:
             data_path = Path(self.config.get_paths()['data'])
-            
+            debug_mode = self.config.get_system_config().get('debug_mode', False)
+
             # 导入训练数据
             training_file = data_path / 'processed' / 'all_training_aggregation.pickle'
             if training_file.exists():
@@ -132,17 +133,18 @@ class TrainingDataImporter:
                     self.logger.error("训练数据导入失败")
             else:
                 self.logger.warning(f"训练数据文件不存在: {training_file}")
-            
-            # 导入测试数据（可选）
-            test_file = data_path / 'processed' / 'all_test_aggregation.pickle'
-            if test_file.exists():
-                success = self.import_training_data_to_db(test_file, "test_user")
-                if success:
-                    self.logger.info("测试数据导入成功")
+
+            # 发布版：默认不导入测试数据；仅在调试模式下导入
+            if debug_mode:
+                test_file = data_path / 'processed' / 'all_test_aggregation.pickle'
+                if test_file.exists():
+                    success = self.import_training_data_to_db(test_file, "test_user")
+                    if success:
+                        self.logger.info("测试数据导入成功 (调试模式)")
+                    else:
+                        self.logger.error("测试数据导入失败 (调试模式)")
                 else:
-                    self.logger.error("测试数据导入失败")
-            else:
-                self.logger.warning(f"测试数据文件不存在: {test_file}")
+                    self.logger.warning(f"测试数据文件不存在: {test_file}")
                 
         except Exception as e:
             self.logger.error(f"导入所有训练数据失败: {str(e)}")

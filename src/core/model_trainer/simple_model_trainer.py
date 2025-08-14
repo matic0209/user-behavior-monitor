@@ -213,7 +213,7 @@ class SimpleModelTrainer:
             self.logger.error(f"特征对齐失败: {str(e)}")
             return features_df
 
-    def prepare_training_data(self, user_id, negative_sample_limit=1000):
+    def prepare_training_data(self, user_id, negative_sample_limit=100000):
         """准备训练数据：当前用户作为正样本，其他用户作为负样本"""
         try:
             self.logger.info(f"开始准备用户 {user_id} 的训练数据")
@@ -367,10 +367,6 @@ class SimpleModelTrainer:
             
             # 保存特征列信息（以实际用于训练的数据列为准，避免后续预测特征名不一致）
             feature_info_path = self.models_path / f"user_{user_id}_features.json"
-            
-            # 调试信息
-            self.logger.debug(f"feature_cols type: {type(feature_cols)}")
-            self.logger.debug(f"feature_cols content: {feature_cols}")
             
             with open(feature_info_path, 'w') as f:
                 used_feature_cols = list(X_processed.columns) if hasattr(X_processed, 'columns') else list(feature_cols)

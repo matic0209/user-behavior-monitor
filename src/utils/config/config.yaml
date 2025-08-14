@@ -75,18 +75,18 @@ model_training:
   retrain_threshold: 0.8    # 重新训练阈值
 
 logging:
-  level: "DEBUG"  # 修改为DEBUG级别
+  level: "INFO"  # 发布版降低日志级别
   format: "%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(funcName)s() - %(message)s"
   file_rotation: true
   max_file_size: "50MB"  # 增加文件大小限制
   backup_count: 10  # 增加备份文件数量
   console_level: "INFO"  # 控制台显示INFO级别
-  file_level: "DEBUG"    # 文件记录DEBUG级别
-  enable_debug_file: true  # 启用单独的调试日志文件
+  file_level: "INFO"    # 文件记录INFO级别
+  enable_debug_file: false  # 发布版关闭单独的调试日志文件
 
 system:
   max_workers: 4
   memory_limit: "2GB"
   timeout: 300
   platform: "windows"  # 平台标识
-  debug_mode: true     # 启用调试模式 
+  debug_mode: false     # 发布版关闭调试模式
