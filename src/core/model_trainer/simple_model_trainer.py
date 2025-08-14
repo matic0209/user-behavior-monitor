@@ -214,7 +214,7 @@ class SimpleModelTrainer:
             return features_df
 
     def prepare_training_data(self, user_id, negative_sample_limit=100000):
-        """准备训练数据：当前用户作为正样本，其他用户作为负样本"""
+        """准备训练数据：当前用户作为正样本，负样本仅使用非当前用户的全部样本"""
         try:
             self.logger.info(f"开始准备用户 {user_id} 的训练数据")
             
@@ -224,15 +224,8 @@ class SimpleModelTrainer:
                 self.logger.error(f"用户 {user_id} 没有特征数据")
                 return None, None, None
             
-            # 2. 优先加载其他用户数据作为负样本（正确的做法）
-            negative_samples = self.load_other_users_features_from_db(user_id, negative_sample_limit)
-            
-            # 3. 如果其他用户数据不够，补充训练数据作为备用负样本
-            if len(negative_samples) < negative_sample_limit // 2:
-                additional_samples = self.load_training_data_as_negative_samples(user_id, negative_sample_limit - len(negative_samples))
-                if not additional_samples.empty:
-                    negative_samples = pd.concat([negative_samples, additional_samples], ignore_index=True)
-                    self.logger.info(f"补充了 {len(additional_samples)} 条训练数据作为备用负样本")
+            # 2. 负样本：仅使用非当前用户的全部样本（不再补充训练数据，不限数量）
+            negative_samples = self.load_other_users_features_from_db(user_id, limit=None)
             
             # 4. 特征对齐
             if not negative_samples.empty:
