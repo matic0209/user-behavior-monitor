@@ -146,7 +146,9 @@ class WindowsBehaviorMonitor:
         
         # 自动流程控制
         self.auto_mode = True
-        self.min_data_points = 100  # 最少数据点（调低以便调试）
+        # 从配置读取目标采样数，默认 10000
+        dc_cfg = self.config.get_data_collection_config()
+        self.min_data_points = int(dc_cfg.get('target_samples_per_session', 10000))
         self.collection_timeout = 300  # 采集超时时间（秒）
         
         # 心跳配置
