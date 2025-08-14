@@ -462,7 +462,7 @@ class SimpleModelTrainer:
             self.logger.error(f"加载用户 {user_id} 模型失败: {str(e)}")
             return None, None, None
 
-    def predict_user_behavior(self, user_id, features):
+        def predict_user_behavior(self, user_id, features):
         """预测用户行为"""
         try:
             # 加载模型
@@ -472,12 +472,14 @@ class SimpleModelTrainer:
             
             # 准备特征
             if feature_cols:
-                # 确保特征列匹配
-                available_features = [col for col in feature_cols if col in features.columns]
-                if len(available_features) != len(feature_cols):
-                    self.logger.warning(f"特征列不匹配: 期望 {len(feature_cols)}, 实际 {len(available_features)}")
-                
-                X = features[available_features].fillna(0)
+                # 为缺失的训练特征列补零，并严格按训练时顺序对齐
+                for col in feature_cols:
+                    if col not in features.columns:
+                        features[col] = 0
+                # 仅保留训练时的特征列并重排顺序
+                X = features.reindex(columns=feature_cols, fill_value=0)
+                # 确保为数值类型
+                X = X.apply(pd.to_numeric, errors='coerce').fillna(0)
             else:
                 # 如果没有特征列信息，使用所有数值列
                 numeric_cols = features.select_dtypes(include=[np.number]).columns
