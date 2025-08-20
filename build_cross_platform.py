@@ -105,6 +105,11 @@ def get_platform_config():
         'psutil',
         'pynput'
     ])
+
+    # 采集器模块
+    config['collect_all'].extend([
+        'src.core.data_collector'
+    ])
     
     return config
 
@@ -123,6 +128,9 @@ def build_executable():
         '--name=UserBehaviorMonitor',   # 可执行文件名
         f'--add-data=src/utils/config{config["data_separator"]}src/utils/config',  # 配置文件
     ]
+
+    # 确保采集器模块被包含
+    build_cmd.append(f'--collect-all=src')
     
     # 添加隐藏导入
     for module in config['hidden_imports']:

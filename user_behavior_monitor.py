@@ -100,7 +100,9 @@ sys.path.insert(0, str(project_root))
 from src.utils.logger.logger_with_rotation import LoggerWithRotation as Logger
 from src.utils.config.config_loader import ConfigLoader
 from src.core.user_manager import UserManager
+import platform
 from src.core.data_collector.windows_mouse_collector import WindowsMouseCollector
+from src.core.data_collector.linux_mouse_collector import LinuxMouseCollector
 from src.core.feature_engineer.simple_feature_processor import SimpleFeatureProcessor
 from src.core.model_trainer.simple_model_trainer import SimpleModelTrainer
 from src.core.predictor.simple_predictor import SimplePredictor
@@ -359,7 +361,10 @@ class WindowsBehaviorMonitor:
             # 创建数据采集器（如果还没有创建）
             if self.data_collector is None:
                 self.logger.debug("创建数据采集器...")
-                self.data_collector = WindowsMouseCollector(self.current_user_id)
+                if platform.system().lower().startswith('win'):
+                    self.data_collector = WindowsMouseCollector(self.current_user_id)
+                else:
+                    self.data_collector = LinuxMouseCollector(self.current_user_id)
             
             # 启动数据采集
             success = self.data_collector.start_collection()

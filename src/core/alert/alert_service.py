@@ -820,9 +820,24 @@ class AlertService:
         """通用锁屏方法"""
         try:
             if platform.system() == "Linux":
-                # Linux锁屏
-                subprocess.run(['gnome-screensaver-command', '--lock'], check=True)
-                self.logger.info("Linux锁屏成功")
+                # Linux锁屏：尝试常见桌面环境命令，兼容麒麟/UOS/统信/深度等
+                candidates = [
+                    ['gnome-screensaver-command', '--lock'],
+                    ['loginctl', 'lock-session'],
+                    ['xdg-screensaver', 'lock'],
+                    ['qdbus', 'org.freedesktop.ScreenSaver', '/ScreenSaver', 'Lock'],
+                ]
+                success = False
+                for cmd in candidates:
+                    try:
+                        subprocess.run(cmd, check=True)
+                        self.logger.info(f"Linux锁屏成功: {' '.join(cmd)}")
+                        success = True
+                        break
+                    except Exception:
+                        continue
+                if not success:
+                    self.logger.warning("未找到可用的锁屏命令，已跳过")
             elif platform.system() == "Darwin":
                 # macOS锁屏
                 subprocess.run(['pmset', 'displaysleepnow'], check=True)
