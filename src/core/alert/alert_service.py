@@ -820,12 +820,18 @@ class AlertService:
         """通用锁屏方法"""
         try:
             if platform.system() == "Linux":
-                # Linux锁屏：尝试常见桌面环境命令，兼容麒麟/UOS/统信/深度等
+                # Linux锁屏：尝试常见桌面环境命令，兼容 UKUI/麒麟、GNOME、Deepin 等
                 candidates = [
+                    # UKUI / Ubuntu Kylin
+                    ['ukui-screensaver-command', '--lock'],
+                    ['qdbus', 'org.ukui.ScreenSaver', '/ScreenSaver', 'Lock'],
+                    ['dbus-send', '--session', '--dest=org.ukui.ScreenSaver', '--type=method_call', '/ScreenSaver', 'org.ukui.ScreenSaver.Lock'],
+                    # 通用/其他 DE 回退
                     ['gnome-screensaver-command', '--lock'],
-                    ['loginctl', 'lock-session'],
-                    ['xdg-screensaver', 'lock'],
                     ['qdbus', 'org.freedesktop.ScreenSaver', '/ScreenSaver', 'Lock'],
+                    ['xdg-screensaver', 'lock'],
+                    ['loginctl', 'lock-session'],
+                    ['dm-tool', 'lock'],
                 ]
                 success = False
                 for cmd in candidates:
