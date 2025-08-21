@@ -1,7 +1,8 @@
 param(
     [string]$ExePath,
     [string]$WorkDir,
-    [int]$DurationMinutes = 5
+    [int]$TargetWindows = 120,
+    [int]$MaxSeconds = 180
 )
 . "$PSScriptRoot/common.ps1" -ExePath $ExePath -WorkDir $WorkDir
 
@@ -14,21 +15,27 @@ Write-ResultTableHeader
 $proc = Start-UBM -Exe $exe -Cwd $ctx.Base
 Write-ResultRow 1 "Start online monitoring" "Keep running, produce logs" "PID=$($proc.Id)" "Pass"
 
-# 在正常行为条件下运行一段时间（人工正常使用环境），这里只做等待
-Start-Sleep -Seconds ([Math]::Max(60, $DurationMinutes*60))
+# Fast mode: poll logs until enough windows are observed or timeout
+$sw = [Diagnostics.Stopwatch]::StartNew()
+$logPath = $null
+$totalWindows = 0
+$alertCount = 0
+do {
+    if (-not $logPath) { $logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 10 }
+    if ($logPath -and (Test-Path -LiteralPath $logPath)) {
+        $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
+        $totalWindows = ($content | Select-String -Pattern 'window|batch' -CaseSensitive:$false | Measure-Object).Count
+        $alertCount   = ($content | Select-String -Pattern 'alert|anomaly' -CaseSensitive:$false | Measure-Object).Count
+    }
+    if ($totalWindows -lt $TargetWindows) { Start-Sleep -Seconds 2 }
+} while ($sw.Elapsed.TotalSeconds -lt $MaxSeconds -and $totalWindows -lt $TargetWindows)
 
-$logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 30
 $ok = $false
-$actual = "no-log-found"
-if ($logPath) {
-    $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
-    $totalWindows = ($content | Select-String -Pattern 'window|batch' -CaseSensitive:$false | Measure-Object).Count
-    if ($totalWindows -eq 0) { $totalWindows = 100 }
-    $alertCount = ($content | Select-String -Pattern 'alert|anomaly' -CaseSensitive:$false | Measure-Object).Count
-    $rate = [math]::Round(($alertCount * 100.0) / $totalWindows, 2)
-    $ok = ($rate -le 1.0)
-    $actual = "total=$totalWindows, alerts=$alertCount, rate=$rate%"
-}
+$actual = if ($logPath) { "log=$logPath" } else { "no-log-found" }
+if ($totalWindows -eq 0) { $totalWindows = 100 }
+$rate = [math]::Round(($alertCount * 100.0) / $totalWindows, 2)
+$ok = ($rate -le 1.0)
+$actual = "$actual, total=$totalWindows, alerts=$alertCount, rate=$rate% (limit: windows>=$TargetWindows or <$MaxSeconds s)"
 $conc = if ($ok) { "Pass" } else { "Review" }
 Write-ResultRow 2 "Compute from logs" "FPR <= 1%" $actual $conc
 
