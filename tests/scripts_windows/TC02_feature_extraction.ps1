@@ -18,11 +18,11 @@ Send-CharRepeated -Char 'r' -Times 4 -IntervalMs 60
 Write-ResultRow 2 "Trigger feature processing" "Feature processing starts" "send rrrr" "N/A"
 
 $logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
-$check = if ($logPath) { Wait-LogContains -LogPath $logPath -Patterns @("features","process_session_features","feature","processed","complete") -TimeoutSec 30 } else { @{ok=$false; hits=@{}} }
+$check = if ($logPath) { Wait-LogContains -LogPath $logPath -Patterns @("features","process_session_features","feature","processed","complete") -TimeoutSec 30 } else { @{ ok = $false; hits = @{} } }
 $artifact = Save-Artifacts -LogPath $logPath -WorkBase $ctx.Base
 $actual = if ($logPath) { "log=$logPath; artifact=$artifact; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "no-log-found" }
 $conc = if ($check.ok) { "Pass" } else { "Review" }
 Write-ResultRow 3 "Check feature logs" "Contains processing/complete keywords" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
-Write-ResultRow 4 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
+Write-ResultRow 4 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"}

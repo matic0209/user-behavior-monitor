@@ -13,9 +13,9 @@ Write-ResultTableHeader
 $proc = Start-UBM -Exe $exe -Cwd $ctx.Base
 Write-ResultRow 1 "Start EXE" "Auto workflow enters" "PID=$($proc.Id)" "Pass"
 
-# 轮询等日志出现分类相关关键字
+# wait for classification keywords in logs
 $logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
-$check = if ($logPath) { Wait-LogContains -LogPath $logPath -Patterns @("predict","prediction","SimplePredictor","start_continuous_prediction") -TimeoutSec 30 } else { @{ok=$false; hits:@{}} }
+$check = if ($logPath) { Wait-LogContains -LogPath $logPath -Patterns @("predict","prediction","SimplePredictor","start_continuous_prediction") -TimeoutSec 30 } else { @{ ok = $false; hits = @{} } }
 $artifact = Save-Artifacts -LogPath $logPath -WorkBase $ctx.Base
 $actual = if ($logPath) { "log=$logPath; artifact=$artifact; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "no-log-found" }
 $conc = if ($check.ok) { "Pass" } else { "Review" }

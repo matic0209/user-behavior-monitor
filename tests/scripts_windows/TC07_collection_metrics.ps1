@@ -21,7 +21,7 @@ Write-ResultRow 2 "Simulate 4 types" "Logs show 4 types" "Injected" "N/A"
 
 Start-Sleep -Seconds 1
 $log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
-$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('move','click','scroll','keyboard','hotkey','pressed','released') -TimeoutSec 20 } else { @{ok=$false; hits:@{}} }
+$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('move','click','scroll','keyboard','hotkey','pressed','released') -TimeoutSec 20 } else { @{ ok = $false; hits = @{} } }
 $actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "no-log-found" }
 $conc = if ($chk.ok) { "Pass" } else { "Review" }
 Write-ResultRow 3 "Check log keywords" "Contains 4 event-type keywords" $actual $conc
