@@ -219,17 +219,27 @@ function Save-Artifacts {
 
 function Write-ResultHeader {
     param([string]$Title)
-    "# $Title" | Out-Host
+    $line = "# $Title"
+    $line | Out-Host
+    if ($env:UBM_RESULT_FILE) { Add-Content -LiteralPath $env:UBM_RESULT_FILE -Value $line -Encoding UTF8 }
 }
 
 function Write-ResultTableHeader {
-    "| Index | Action | Expectation | Actual | Conclusion |" | Out-Host
-    "| --- | --- | --- | --- | --- |" | Out-Host
+    $line1 = "| Index | Action | Expectation | Actual | Conclusion |"
+    $line2 = "| --- | --- | --- | --- | --- |"
+    $line1 | Out-Host
+    $line2 | Out-Host
+    if ($env:UBM_RESULT_FILE) {
+        Add-Content -LiteralPath $env:UBM_RESULT_FILE -Value $line1 -Encoding UTF8
+        Add-Content -LiteralPath $env:UBM_RESULT_FILE -Value $line2 -Encoding UTF8
+    }
 }
 
 function Write-ResultRow {
     param([int]$Index,[string]$Action,[string]$Expect,[string]$Actual,[string]$Conclusion)
-    "| $Index | $Action | $Expect | $Actual | $Conclusion |" | Out-Host
+    $line = "| $Index | $Action | $Expect | $Actual | $Conclusion |"
+    $line | Out-Host
+    if ($env:UBM_RESULT_FILE) { Add-Content -LiteralPath $env:UBM_RESULT_FILE -Value $line -Encoding UTF8 }
 }
 
 if ($VerboseLog) { Write-Host "[common] helpers loaded" }

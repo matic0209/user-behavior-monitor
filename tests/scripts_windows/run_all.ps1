@@ -1,6 +1,7 @@
 param(
     [string]$ExePath,
-    [string]$WorkDir
+    [string]$WorkDir,
+    [string]$ResultFile
 )
 
 $ErrorActionPreference = "Stop"
@@ -8,6 +9,11 @@ $ErrorActionPreference = "Stop"
 $base = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 . "$base/common.ps1" -ExePath $ExePath -WorkDir $WorkDir
+if (-not [string]::IsNullOrWhiteSpace($ResultFile)) {
+    $env:UBM_RESULT_FILE = (Resolve-Path -LiteralPath $ResultFile).Path
+    # truncate existing file
+    Set-Content -LiteralPath $env:UBM_RESULT_FILE -Value "# UBM Test Results $(Get-Date -Format o)" -Encoding UTF8
+}
 
 $tests = @(
     "TC01_realtime_input_collection.ps1",
