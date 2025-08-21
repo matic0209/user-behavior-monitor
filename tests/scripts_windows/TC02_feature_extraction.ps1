@@ -25,4 +25,4 @@ $conc = if ($check.ok) { "Pass" } else { "Review" }
 Write-ResultRow 3 "Check feature logs" "Contains processing/complete keywords" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
-Write-ResultRow 4 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"}
+Write-ResultRow 4 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
