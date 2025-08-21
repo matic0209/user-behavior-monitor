@@ -24,7 +24,7 @@ $tests = @(
 
 $failed = @()
 foreach ($t in $tests) {
-    Write-Host "`n==== 运行: $t ====\n" -ForegroundColor Cyan
+    Write-Host "`n==== Running: $t ====\n" -ForegroundColor Cyan
     try {
         & (Join-Path $base $t) -ExePath $ExePath -WorkDir $WorkDir
     } catch {
@@ -34,10 +34,10 @@ foreach ($t in $tests) {
 }
 
 if ($failed.Count -gt 0) {
-    Write-Host "`n完成: 有失败的用例:" -ForegroundColor Yellow
+    Write-Host "`nCompleted: some tests failed:" -ForegroundColor Yellow
     $failed | ForEach-Object { Write-Host " - $_" -ForegroundColor Yellow }
     exit 1
 } else {
-    Write-Host "`n全部测试脚本执行完成（全部通过/无异常）。" -ForegroundColor Green
+    Write-Host "`nAll test scripts completed (all passed / no exceptions)." -ForegroundColor Green
     exit 0
 }
