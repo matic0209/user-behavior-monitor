@@ -54,6 +54,10 @@ class SimplePredictor:
         
         self.logger.info("简单预测器初始化完成")
         self.logger.info(f"预测配置: batch_size={self.batch_size}, interval={self.prediction_interval}s, threshold={self.anomaly_threshold}")
+        try:
+            self.logger.info("UBM_MARK: PREDICT_INIT")
+        except Exception:
+            pass
 
     def load_recent_features(self, user_id, limit=None):
         """从数据库加载最近的特征数据"""
@@ -342,6 +346,10 @@ class SimplePredictor:
         self.prediction_thread.start()
         
         self.logger.info(f"开始用户 {user_id} 的连续预测")
+        try:
+            self.logger.info("UBM_MARK: PREDICT_START")
+        except Exception:
+            pass
         return True
 
     def stop_continuous_prediction(self):
@@ -366,6 +374,10 @@ class SimplePredictor:
                 
                 if not features_df.empty:
                     self.logger.debug(f"加载到 {len(features_df)} 条特征数据")
+                    try:
+                        self.logger.info(f"UBM_MARK: PREDICT_RUNNING batch={len(features_df)}")
+                    except Exception:
+                        pass
                     
                     # 进行预测
                     predictions = self.predict_user_behavior(user_id, features_df)

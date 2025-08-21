@@ -357,6 +357,8 @@ class WindowsBehaviorMonitor:
             self.current_user_id = self.user_manager.current_user_id
             
             self.logger.info(f"开始自动数据采集 - 用户: {self.current_user_id}")
+            # Standardized marker for tests
+            self.logger.info("UBM_MARK: COLLECT_START")
             
             # 创建数据采集器（如果还没有创建）
             if self.data_collector is None:
@@ -388,6 +390,11 @@ class WindowsBehaviorMonitor:
                 # 检查数据量
                 data_count = self._get_data_count()
                 self.logger.debug(f"当前数据量: {data_count}/{self.min_data_points}")
+                # Marker for progress
+                try:
+                    self.logger.info(f"UBM_MARK: COLLECT_PROGRESS count={data_count}")
+                except Exception:
+                    pass
                 
                 if data_count >= self.min_data_points:
                     self.logger.info(f"[SUCCESS] 已采集 {data_count} 个数据点，达到要求")
@@ -414,6 +421,10 @@ class WindowsBehaviorMonitor:
             final_count = self._get_data_count()
             if final_count >= self.min_data_points:
                 self.logger.info(f"[SUCCESS] 数据采集完成，共 {final_count} 个数据点")
+                try:
+                    self.logger.info(f"UBM_MARK: COLLECT_DONE count={final_count}")
+                except Exception:
+                    pass
                 return True
             else:
                 self.logger.warning(f"[WARNING] 数据量不足 ({final_count} < {self.min_data_points})")

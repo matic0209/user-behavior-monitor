@@ -385,6 +385,10 @@ class SimpleFeatureProcessor:
     def process_session_features(self, user_id, session_id):
         """处理指定会话的特征"""
         try:
+            try:
+                self.logger.info("UBM_MARK: FEATURE_START")
+            except Exception:
+                pass
             self.logger.info(f"处理用户 {user_id} 会话 {session_id} 的特征")
             
             # 检查数据库连接
@@ -427,12 +431,20 @@ class SimpleFeatureProcessor:
             # 这里可以添加额外的特征处理逻辑
             
             self.logger.info(f"用户 {user_id} 会话 {session_id} 的特征处理完成")
+            try:
+                self.logger.info("UBM_MARK: FEATURE_DONE success=True")
+            except Exception:
+                pass
             return True
             
         except Exception as e:
             self.logger.error(f"处理用户 {user_id} 会话 {session_id} 的特征失败: {str(e)}")
             import traceback
             self.logger.debug(f"异常详情: {traceback.format_exc()}")
+            try:
+                self.logger.info("UBM_MARK: FEATURE_DONE success=False")
+            except Exception:
+                pass
             return False
 
     def process_all_user_sessions(self, user_id):

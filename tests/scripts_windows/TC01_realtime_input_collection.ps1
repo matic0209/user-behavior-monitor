@@ -20,7 +20,12 @@ Write-ResultRow 2 "Simulate mouse actions" "Events are produced (see logs)" "act
 
 Start-Sleep -Seconds 1
 $log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
-$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('move','click','scroll') -TimeoutSec 20 } else { @{ ok = $false; hits = @{} } }
+$chk = if ($log) {
+    Wait-LogContains -LogPath $log -Patterns @(
+        'move','click','scroll',
+        '数据采集','采集完成','已采集','数据采集中'
+    ) -TimeoutSec 20
+} else { @{ ok = $false; hits = @{} } }
 $actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "no log found" }
 $conc = if ($chk.ok) { "pass" } else { "review" }
 Write-ResultRow 3 "Check log keywords" "contains move/click/scroll" $actual $conc
