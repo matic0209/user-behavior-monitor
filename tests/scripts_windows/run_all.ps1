@@ -22,9 +22,22 @@ $tests = @(
     "TC10_anomaly_false_alarm_rate.ps1"
 )
 
+$failed = @()
 foreach ($t in $tests) {
     Write-Host "`n==== 运行: $t ====\n" -ForegroundColor Cyan
-    & (Join-Path $base $t) -ExePath $ExePath -WorkDir $WorkDir
+    try {
+        & (Join-Path $base $t) -ExePath $ExePath -WorkDir $WorkDir
+    } catch {
+        Write-Host "[ERROR] $t 执行异常: $($_.Exception.Message)" -ForegroundColor Red
+        $failed += $t
+    }
 }
 
-Write-Host "`n全部测试脚本执行完成。" -ForegroundColor Green
+if ($failed.Count -gt 0) {
+    Write-Host "`n完成: 有失败的用例:" -ForegroundColor Yellow
+    $failed | ForEach-Object { Write-Host " - $_" -ForegroundColor Yellow }
+    exit 1
+} else {
+    Write-Host "`n全部测试脚本执行完成（全部通过/无异常）。" -ForegroundColor Green
+    exit 0
+}

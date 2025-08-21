@@ -19,11 +19,11 @@ Scroll-Vertical -Notches 3
 Send-CharRepeated -Char 'a' -Times 4 -IntervalMs 60
 Write-ResultRow 2 "模拟四类事件" "系统记录/日志体现四类事件" "已注入" "N/A"
 
-Start-Sleep -Seconds 2
-$logPath = Get-LatestLogPath -LogsDir $ctx.Logs
-$check = Assert-LogContains -LogPath $logPath -AnyOf @("move","click","scroll","键盘","快捷键","pressed","released")
-$actual = if ($logPath) { "log=$logPath; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
-$conc = if ($check.ok) { "通过" } else { "复核" }
+Start-Sleep -Seconds 1
+$log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
+$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('move','click','scroll','键盘','快捷键','pressed','released') -TimeoutSec 20 } else { @{ok=$false; hits:@{}} }
+$actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
+$conc = if ($chk.ok) { "通过" } else { "复核" }
 Write-ResultRow 3 "校验日志关键字" "包含四类事件相关关键字" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc

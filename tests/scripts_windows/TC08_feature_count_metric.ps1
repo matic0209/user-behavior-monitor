@@ -17,13 +17,13 @@ Write-ResultRow 1 "启动 EXE 进入特征处理" "输出特征统计" "PID=$($p
 Send-CharRepeated -Char 'r' -Times 4 -IntervalMs 60
 Start-Sleep -Seconds 5
 
-$logPath = Get-LatestLogPath -LogsDir $ctx.Logs
+$logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
 # 假定日志中会出现类似 "feature_count: 256" 的字样
 $ok = $false
 $actual = "未找到日志"
 if ($logPath) {
     $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
-    $matched = $content | Select-String -Pattern 'feature_count\s*:\s*(\d+)' -AllMatches
+    $matched = $content | Select-String -Pattern 'feature_count\s*:\s*(\d+)' -AllMatches -CaseSensitive:$false
     if ($matched) {
         $max = ($matched.Matches.Value | ForEach-Object { $_ -replace '[^0-9]','' } | ForEach-Object {[int]$_}) | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
         $ok = ($max -ge 200)

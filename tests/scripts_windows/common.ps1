@@ -182,17 +182,68 @@ function Get-LatestLogPath {
 }
 
 function Assert-LogContains {
-    param([string]$LogPath, [string[]]$AnyOf)
+    param(
+        [string]$LogPath,
+        [string[]]$Patterns,
+        [switch]$Regex,
+        [switch]$CaseSensitive
+    )
     if (-not $LogPath -or -not (Test-Path -LiteralPath $LogPath)) { return @{ ok=$false; hits=@{} } }
     $result = @{}
     $ok = $false
-    foreach ($p in $AnyOf) {
-        $m = Select-String -LiteralPath $LogPath -Pattern $p -SimpleMatch -ErrorAction SilentlyContinue
+    foreach ($p in $Patterns) {
+        $params = @{ LiteralPath = $LogPath; Pattern = $p; ErrorAction = 'SilentlyContinue' }
+        if ($Regex) { $params.Remove('Pattern') | Out-Null; $params['Pattern'] = $p }
+        if (-not $CaseSensitive) { $params['CaseSensitive'] = $false }
+        $m = Select-String @params
         $count = if ($m) { $m.Count } else { 0 }
         $result[$p] = $count
         if ($count -gt 0) { $ok = $true }
     }
     return @{ ok=$ok; hits=$result }
+}
+
+function Wait-ForLatestLog {
+    param([string]$LogsDir, [int]$TimeoutSec = 15, [int]$IntervalMs = 500)
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    while ((Get-Date) -lt $deadline) {
+        $p = Get-LatestLogPath -LogsDir $LogsDir
+        if ($p) { return $p }
+        Start-Sleep -Milliseconds $IntervalMs
+    }
+    return $null
+}
+
+function Wait-LogContains {
+    param(
+        [string]$LogPath,
+        [string[]]$Patterns,
+        [int]$TimeoutSec = 30,
+        [int]$IntervalMs = 500,
+        [switch]$Regex,
+        [switch]$CaseSensitive
+    )
+    if (-not $LogPath -or -not (Test-Path -LiteralPath $LogPath)) { return @{ ok=$false; hits=@{} } }
+    $deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $lastHits = @{}
+    while ((Get-Date) -lt $deadline) {
+        $res = Assert-LogContains -LogPath $LogPath -Patterns $Patterns -Regex:$Regex -CaseSensitive:$CaseSensitive
+        $lastHits = $res.hits
+        if ($res.ok) { return @{ ok=$true; hits=$res.hits } }
+        Start-Sleep -Milliseconds $IntervalMs
+    }
+    return @{ ok=$false; hits=$lastHits }
+}
+
+function Save-Artifacts {
+    param([string]$LogPath, [string]$WorkBase)
+    if (-not $LogPath -or -not (Test-Path -LiteralPath $LogPath)) { return $null }
+    $ts = Get-Timestamp
+    $targetDir = Join-Path $WorkBase (Join-Path 'artifacts' $ts)
+    Ensure-Dir $targetDir
+    $dest = Join-Path $targetDir (Split-Path $LogPath -Leaf)
+    Copy-Item -LiteralPath $LogPath -Destination $dest -Force
+    return $dest
 }
 
 function Write-ResultHeader {

@@ -13,11 +13,11 @@ Write-ResultTableHeader
 $proc = Start-UBM -Exe $exe -Cwd $ctx.Base
 Write-ResultRow 1 "启动 EXE" "进入自动流程" "PID=$($proc.Id)" "通过"
 
-# 等待程序进入训练/预测阶段并输出分类相关日志
-Start-Sleep -Seconds 8
-$logPath = Get-LatestLogPath -LogsDir $ctx.Logs
-$check = Assert-LogContains -LogPath $logPath -AnyOf @("分类","predict","prediction","预测","SimplePredictor","start_continuous_prediction")
-$actual = if ($logPath) { "log=$logPath; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
+# 轮询等日志出现分类相关关键字
+$logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
+$check = if ($logPath) { Wait-LogContains -LogPath $logPath -Patterns @("分类","predict","prediction","预测","SimplePredictor","start_continuous_prediction") -TimeoutSec 30 } else { @{ok=$false; hits=@{}} }
+$artifact = Save-Artifacts -LogPath $logPath -WorkBase $ctx.Base
+$actual = if ($logPath) { "log=$logPath; artifact=$artifact; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
 $conc = if ($check.ok) { "通过" } else { "复核" }
 Write-ResultRow 2 "校验分类相关日志" "出现分类/预测关键字" $actual $conc
 

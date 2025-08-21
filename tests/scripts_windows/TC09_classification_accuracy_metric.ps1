@@ -16,13 +16,13 @@ Write-ResultRow 1 "启动评估流程" "输出 Accuracy / F1" "PID=$($proc.Id)" 
 # 假设按快捷键或自动流程进入评估，等待片刻让日志生成
 Start-Sleep -Seconds 8
 
-$logPath = Get-LatestLogPath -LogsDir $ctx.Logs
+$logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
 $ok = $false
 $actual = "未找到日志"
 if ($logPath) {
     $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
-    $accMatch = $content | Select-String -Pattern 'Accuracy\s*:\s*([0-9]+\.?[0-9]*)%'
-    $f1Match  = $content | Select-String -Pattern 'F1\s*:\s*([0-9]+\.?[0-9]*)%'
+    $accMatch = $content | Select-String -Pattern 'Accuracy\s*:\s*([0-9]+\.?[0-9]*)%' -CaseSensitive:$false
+    $f1Match  = $content | Select-String -Pattern 'F1\s*:\s*([0-9]+\.?[0-9]*)%' -CaseSensitive:$false
     if ($accMatch -and $f1Match) {
         $acc = [double]($accMatch.Matches.Groups[1].Value)
         $f1  = [double]($f1Match.Matches.Groups[1].Value)

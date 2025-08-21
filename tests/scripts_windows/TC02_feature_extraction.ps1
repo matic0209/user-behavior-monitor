@@ -17,10 +17,10 @@ Write-ResultRow 1 "启动 EXE" "进程启动成功" "PID=$($proc.Id)" "通过"
 Send-CharRepeated -Char 'r' -Times 4 -IntervalMs 60
 Write-ResultRow 2 "触发特征处理流程" "进入特征处理" "发送 rrrr" "N/A"
 
-Start-Sleep -Seconds 6
-$logPath = Get-LatestLogPath -LogsDir $ctx.Logs
-$check = Assert-LogContains -LogPath $logPath -AnyOf @("特征处理","features","process_session_features","特征","完成")
-$actual = if ($logPath) { "log=$logPath; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
+$logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
+$check = if ($logPath) { Wait-LogContains -LogPath $logPath -Patterns @("特征","features","process_session_features","完成") -TimeoutSec 30 } else { @{ok=$false; hits=@{}} }
+$artifact = Save-Artifacts -LogPath $logPath -WorkBase $ctx.Base
+$actual = if ($logPath) { "log=$logPath; artifact=$artifact; hits=" + ($check.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
 $conc = if ($check.ok) { "通过" } else { "复核" }
 Write-ResultRow 3 "校验特征处理日志" "包含处理与完成关键字" $actual $conc
 

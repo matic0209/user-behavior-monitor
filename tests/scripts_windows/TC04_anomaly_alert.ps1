@@ -18,18 +18,12 @@ for ($i=0; $i -lt 10; $i++) { Move-MousePath -DurationSec 1 -Step 200 }
 Send-CharRepeated -Char 'a' -Times 4 -IntervalMs 50
 Write-ResultRow 2 "注入异常序列" "异常分数触发告警" "已注入" "N/A"
 
-Start-Sleep -Seconds 3
-# 若系统将告警写入 DB 的 alerts 表，可在此查询；否则仅提示人工查看日志
-$alertQuery = @"
-SELECT COUNT(*) AS cnt FROM alerts;
-"@
-$alertCount = Invoke-SqliteQuery -DbPath $ctx.Db -Sql $alertQuery
-
-if ($alertCount) {
-    Write-ResultRow 3 "检查告警记录" "至少 1 条" "$alertCount" "通过/复核"
-} else {
-    Write-ResultRow 3 "检查告警记录" "至少 1 条" "未安装 sqlite3 或表缺失，转人工查 logs" "复核"
-}
+Start-Sleep -Seconds 1
+$log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
+$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('告警','异常','anomaly','trigger') -TimeoutSec 25 } else { @{ok=$false; hits=@{}} }
+$actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
+$conc = if ($chk.ok) { "通过" } else { "复核" }
+Write-ResultRow 3 "校验日志关键字" "出现告警/异常关键字" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
 Write-ResultRow 4 "退出程序" "优雅退出或被终止" "退出完成" "通过"

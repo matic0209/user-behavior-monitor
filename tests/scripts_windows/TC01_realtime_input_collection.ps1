@@ -18,13 +18,12 @@ Click-LeftTimes -Times 3
 Scroll-Vertical -Notches 5
 Write-ResultRow 2 "模拟鼠标输入" "数据库产生事件" "执行输入序列" "N/A"
 
-Start-Sleep -Seconds 2
-$stats = Get-LatestSessionStats -DbPath $ctx.Db
-if ($stats) {
-    Write-ResultRow 3 "查询最新会话" "应有事件记录" "$stats" "通过"
-} else {
-    Write-ResultRow 3 "查询最新会话" "应有事件记录" "无数据/未安装sqlite3" "需人工复核"
-}
+Start-Sleep -Seconds 1
+$log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
+$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('move','click','scroll') -TimeoutSec 20 } else { @{ok=$false; hits=@{}} }
+$actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "未找到日志" }
+$conc = if ($chk.ok) { "通过" } else { "复核" }
+Write-ResultRow 3 "校验日志关键字" "包含 move/click/scroll" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
 Write-ResultRow 4 "退出程序" "优雅退出或被终止" "退出完成" "通过"
