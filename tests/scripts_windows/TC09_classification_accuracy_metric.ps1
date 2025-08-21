@@ -7,18 +7,18 @@ param(
 $exe = Resolve-ExePath $ExePath
 $ctx = Prepare-WorkDir $WorkDir
 
-Write-ResultHeader "TC09 分类准确率与F1阈值"
+Write-ResultHeader "TC09 Accuracy & F1 thresholds"
 Write-ResultTableHeader
 
 $proc = Start-UBM -Exe $exe -Cwd $ctx.Base
-Write-ResultRow 1 "启动评估流程" "输出 Accuracy / F1" "PID=$($proc.Id)" "通过"
+Write-ResultRow 1 "Start evaluation" "Output Accuracy / F1" "PID=$($proc.Id)" "Pass"
 
 # 假设按快捷键或自动流程进入评估，等待片刻让日志生成
 Start-Sleep -Seconds 8
 
 $logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
 $ok = $false
-$actual = "未找到日志"
+$actual = "no-log-found"
 if ($logPath) {
     $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
     $accMatch = $content | Select-String -Pattern 'Accuracy\s*:\s*([0-9]+\.?[0-9]*)%' -CaseSensitive:$false
@@ -29,11 +29,11 @@ if ($logPath) {
         $ok = ($acc -ge 90.0 -and $f1 -ge 85.0)
         $actual = "acc=$acc,f1=$f1"
     } else {
-        $actual = "未匹配到 Accuracy/F1"
+        $actual = "no Accuracy/F1 matched"
     }
 }
-$conc = if ($ok) { "通过" } else { "复核" }
-Write-ResultRow 2 "阈值校验" "Acc≥90%, F1≥85%" $actual $conc
+$conc = if ($ok) { "Pass" } else { "Review" }
+Write-ResultRow 2 "Threshold check" "Acc≥90%, F1≥85%" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
-Write-ResultRow 3 "退出程序" "优雅退出或被终止" "退出完成" "通过"
+Write-ResultRow 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"

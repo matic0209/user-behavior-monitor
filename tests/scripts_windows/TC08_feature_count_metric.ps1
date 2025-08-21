@@ -7,20 +7,20 @@ param(
 $exe = Resolve-ExePath $ExePath
 $ctx = Prepare-WorkDir $WorkDir
 
-Write-ResultHeader "TC08 特征数量阈值（≥200）"
+Write-ResultHeader "TC08 Feature count threshold (>=200)"
 Write-ResultTableHeader
 
 $proc = Start-UBM -Exe $exe -Cwd $ctx.Base
-Write-ResultRow 1 "启动 EXE 进入特征处理" "输出特征统计" "PID=$($proc.Id)" "通过"
+Write-ResultRow 1 "Start EXE (feature)" "Output feature stats" "PID=$($proc.Id)" "Pass"
 
-# 触发快捷键 'r' x4 走重新采集+训练（或程序自带的流程会进入特征处理）
+# trigger retrain/feature via rrrr
 Send-CharRepeated -Char 'r' -Times 4 -IntervalMs 60
 Start-Sleep -Seconds 5
 
 $logPath = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 20
-# 假定日志中会出现类似 "feature_count: 256" 的字样
+# expect log contains like "feature_count: 256"
 $ok = $false
-$actual = "未找到日志"
+$actual = "no-log-found"
 if ($logPath) {
     $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
     $matched = $content | Select-String -Pattern 'feature_count\s*:\s*(\d+)' -AllMatches -CaseSensitive:$false
@@ -29,11 +29,11 @@ if ($logPath) {
         $ok = ($max -ge 200)
         $actual = "max_feature_count=$max"
     } else {
-        $actual = "未匹配到 feature_count"
+        $actual = "no feature_count matched"
     }
 }
-$conc = if ($ok) { "通过" } else { "复核" }
-Write-ResultRow 2 "校验特征数量" "≥ 200" $actual $conc
+$conc = if ($ok) { "Pass" } else { "Review" }
+Write-ResultRow 2 "Check feature count" ">= 200" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
-Write-ResultRow 3 "退出程序" "优雅退出或被终止" "退出完成" "通过"
+Write-ResultRow 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
