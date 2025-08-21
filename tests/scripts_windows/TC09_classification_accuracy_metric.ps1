@@ -21,11 +21,23 @@ $ok = $false
 $actual = "no-log-found"
 if ($logPath) {
     $content = Get-Content -LiteralPath $logPath -ErrorAction SilentlyContinue
-    $accMatch = $content | Select-String -Pattern 'Accuracy\s*:\s*([0-9]+\.?[0-9]*)%' -CaseSensitive:$false
-    $f1Match  = $content | Select-String -Pattern 'F1\s*:\s*([0-9]+\.?[0-9]*)%' -CaseSensitive:$false
-    if ($accMatch -and $f1Match) {
-        $acc = [double]($accMatch.Matches.Groups[1].Value)
-        $f1  = [double]($f1Match.Matches.Groups[1].Value)
+    $acc = $null
+    $f1  = $null
+    # Try to locate accuracy line
+    $accLine = $content | Select-String -Pattern '(?i)\baccuracy\b|\bacc\b' | Select-Object -First 1
+    if ($accLine) {
+        $line = $accLine.Line
+        if ($line -match '([0-9]+(?:\.[0-9]+)?)\s*%') { $acc = [double]$matches[1] }
+        elseif ($line -match '\b([01](?:\.[0-9]+)?)\b') { $acc = [double]$matches[1] * 100 }
+    }
+    # Try to locate F1 line
+    $f1Line = $content | Select-String -Pattern '(?i)\bf1\b|f1-score|f1_score' | Select-Object -First 1
+    if ($f1Line) {
+        $line = $f1Line.Line
+        if ($line -match '([0-9]+(?:\.[0-9]+)?)\s*%') { $f1 = [double]$matches[1] }
+        elseif ($line -match '\b([01](?:\.[0-9]+)?)\b') { $f1 = [double]$matches[1] * 100 }
+    }
+    if ($acc -ne $null -and $f1 -ne $null) {
         $ok = ($acc -ge 90.0 -and $f1 -ge 85.0)
         $actual = "acc=$acc,f1=$f1"
     } else {
@@ -33,7 +45,7 @@ if ($logPath) {
     }
 }
 $conc = if ($ok) { "Pass" } else { "Review" }
-Write-ResultRow 2 "Threshold check" "Acc≥90%, F1≥85%" $actual $conc
+Write-ResultRow 2 "Threshold check" "Acc>=90%, F1>=85%" $actual $conc
 
 Stop-UBM-Gracefully -Proc $proc
 Write-ResultRow 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
