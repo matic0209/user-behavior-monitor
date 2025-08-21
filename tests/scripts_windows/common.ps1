@@ -35,10 +35,10 @@ function Get-Timestamp {
 function Resolve-ExePath {
     param([string]$Path)
     if ([string]::IsNullOrWhiteSpace($Path)) {
-        throw "ExePath 为空，且未能推导默认路径。"
+        throw "ExePath is empty and no default could be resolved."
     }
     if (-not (Test-Path -LiteralPath $Path)) {
-        throw "未找到可执行文件: $Path"
+        throw "Executable not found: $Path"
     }
     return (Resolve-Path -LiteralPath $Path).Path
 }
@@ -142,36 +142,7 @@ function Stop-UBM-Gracefully {
     if ($Proc -and -not $Proc.HasExited) { $Proc.Kill() }
 }
 
-function Get-Sqlite3Path {
-    $candidate = "sqlite3.exe"
-    $inPath = (Get-Command $candidate -ErrorAction SilentlyContinue)
-    if ($inPath) { return $inPath.Path }
-    $local = Join-Path (Get-Location) $candidate
-    if (Test-Path -LiteralPath $local) { return $local }
-    return $null
-}
-
-function Invoke-SqliteQuery {
-    param([string]$DbPath,[string]$Sql)
-    $sqlite = Get-Sqlite3Path
-    if (-not $sqlite) { return $null }
-    if (-not (Test-Path -LiteralPath $DbPath)) { return $null }
-    $args = @("-header","-csv", $DbPath, $Sql)
-    $out = & $sqlite @args
-    return $out
-}
-
-function Get-LatestSessionStats {
-    param([string]$DbPath)
-    $sql = @"
-SELECT user_id, session_id, COUNT(*) AS event_count, MAX(timestamp) AS last_ts
-FROM mouse_events
-GROUP BY user_id, session_id
-ORDER BY last_ts DESC
-LIMIT 1;
-"@
-    return (Invoke-SqliteQuery -DbPath $DbPath -Sql $sql)
-}
+# Database helper functions removed (not needed for log-only checks)
 
 function Get-LatestLogPath {
     param([string]$LogsDir)
@@ -252,7 +223,7 @@ function Write-ResultHeader {
 }
 
 function Write-ResultTableHeader {
-    "| 序号 | 输入及操作 | 期望结果或评估标准 | 实测结果 | 测试结论 |" | Out-Host
+    "| Index | Action | Expectation | Actual | Conclusion |" | Out-Host
     "| --- | --- | --- | --- | --- |" | Out-Host
 }
 
@@ -261,4 +232,4 @@ function Write-ResultRow {
     "| $Index | $Action | $Expect | $Actual | $Conclusion |" | Out-Host
 }
 
-if ($VerboseLog) { Write-Host "[common] 已加载通用函数" }
+if ($VerboseLog) { Write-Host "[common] helpers loaded" }
