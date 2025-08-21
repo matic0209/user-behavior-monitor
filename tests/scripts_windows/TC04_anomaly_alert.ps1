@@ -20,8 +20,16 @@ Write-ResultRow 2 "Inject anomaly sequence" "Anomaly score triggers alert" "Inje
 
 Start-Sleep -Seconds 1
 $log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
-$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('alert','anomaly','trigger') -TimeoutSec 25 } else { @{ ok = $false; hits = @{} } }
-$actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "no-log-found" }
+$chk = if ($log) {
+    Wait-LogContains -LogPath $log -Patterns @(
+        'alert','anomaly','trigger',
+        '告警','异常','触发','手动告警','已记录到数据库','记录到数据库','检测到 异常'
+    ) -TimeoutSec 25
+} else { @{ ok = $false; hits = @{} } }
+$actual = "no-log-found"
+if ($log) {
+    $actual = "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress)
+}
 $conc = if ($chk.ok) { "Pass" } else { "Review" }
 Write-ResultRow 3 "Check log keywords" "Alert/Anomaly keyword present" $actual $conc
 

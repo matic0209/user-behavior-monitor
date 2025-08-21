@@ -20,7 +20,12 @@ Write-ResultRow 2 "Inject high-risk sequence" "Reach blocking threshold" "Inject
 
 Start-Sleep -Seconds 1
 $log = Wait-ForLatestLog -LogsDir $ctx.Logs -TimeoutSec 15
-$chk = if ($log) { Wait-LogContains -LogPath $log -Patterns @('LockWorkStation','lock screen','block','alert triggered') -TimeoutSec 25 } else { @{ok=$false; hits=@{}} }
+$chk = if ($log) {
+    Wait-LogContains -LogPath $log -Patterns @(
+        'LockWorkStation','lock screen','block','alert triggered',
+        '锁屏','执行锁屏','锁屏成功','将执行锁屏','安全警告倒计时','执行最终锁屏'
+    ) -TimeoutSec 25
+} else { @{ ok = $false; hits = @{} } }
 $actual = if ($log) { "log=$log; hits=" + ($chk.hits | ConvertTo-Json -Compress) } else { "no-log-found" }
 $conc = if ($chk.ok) { "Pass" } else { "Review" }
 Write-ResultRow 3 "Check log keywords" "Contains blocking/lock keywords" $actual $conc
