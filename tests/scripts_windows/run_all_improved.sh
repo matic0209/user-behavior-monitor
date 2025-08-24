@@ -203,6 +203,7 @@ FAILED=0
 SKIPPED=0
 START_TIME=$(date +%s)
 
+# 执行测试用例
 log_info "开始执行测试用例..."
 log_info "总计: $TOTAL 个测试用例"
 log_info "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
@@ -213,42 +214,53 @@ for test_case in "${TEST_CASES[@]}"; do
     IFS=':' read -r test_name script_name description <<< "$test_case"
     
     echo ""
+    echo "🔄 正在执行: $test_name - $description"
     show_test_case_status "$test_name" "$description" "start"
     
     script_path="$SCRIPT_DIR/$script_name"
+    log_debug "脚本路径: $script_path"
+    
     if [[ ! -f "$script_path" ]]; then
         log_warning "⚠️  测试脚本不存在: $script_path"
         ((SKIPPED++))
         show_test_case_status "$test_name" "$description" "error"
+        log_info "跳过此测试，继续下一个..."
         continue
     fi
     
     # 检查脚本权限
     if [[ ! -x "$script_path" ]]; then
+        log_info "修复脚本权限: $script_path"
         chmod +x "$script_path"
     fi
     
     # 执行测试脚本
     test_start_time=$(date +%s)
+    log_info "开始执行脚本: $script_name"
     
+    # 使用set +e来防止脚本因为测试失败而退出
+    set +e
     if "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"; then
         test_exit_code=0
         test_result="success"
+        log_debug "脚本执行成功，退出码: $test_exit_code"
     else
         test_exit_code=$?
         test_result="error"
+        log_debug "脚本执行失败，退出码: $test_exit_code"
     fi
+    set -e  # 恢复错误时退出的设置
     
     test_end_time=$(date +%s)
     duration=$((test_end_time - test_start_time))
     
     # 显示测试结果
     if [[ $test_exit_code -eq 0 ]]; then
-        log_success "✓ 测试完成"
+        log_success "✓ 测试完成: $test_name"
         ((PASSED++))
         show_test_case_status "$test_name" "$description" "success"
     else
-        log_warning "⚠️  测试完成但退出码非零: $test_exit_code"
+        log_warning "⚠️  测试完成但退出码非零: $test_name (退出码: $test_exit_code)"
         ((FAILED++))
         show_test_case_status "$test_name" "$description" "error"
         
@@ -259,14 +271,20 @@ for test_case in "${TEST_CASES[@]}"; do
                 log_info "用户选择停止测试"
                 break
             fi
+        else
+            log_info "跳过失败测试，继续执行下一个..."
         fi
     fi
     
     # 显示执行时间
     log_info "执行时长: ${duration} 秒"
+    log_info "当前进度: $((PASSED + FAILED + SKIPPED))/$TOTAL"
     
     echo ""
 done
+
+log_info "所有测试用例执行完成！"
+log_info "通过: $PASSED, 失败: $FAILED, 跳过: $SKIPPED"
 
 # 测试结果汇总
 END_TIME=$(date +%s)
