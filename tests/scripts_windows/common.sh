@@ -177,18 +177,16 @@ for i in range(abs(notches)):
 send_char_repeated() {
     local char="${1:-'a'}"
     local times="${2:-4}"
-    local interval_ms="${3:-60}"
-    
+    local interval_ms="${3:-$KEY_INTERVAL}"
+
     log_debug "发送字符 '$char' 重复 $times 次，间隔 ${interval_ms}ms"
-    
-    # 使用xdotool（如果可用）
+
     if command -v xdotool &> /dev/null; then
         for ((i=0; i<times; i++)); do
             xdotool type "$char"
             sleep $((interval_ms / 1000))
         done
     else
-        # 使用Python脚本
         python3 -c "
 import time
 import pyautogui
@@ -202,9 +200,8 @@ for i in range(times):
     time.sleep(interval)
 " 2>/dev/null || log_warning "无法发送字符，跳过"
     fi
-    
-    # 等待程序处理快捷键
-    sleep 2
+
+    sleep 2 # Wait for program to process hotkey
     log_info "已发送快捷键: $char 重复 $times 次"
 }
 
@@ -267,7 +264,7 @@ start_ubm() {
     local pid=$!
     
     # 等待程序启动
-    sleep 3
+    sleep $STARTUP_WAIT
     
     # 检查进程是否还在运行
     if kill -0 "$pid" 2>/dev/null; then
@@ -346,44 +343,44 @@ wait_for_latest_log() {
 wait_log_contains() {
     local log_path="$1"
     local patterns=("${@:2}")
-    local timeout_sec="${patterns[-1]:-30}"
-    local interval_ms="${patterns[-2]:-500}"
-    
+    local timeout_sec="${patterns[-1]:-$LOG_WAIT}"
+    local interval_ms="${patterns[-2]:-$PROCESS_CHECK_INTERVAL}"
+
     # 移除最后两个参数（超时时间和间隔）
     patterns=("${patterns[@]:0:$((${#patterns[@]}-2))}")
-    
+
     if [[ ! -f "$log_path" ]]; then
         log_warning "日志文件不存在: $log_path"
         return 1
     fi
-    
+
     log_debug "等待日志包含关键字，超时时间: ${timeout_sec}秒"
     log_debug "搜索模式: ${patterns[*]}"
-    
+
     local deadline=$((SECONDS + timeout_sec))
     local attempts=0
     local last_hits=()
-    
+
     # 初始化last_hits数组
     for pattern in "${patterns[@]}"; do
         last_hits+=("0")
     done
-    
+
     while [[ $SECONDS -lt $deadline ]]; do
         ((attempts++))
         local current_hits=()
         local found_any=false
-        
+
         for i in "${!patterns[@]}"; do
             local pattern="${patterns[$i]}"
             local count=0
-            
+
             if grep -q "$pattern" "$log_path" 2>/dev/null; then
                 count=$(grep -c "$pattern" "$log_path" 2>/dev/null || echo "0")
             fi
-            
+
             current_hits+=("$count")
-            
+
             if [[ $count -gt 0 ]]; then
                 found_any=true
                 if [[ $attempts -eq 1 ]]; then
@@ -391,8 +388,7 @@ wait_log_contains() {
                 fi
             fi
         done
-        
-        # 检查是否有新的匹配
+
         local new_matches=false
         for i in "${!patterns[@]}"; do
             if [[ ${current_hits[$i]} -gt ${last_hits[$i]} ]]; then
@@ -400,13 +396,12 @@ wait_log_contains() {
                 break
             fi
         done
-        
+
         if [[ "$found_any" == "true" ]]; then
             if [[ "$new_matches" == "true" ]]; then
                 log_info "发现新的日志匹配 (尝试 $attempts)"
             fi
-            
-            # 如果所有模式都找到了，提前返回
+
             local all_found=true
             for count in "${current_hits[@]}"; do
                 if [[ $count -eq 0 ]]; then
@@ -414,26 +409,23 @@ wait_log_contains() {
                     break
                 fi
             done
-            
+
             if [[ "$all_found" == "true" ]]; then
                 log_success "所有关键字都已找到，提前返回"
-                # 返回结果（这里简化处理，实际使用时需要更复杂的返回机制）
                 return 0
             fi
         fi
-        
-        # 更新last_hits
+
         last_hits=("${current_hits[@]}")
-        
-        # 每5次尝试显示一次进度
+
         if [[ $((attempts % 5)) -eq 0 ]]; then
             local remaining=$((deadline - SECONDS))
             log_info "等待中... 剩余时间: ${remaining}秒 (尝试 $attempts)"
         fi
-        
+
         sleep $((interval_ms / 1000))
     done
-    
+
     log_warning "超时，未找到所有关键字"
     log_info "最终匹配结果:"
     for i in "${!patterns[@]}"; do
@@ -445,7 +437,7 @@ wait_log_contains() {
         fi
         log_info "  $status $pattern: $count 次"
     done
-    
+
     return 1
 }
 
@@ -500,3 +492,30 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     log_info "ExePath: $EXE_PATH"
     log_info "WorkDir: $WORK_DIR"
 fi
+
+# 快速测试模式配置
+FAST_MODE=${FAST_MODE:-false}
+if [[ "$FAST_MODE" == "true" ]]; then
+    # 快速模式：减少等待时间
+    STARTUP_WAIT=1      # 程序启动等待时间（秒）
+    FEATURE_WAIT=10     # 特征处理等待时间（秒）
+    TRAINING_WAIT=15    # 模型训练等待时间（秒）
+    LOG_WAIT=5          # 日志等待时间（秒）
+    KEY_INTERVAL=30     # 键盘输入间隔（毫秒）
+    MOUSE_INTERVAL=50   # 鼠标操作间隔（毫秒）
+    PROCESS_CHECK_INTERVAL=200  # 进程检查间隔（毫秒）
+else
+    # 正常模式：保持原有等待时间
+    STARTUP_WAIT=3      # 程序启动等待时间（秒）
+    FEATURE_WAIT=30     # 特征处理等待时间（秒）
+    TRAINING_WAIT=45    # 模型训练等待时间（秒）
+    LOG_WAIT=15         # 日志等待时间（秒）
+    KEY_INTERVAL=60     # 键盘输入间隔（毫秒）
+    MOUSE_INTERVAL=100  # 鼠标操作间隔（毫秒）
+    PROCESS_CHECK_INTERVAL=500  # 进程检查间隔（毫秒）
+fi
+
+log_debug "测试模式: ${FAST_MODE:-false}"
+log_debug "启动等待: ${STARTUP_WAIT}秒"
+log_debug "特征等待: ${FEATURE_WAIT}秒"
+log_debug "训练等待: ${TRAINING_WAIT}秒"

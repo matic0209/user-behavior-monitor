@@ -8,6 +8,7 @@ EXE_PATH=""
 WORK_DIR=""
 VERBOSE=false
 SKIP_FAILED=false
+FAST_MODE=false
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -28,8 +29,12 @@ while [[ $# -gt 0 ]]; do
             SKIP_FAILED=true
             shift
             ;;
+        -FastMode)
+            FAST_MODE=true
+            shift
+            ;;
         *)
-            echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed]"
+            echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed] [-FastMode]"
             exit 1
             ;;
     esac
@@ -38,16 +43,38 @@ done
 # 验证参数
 if [[ -z "$EXE_PATH" ]] || [[ -z "$WORK_DIR" ]]; then
     echo "错误: 缺少必要参数"
-    echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed]"
+    echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed] [-FastMode]"
     echo ""
     echo "示例:"
     echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\""
     echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -SkipFailed"
+    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -FastMode"
+    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -FastMode -Verbose"
+    echo ""
+    echo "选项说明:"
+    echo "  -FastMode    启用快速测试模式（减少等待时间）"
+    echo "  -Verbose     详细输出模式"
+    echo "  -SkipFailed  跳过失败的测试"
     exit 1
 fi
 
 # 加载公共函数（在参数验证之后）
 source "$SCRIPT_DIR/common.sh"
+
+# 设置快速模式环境变量
+export FAST_MODE="$FAST_MODE"
+
+if [[ "$FAST_MODE" == "true" ]]; then
+    log_info "🚀 启用快速测试模式"
+    log_info "  启动等待: 1秒 (正常: 3秒)"
+    log_info "  特征等待: 10秒 (正常: 30秒)"
+    log_info "  训练等待: 15秒 (正常: 45秒)"
+    log_info "  日志等待: 5秒 (正常: 15秒)"
+    log_info "  键盘间隔: 30ms (正常: 60ms)"
+    log_info "  预计加速: 2-3倍"
+else
+    log_info "🐌 使用正常测试模式"
+fi
 
 # 验证可执行文件
 log_info "验证可执行文件..."
