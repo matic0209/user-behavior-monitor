@@ -2,7 +2,6 @@
 # Windows UBM 测试套件 - Git Bash 兼容版本
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
 
 # 参数处理
 EXE_PATH=""
@@ -10,6 +9,7 @@ WORK_DIR=""
 VERBOSE=false
 SKIP_FAILED=false
 
+# 解析命令行参数
 while [[ $# -gt 0 ]]; do
     case $1 in
         -ExePath)
@@ -37,10 +37,17 @@ done
 
 # 验证参数
 if [[ -z "$EXE_PATH" ]] || [[ -z "$WORK_DIR" ]]; then
-    log_error "缺少必要参数"
+    echo "错误: 缺少必要参数"
     echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed]"
+    echo ""
+    echo "示例:"
+    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\""
+    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -SkipFailed"
     exit 1
 fi
+
+# 加载公共函数（在参数验证之后）
+source "$SCRIPT_DIR/common.sh"
 
 # 验证可执行文件
 if [[ ! -f "$EXE_PATH" ]]; then

@@ -12,45 +12,10 @@ CYAN='\033[0;36m'
 GRAY='\033[0;37m'
 NC='\033[0m' # No Color
 
-# 参数处理
-EXE_PATH=""
-WORK_DIR=""
-VERBOSE=false
-
-# 解析命令行参数
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -ExePath)
-            EXE_PATH="$2"
-            shift 2
-            ;;
-        -WorkDir)
-            WORK_DIR="$2"
-            shift 2
-            ;;
-        -Verbose)
-            VERBOSE=true
-            shift
-            ;;
-        *)
-            echo "未知参数: $1"
-            exit 1
-            ;;
-    esac
-done
-
 # 计算项目根目录与默认路径
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$TESTS_DIR")"
-
-if [[ -z "$EXE_PATH" ]]; then
-    EXE_PATH="$PROJECT_ROOT/dist/UserBehaviorMonitor.exe"
-fi
-
-if [[ -z "$WORK_DIR" ]]; then
-    WORK_DIR="$PROJECT_ROOT/win_test_run"
-fi
 
 # 日志函数
 log_info() {
@@ -106,7 +71,7 @@ resolve_exe_path() {
 prepare_work_dir() {
     local base_dir="$1"
     if [[ -z "$base_dir" ]]; then
-        base_dir="$WORK_DIR"
+        base_dir="$PROJECT_ROOT/win_test_run"
     fi
     
     ensure_dir "$base_dir"
