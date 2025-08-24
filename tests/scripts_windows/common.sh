@@ -494,8 +494,19 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
 fi
 
 # 快速测试模式配置
-FAST_MODE=${FAST_MODE:-false}
-if [[ "$FAST_MODE" == "true" ]]; then
+FAST_MODE=${FAST_MODE:-true}  # 默认启用快速模式
+ULTRA_FAST_MODE=${ULTRA_FAST_MODE:-false}
+
+if [[ "$ULTRA_FAST_MODE" == "true" ]]; then
+    # 超快模式：最小等待时间（开发调试用）
+    STARTUP_WAIT=1      # 程序启动等待时间（秒）
+    FEATURE_WAIT=5      # 特征处理等待时间（秒）
+    TRAINING_WAIT=10    # 模型训练等待时间（秒）
+    LOG_WAIT=3          # 日志等待时间（秒）
+    KEY_INTERVAL=20     # 键盘输入间隔（毫秒）
+    MOUSE_INTERVAL=30   # 鼠标操作间隔（毫秒）
+    PROCESS_CHECK_INTERVAL=100  # 进程检查间隔（毫秒）
+elif [[ "$FAST_MODE" == "true" ]]; then
     # 快速模式：减少等待时间
     STARTUP_WAIT=1      # 程序启动等待时间（秒）
     FEATURE_WAIT=10     # 特征处理等待时间（秒）
@@ -515,7 +526,7 @@ else
     PROCESS_CHECK_INTERVAL=500  # 进程检查间隔（毫秒）
 fi
 
-log_debug "测试模式: ${FAST_MODE:-false}"
+log_debug "测试模式: ${ULTRA_FAST_MODE:-false} (超快) / ${FAST_MODE:-false} (快速) / ${FAST_MODE:-false} (正常)"
 log_debug "启动等待: ${STARTUP_WAIT}秒"
 log_debug "特征等待: ${FEATURE_WAIT}秒"
 log_debug "训练等待: ${TRAINING_WAIT}秒"

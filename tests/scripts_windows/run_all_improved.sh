@@ -8,7 +8,8 @@ EXE_PATH=""
 WORK_DIR=""
 VERBOSE=false
 SKIP_FAILED=false
-FAST_MODE=false
+FAST_MODE=true  # 默认启用快速模式
+ULTRA_FAST_MODE=false  # 新增超快模式
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -33,8 +34,18 @@ while [[ $# -gt 0 ]]; do
             FAST_MODE=true
             shift
             ;;
+        -UltraFastMode)
+            ULTRA_FAST_MODE=true
+            FAST_MODE=true
+            shift
+            ;;
+        -NormalMode)
+            FAST_MODE=false
+            ULTRA_FAST_MODE=false
+            shift
+            ;;
         *)
-            echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed] [-FastMode]"
+            echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed] [-UltraFastMode|-FastMode|-NormalMode]"
             exit 1
             ;;
     esac
@@ -43,18 +54,22 @@ done
 # 验证参数
 if [[ -z "$EXE_PATH" ]] || [[ -z "$WORK_DIR" ]]; then
     echo "错误: 缺少必要参数"
-    echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed] [-FastMode]"
+    echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed] [-UltraFastMode|-FastMode|-NormalMode]"
     echo ""
     echo "示例:"
     echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\""
     echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -SkipFailed"
-    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -FastMode"
-    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -FastMode -Verbose"
+    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -UltraFastMode"
+    echo "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\" -UltraFastMode -Verbose"
     echo ""
     echo "选项说明:"
-    echo "  -FastMode    启用快速测试模式（减少等待时间）"
-    echo "  -Verbose     详细输出模式"
-    echo "  -SkipFailed  跳过失败的测试"
+    echo "  -UltraFastMode  启用超快测试模式（默认，最快速度）"
+    echo "  -FastMode       启用快速测试模式（平衡速度和准确性）"
+    echo "  -NormalMode     使用正常测试模式（最慢但最准确）"
+    echo "  -Verbose        详细输出模式"
+    echo "  -SkipFailed     跳过失败的测试"
+    echo ""
+    echo "默认模式: 超快模式（-UltraFastMode）"
     exit 1
 fi
 
@@ -63,9 +78,19 @@ source "$SCRIPT_DIR/common.sh"
 
 # 设置快速模式环境变量
 export FAST_MODE="$FAST_MODE"
+export ULTRA_FAST_MODE="$ULTRA_FAST_MODE"
 
-if [[ "$FAST_MODE" == "true" ]]; then
-    log_info "🚀 启用快速测试模式"
+if [[ "$ULTRA_FAST_MODE" == "true" ]]; then
+    log_info "🚀 启用超快测试模式（默认）"
+    log_info "  启动等待: 1秒 (正常: 3秒)"
+    log_info "  特征等待: 5秒 (正常: 30秒)"
+    log_info "  训练等待: 10秒 (正常: 45秒)"
+    log_info "  日志等待: 3秒 (正常: 15秒)"
+    log_info "  键盘间隔: 20ms (正常: 60ms)"
+    log_info "  预计加速: 4-5倍"
+    log_info "  ⚠️  注意: 超快模式可能影响测试准确性，适用于开发调试"
+elif [[ "$FAST_MODE" == "true" ]]; then
+    log_info "⚡ 启用快速测试模式"
     log_info "  启动等待: 1秒 (正常: 3秒)"
     log_info "  特征等待: 10秒 (正常: 30秒)"
     log_info "  训练等待: 15秒 (正常: 45秒)"

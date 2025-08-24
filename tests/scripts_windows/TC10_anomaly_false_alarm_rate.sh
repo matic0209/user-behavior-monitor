@@ -6,12 +6,14 @@ source "$SCRIPT_DIR/common.sh"
 
 EXE_PATH=""
 WORK_DIR=""
+FAST_MODE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
         -ExePath) EXE_PATH="$2"; shift 2 ;;
         -WorkDir) WORK_DIR="$2"; shift 2 ;;
-        *) echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir>"; exit 1 ;;
+        -FastMode) FAST_MODE="true"; shift ;;
+        *) echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-FastMode]"; exit 1 ;;
     esac
 done
 
@@ -43,14 +45,18 @@ LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析异常误报率..."
     
-    # 1. 评估时间设置
-    # 根据测试要求，N小时具体设置为：
-    # - 快速测试模式：1小时（3600秒）
-    # - 正常测试模式：4小时（14400秒）
-    # - 生产测试模式：24小时（86400秒）
-    
-    EVALUATION_TIME_HOURS=${EVALUATION_TIME_HOURS:-1}  # 默认1小时
-    EVALUATION_TIME_SECONDS=$((EVALUATION_TIME_HOURS * 3600))
+    # 1. 评估时间设置 - 支持快速测试模式
+    if [[ "$FAST_MODE" == "true" ]]; then
+        # 快速测试模式：5分钟
+        EVALUATION_TIME_HOURS=0.083  # 5分钟 = 5/60 = 0.083小时
+        EVALUATION_TIME_SECONDS=300  # 5分钟 = 300秒
+        log_info "🚀 快速测试模式：评估时间设置为5分钟"
+    else
+        # 正常测试模式：1小时
+        EVALUATION_TIME_HOURS=${EVALUATION_TIME_HOURS:-1}  # 默认1小时
+        EVALUATION_TIME_SECONDS=$((EVALUATION_TIME_HOURS * 3600))
+        log_info "⏱️ 正常测试模式：评估时间设置为${EVALUATION_TIME_HOURS}小时"
+    fi
     
     log_info "误报率评估时间: ${EVALUATION_TIME_HOURS}小时 (${EVALUATION_TIME_SECONDS}秒)"
     
@@ -124,7 +130,13 @@ if [[ -n "$LOG_PATH" ]]; then
         
         # 6. 输出详细分析结果
         log_info "误报率分析结果:"
-        log_info "  评估时间: ${EVALUATION_TIME_HOURS}小时"
+        if [[ "$FAST_MODE" == "true" ]]; then
+            log_info "  🚀 测试模式: 快速测试模式"
+            log_info "  ⏱️ 评估时间: 5分钟 (快速测试)"
+        else
+            log_info "  ⏱️ 测试模式: 正常测试模式"
+            log_info "  ⏱️ 评估时间: ${EVALUATION_TIME_HOURS}小时"
+        fi
         log_info "  总检测次数: $TOTAL_DETECTIONS"
         log_info "  误报次数: $FALSE_ALARMS"
         log_info "  真阳性次数: $TRUE_POSITIVES"
@@ -138,7 +150,11 @@ if [[ -n "$LOG_PATH" ]]; then
         log_info "  边界得分误报: $BOUNDARY_FALSE_ALARMS 次"
         log_info "  冷却时间优化: $COOLDOWN_OPTIMIZATION 次"
         
-        ACTUAL="log=$LOG_PATH, time=${EVALUATION_TIME_HOURS}h, total=$TOTAL_DETECTIONS, false_alarms=$FALSE_ALARMS, FPR=${FPR}% (threshold: <=${THRESHOLD}%)"
+        if [[ "$FAST_MODE" == "true" ]]; then
+            ACTUAL="log=$LOG_PATH, time=5min(快速), total=$TOTAL_DETECTIONS, false_alarms=$FALSE_ALARMS, FPR=${FPR}% (threshold: <=${THRESHOLD}%)"
+        else
+            ACTUAL="log=$LOG_PATH, time=${EVALUATION_TIME_HOURS}h, total=$TOTAL_DETECTIONS, false_alarms=$FALSE_ALARMS, FPR=${FPR}% (threshold: <=${THRESHOLD}%)"
+        fi
         
     else
         ACTUAL="log=$LOG_PATH, no detections found"
@@ -158,4 +174,8 @@ write_result_row 2 "Compute from logs" "FPR <= 1%" "$ACTUAL" "$CONCLUSION"
 stop_ubm_gracefully "$PID"
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
-log_success "TC10 异常误报率测试完成"
+if [[ "$FAST_MODE" == "true" ]]; then
+    log_success "🚀 TC10 异常误报率测试完成 (快速模式: 5分钟)"
+else
+    log_success "⏱️ TC10 异常误报率测试完成 (正常模式: ${EVALUATION_TIME_HOURS}小时)"
+fi
