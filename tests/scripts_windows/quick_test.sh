@@ -45,12 +45,17 @@ fi
 
 # 设置快速模式
 export FAST_MODE="true"
+export FAST_TRAINING="true"
+export UBM_CONFIG_FILE="../../src/utils/config/fast_training.yaml"
 
 # 加载公共函数
 source "$SCRIPT_DIR/common.sh"
 
 log_info "🚀 快速测试模式启动"
-log_info "预计总时间: 5-10分钟 (正常模式: 20-40分钟)"
+log_info "🚀 快速训练模式启动"
+log_info "预计总时间: 3-7分钟 (正常模式: 20-40分钟)"
+log_info "训练样本数: 500 (正常模式: 10000)"
+log_info "采样频率: 50Hz (正常模式: 10Hz)"
 
 # 验证可执行文件
 if [[ ! -f "$EXE_PATH" ]]; then

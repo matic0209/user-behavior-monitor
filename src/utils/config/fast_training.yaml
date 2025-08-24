@@ -1,0 +1,43 @@
+# 快速训练配置文件 - 大幅减少训练时间
+# 使用方法：在测试时使用此配置文件
+
+data_collection:
+  mouse_events: true
+  keyboard_events: false
+  window_events: false
+  collection_interval: 0.02  # 采集间隔（秒）- 50Hz采样频率
+  max_buffer_size: 500      # 最大缓冲区大小
+  target_samples_per_session: 500  # 每会话目标采集样本数 - 大幅减少到500
+
+feature_processing:
+  batch_size: 100          # 减少批处理大小
+  processing_interval: 1800  # 特征处理间隔（秒）- 30分钟
+  auto_process: true
+
+model_training:
+  auto_train: true
+  training_interval: 3600   # 模型训练间隔（秒）- 1小时
+  retrain_threshold: 0.7    # 降低重新训练阈值
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file_rotation: true
+  max_file_size: "10MB"
+  backup_count: 5
+  console_level: "INFO"
+  file_level: "INFO"
+  enable_debug_file: false
+
+system:
+  max_workers: 2           # 减少工作线程数
+  memory_limit: "1GB"      # 减少内存限制
+  timeout: 150             # 减少超时时间
+  platform: "windows"
+  debug_mode: false
+
+# 快速训练说明
+# 1. 样本数量从10000减少到500，加速20倍
+# 2. 采样频率从10Hz提升到50Hz，提高数据质量
+# 3. 批处理大小从1000减少到100，减少内存占用
+# 4. 预计训练时间从20-40分钟减少到1-3分钟

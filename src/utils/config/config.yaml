@@ -61,9 +61,9 @@ data_collection:
   mouse_events: true
   keyboard_events: false  # 暂时禁用键盘事件
   window_events: false    # 暂时禁用窗口事件
-  collection_interval: 0.1  # 采集间隔（秒）
-  max_buffer_size: 10000   # 最大缓冲区大小
-  target_samples_per_session: 10000  # 每会话目标采集样本数，达到即自动停止
+  collection_interval: 0.05  # 采集间隔（秒）- 从0.1减少到0.05，提高采样频率
+  max_buffer_size: 2000    # 最大缓冲区大小 - 从10000减少到2000
+  target_samples_per_session: 1000  # 每会话目标采集样本数 - 从10000减少到1000，加速10倍
 
 feature_processing:
   batch_size: 1000
