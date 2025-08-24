@@ -1,0 +1,196 @@
+#!/bin/bash
+# Windows UBM 测试套件 - Git Bash 兼容版本
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
+
+# 参数处理
+EXE_PATH=""
+WORK_DIR=""
+VERBOSE=false
+SKIP_FAILED=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -ExePath)
+            EXE_PATH="$2"
+            shift 2
+            ;;
+        -WorkDir)
+            WORK_DIR="$2"
+            shift 2
+            ;;
+        -Verbose)
+            VERBOSE=true
+            shift
+            ;;
+        -SkipFailed)
+            SKIP_FAILED=true
+            shift
+            ;;
+        *)
+            echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed]"
+            exit 1
+            ;;
+    esac
+done
+
+# 验证参数
+if [[ -z "$EXE_PATH" ]] || [[ -z "$WORK_DIR" ]]; then
+    log_error "缺少必要参数"
+    echo "用法: $0 -ExePath <exe_path> -WorkDir <work_dir> [-Verbose] [-SkipFailed]"
+    exit 1
+fi
+
+# 验证可执行文件
+if [[ ! -f "$EXE_PATH" ]]; then
+    log_error "可执行文件不存在: $EXE_PATH"
+    log_info "请确保 UserBehaviorMonitor.exe 已构建并位于 dist/ 目录中"
+    exit 1
+fi
+
+log_success "✓ 找到可执行文件: $EXE_PATH"
+
+# 准备工作目录
+WORK_CONFIG=$(prepare_work_dir "$WORK_DIR")
+BASE_DIR=$(echo "$WORK_CONFIG" | grep -o '"Base":"[^"]*"' | cut -d'"' -f4)
+DATA_DIR=$(echo "$WORK_CONFIG" | grep -o '"Data":"[^"]*"' | cut -d'"' -f4)
+LOGS_DIR=$(echo "$WORK_CONFIG" | grep -o '"Logs":"[^"]*"' | cut -d'"' -f4)
+
+log_success "✓ 工作目录已准备: $BASE_DIR"
+log_info "  数据目录: $DATA_DIR"
+log_info "  日志目录: $LOGS_DIR"
+
+# 测试用例列表
+declare -a TEST_CASES=(
+    "TC02:TC02_feature_extraction.sh:特征提取功能"
+    "TC06:TC06_behavior_fingerprint_management.sh:行为指纹管理"
+    "TC08:TC08_feature_count_metric.sh:特征数量阈值"
+    "TC09:TC09_classification_accuracy_metric.sh:分类准确率指标"
+)
+
+# 测试结果统计
+TOTAL=${#TEST_CASES[@]}
+PASSED=0
+FAILED=0
+SKIPPED=0
+START_TIME=$(date +%s)
+
+log_info "开始执行测试用例..."
+log_info "总计: $TOTAL 个测试用例"
+log_info "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+# 执行测试用例
+for test_case in "${TEST_CASES[@]}"; do
+    IFS=':' read -r test_name script_name description <<< "$test_case"
+    
+    echo "=========================================="
+    log_info "执行测试: $test_name - $description"
+    log_info "脚本: $script_name"
+    echo "=========================================="
+    
+    script_path="$SCRIPT_DIR/$script_name"
+    if [[ ! -f "$script_path" ]]; then
+        log_warning "⚠️  测试脚本不存在: $script_path"
+        ((SKIPPED++))
+        continue
+    fi
+    
+    # 检查脚本权限
+    if [[ ! -x "$script_path" ]]; then
+        chmod +x "$script_path"
+    fi
+    
+    try {
+        # 执行测试脚本
+        test_start_time=$(date +%s)
+        log_info "开始时间: $(date '+%H:%M:%S')"
+        
+        "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"
+        test_exit_code=$?
+        
+        test_end_time=$(date +%s)
+        duration=$((test_end_time - test_start_time))
+        
+        log_info "完成时间: $(date '+%H:%M:%S')"
+        log_info "执行时长: ${duration} 秒"
+        
+        # 检查测试结果
+        if [[ $test_exit_code -eq 0 ]]; then
+            log_success "✓ 测试完成"
+            ((PASSED++))
+        else
+            log_warning "⚠️  测试完成但退出码非零: $test_exit_code"
+            ((FAILED++))
+        fi
+        
+    } catch {
+        log_error "❌ 测试执行失败: $_"
+        ((FAILED++))
+        
+        if [[ "$SKIP_FAILED" == "false" ]]; then
+            log_info "是否继续执行下一个测试? (y/N)"
+            read -r response
+            if [[ ! "$response" =~ ^[Yy]$ ]]; then
+                log_info "用户选择停止测试"
+                break
+            fi
+        fi
+    }
+    
+    echo ""
+done
+
+# 测试结果汇总
+END_TIME=$(date +%s)
+TOTAL_DURATION=$((END_TIME - START_TIME))
+TOTAL_MINUTES=$((TOTAL_DURATION / 60))
+
+echo "=========================================="
+log_success "测试执行完成"
+echo "=========================================="
+log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
+log_info "总耗时: ${TOTAL_MINUTES} 分钟"
+echo ""
+log_info "测试结果统计:"
+log_info "  总计: $TOTAL"
+log_info "  通过: $PASSED"
+log_info "  失败: $FAILED"
+log_info "  跳过: $SKIPPED"
+
+if [[ $TOTAL -gt 0 ]]; then
+    SUCCESS_RATE=$((PASSED * 100 / TOTAL))
+    log_info "  成功率: ${SUCCESS_RATE}%"
+fi
+
+# 生成测试报告
+REPORT_PATH="$BASE_DIR/test_report_$(date '+%Y%m%d_%H%M%S').txt"
+try {
+    cat > "$REPORT_PATH" << EOF
+Windows UBM 测试报告
+====================
+测试时间: $(date '+%Y-%m-%d %H:%M:%S')
+总耗时: ${TOTAL_MINUTES} 分钟
+
+测试结果:
+  总计: $TOTAL
+  通过: $PASSED
+  失败: $FAILED
+  跳过: $SKIPPED
+  成功率: ${SUCCESS_RATE}%
+
+工作目录: $BASE_DIR
+可执行文件: $EXE_PATH
+
+详细日志请查看: $LOGS_DIR
+EOF
+    
+    log_success "测试报告已保存: $REPORT_PATH"
+    
+} catch {
+    log_warning "测试报告保存失败: $_"
+}
+
+echo ""
+log_success "测试执行完成！"
