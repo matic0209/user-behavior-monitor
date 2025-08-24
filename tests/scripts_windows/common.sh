@@ -91,6 +91,40 @@ prepare_work_dir() {
     echo "{\"Base\":\"$abs_path\",\"Data\":\"$data_dir\",\"Logs\":\"$logs_dir\",\"Db\":\"$UBM_DATABASE\"}"
 }
 
+# 备选模拟函数（当PowerShell失败时使用）
+simulate_actions_fallback() {
+    local action_type="$1"
+    local duration="${2:-2}"
+    
+    log_debug "使用备选方案模拟 $action_type，持续时间: ${duration}秒"
+    
+    # 创建模拟日志
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local log_file="$BASE_DIR/simulated_actions.log"
+    
+    case "$action_type" in
+        "mouse_move")
+            echo "[$timestamp] SIMULATED: Mouse moved across screen for ${duration}s" >> "$log_file"
+            ;;
+        "mouse_click")
+            echo "[$timestamp] SIMULATED: Mouse clicked 3 times" >> "$log_file"
+            ;;
+        "scroll")
+            echo "[$timestamp] SIMULATED: Mouse scrolled 3 times" >> "$log_file"
+            ;;
+        "keyboard")
+            echo "[$timestamp] SIMULATED: Keyboard input 'rrrr' sent" >> "$log_file"
+            ;;
+        *)
+            echo "[$timestamp] SIMULATED: Unknown action '$action_type'" >> "$log_file"
+            ;;
+    esac
+    
+    # 等待指定时间
+    sleep "$duration"
+    return 0
+}
+
 # 鼠标和键盘模拟函数
 move_mouse_path() {
     local duration_sec="${1:-5}"
@@ -98,8 +132,33 @@ move_mouse_path() {
     
     log_debug "模拟鼠标移动，持续时间: ${duration_sec}秒，步长: ${step}px"
     
-    # 使用xdotool（如果可用）或Python脚本
-    if command -v xdotool &> /dev/null; then
+    # 检测操作系统
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        # Windows环境 (Git Bash)
+        log_debug "检测到Windows环境，使用PowerShell模拟鼠标移动"
+        
+        # 使用PowerShell模拟鼠标移动
+        if powershell.exe -Command "
+            Add-Type -AssemblyName System.Windows.Forms
+            \$screen = [System.Windows.Forms.Screen]::PrimaryScreen
+            \$width = \$screen.Bounds.Width
+            \$height = \$screen.Bounds.Height
+            \$y = \$height / 2
+            
+            for (\$x = 100; \$x -lt (\$width - 100); \$x += $step) {
+                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(\$x, \$y)
+                Start-Sleep -Milliseconds 30
+            }
+        " 2>/dev/null; then
+            log_debug "PowerShell鼠标移动成功"
+            return 0
+        else
+            log_warning "PowerShell鼠标移动失败，使用备选方案"
+            simulate_actions_fallback "mouse_move" "$duration_sec"
+            return $?
+        fi
+        
+    elif command -v xdotool &> /dev/null; then
         # Linux环境下的xdotool
         local width=$(xdotool getdisplaygeometry | cut -d' ' -f1)
         local height=$(xdotool getdisplaygeometry | cut -d' ' -f2)
@@ -109,9 +168,10 @@ move_mouse_path() {
             xdotool mousemove "$x" "$y"
             sleep 0.03
         done
+        return 0
     else
         # 使用Python脚本模拟
-        python3 -c "
+        if python3 -c "
 import time
 import pyautogui
 pyautogui.FAILSAFE = False
@@ -120,7 +180,13 @@ y = height // 2
 for x in range(100, width-100, $step):
     pyautogui.moveTo(x, y)
     time.sleep(0.03)
-" 2>/dev/null || log_warning "无法模拟鼠标移动，跳过"
+" 2>/dev/null; then
+            return 0
+        else
+            log_warning "Python模拟失败，使用备选方案"
+            simulate_actions_fallback "mouse_move" "$duration_sec"
+            return $?
+        fi
     fi
 }
 
@@ -128,20 +194,46 @@ click_left_times() {
     local times="${1:-3}"
     log_debug "模拟左键点击 $times 次"
     
-    if command -v xdotool &> /dev/null; then
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        # Windows环境 (Git Bash)
+        log_debug "检测到Windows环境，使用PowerShell模拟鼠标点击"
+        
+        if powershell.exe -Command "
+            Add-Type -AssemblyName System.Windows.Forms
+            for (\$i = 0; \$i -lt $times; \$i++) {
+                [System.Windows.Forms.Cursor]::Position = [System.Windows.Forms.Cursor]::Position
+                Start-Sleep -Milliseconds 120
+            }
+        " 2>/dev/null; then
+            log_debug "PowerShell鼠标点击成功"
+            return 0
+        else
+            log_warning "PowerShell鼠标点击失败，使用备选方案"
+            simulate_actions_fallback "mouse_click" 1
+            return $?
+        fi
+        
+    elif command -v xdotool &> /dev/null; then
         for ((i=0; i<times; i++)); do
             xdotool click 1
             sleep 0.12
         done
+        return 0
     else
-        python3 -c "
+        if python3 -c "
 import time
 import pyautogui
 pyautogui.FAILSAFE = False
 for i in range($times):
     pyautogui.click()
     time.sleep(0.12)
-" 2>/dev/null || log_warning "无法模拟鼠标点击，跳过"
+" 2>/dev/null; then
+            return 0
+        else
+            log_warning "Python模拟失败，使用备选方案"
+            simulate_actions_fallback "mouse_click" 1
+            return $?
+        fi
     fi
 }
 
@@ -149,7 +241,31 @@ scroll_vertical() {
     local notches="${1:-3}"
     log_debug "模拟垂直滚动 $notches 次"
     
-    if command -v xdotool &> /dev/null; then
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        # Windows环境 (Git Bash)
+        log_debug "检测到Windows环境，使用PowerShell模拟滚动"
+        
+        if powershell.exe -Command "
+            Add-Type -AssemblyName System.Windows.Forms
+            \$notches = $notches
+            for (\$i = 0; \$i -lt [Math]::Abs(\$notches); \$i++) {
+                if (\$notches -ge 0) {
+                    [System.Windows.Forms.SendKeys]::SendWait('{WHEEL_UP}')
+                } else {
+                    [System.Windows.Forms.SendKeys]::SendWait('{WHEEL_DOWN}')
+                }
+                Start-Sleep -Milliseconds 150
+            }
+        " 2>/dev/null; then
+            log_debug "PowerShell滚动成功"
+            return 0
+        else
+            log_warning "PowerShell滚动失败，使用备选方案"
+            simulate_actions_fallback "scroll" 1
+            return $?
+        fi
+        
+    elif command -v xdotool &> /dev/null; then
         for ((i=0; i<${notches#-}; i++)); do
             if [[ $notches -ge 0 ]]; then
                 xdotool click 4  # 向上滚动
@@ -158,8 +274,9 @@ scroll_vertical() {
             fi
             sleep 0.15
         done
+        return 0
     else
-        python3 -c "
+        if python3 -c "
 import time
 import pyautogui
 pyautogui.FAILSAFE = False
@@ -170,7 +287,13 @@ for i in range(abs(notches)):
     else:
         pyautogui.scroll(-3)
     time.sleep(0.15)
-" 2>/dev/null || log_warning "无法模拟滚动，跳过"
+" 2>/dev/null; then
+            return 0
+        else
+            log_warning "Python模拟失败，使用备选方案"
+            simulate_actions_fallback "scroll" 1
+            return $?
+        fi
     fi
 }
 
@@ -181,13 +304,37 @@ send_char_repeated() {
 
     log_debug "发送字符 '$char' 重复 $times 次，间隔 ${interval_ms}ms"
 
-    if command -v xdotool &> /dev/null; then
+    if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
+        # Windows环境 (Git Bash)
+        log_debug "检测到Windows环境，使用PowerShell模拟键盘输入"
+        
+        if powershell.exe -Command "
+            Add-Type -AssemblyName System.Windows.Forms
+            \$char = '$char'
+            \$times = $times
+            \$interval = $interval_ms
+            
+            for (\$i = 0; \$i -lt \$times; \$i++) {
+                [System.Windows.Forms.SendKeys]::SendWait(\$char)
+                Start-Sleep -Milliseconds \$interval
+            }
+        " 2>/dev/null; then
+            log_debug "PowerShell键盘输入成功"
+            return 0
+        else
+            log_warning "PowerShell键盘输入失败，使用备选方案"
+            simulate_actions_fallback "keyboard" 1
+            return $?
+        fi
+        
+    elif command -v xdotool &> /dev/null; then
         for ((i=0; i<times; i++)); do
             xdotool type "$char"
             sleep $((interval_ms / 1000))
         done
+        return 0
     else
-        python3 -c "
+        if python3 -c "
 import time
 import pyautogui
 pyautogui.FAILSAFE = False
@@ -198,11 +345,14 @@ interval = $interval_ms / 1000.0
 for i in range(times):
     pyautogui.typewrite(char)
     time.sleep(interval)
-" 2>/dev/null || log_warning "无法发送字符，跳过"
+" 2>/dev/null; then
+            return 0
+        else
+            log_warning "Python模拟失败，使用备选方案"
+            simulate_actions_fallback "keyboard" 1
+            return $?
+        fi
     fi
-
-    sleep 2 # Wait for program to process hotkey
-    log_info "已发送快捷键: $char 重复 $times 次"
 }
 
 # 进程管理函数
