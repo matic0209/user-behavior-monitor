@@ -47,7 +47,7 @@ PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
 # 等待程序启动
-sleep 3
+sleep $STARTUP_WAIT
 
 # 触发特征处理快捷键 (rrrr)
 log_info "发送快捷键 rrrr 触发特征处理..."
@@ -56,7 +56,7 @@ write_result_row 2 "Trigger feature processing" "Feature processing starts" "sen
 
 # 等待特征处理完成
 log_info "等待特征处理完成..."
-sleep 10
+sleep $FEATURE_WAIT
 
 # 等待日志文件
 log_info "等待日志文件生成..."
@@ -70,8 +70,7 @@ if [[ -n "$LOG_PATH" ]]; then
         'features' 'process_session_features' 'feature' 'processed' 'complete' \
         '特征处理' '处理完成' '特征 处理 完成' '[SUCCESS] 特征处理完成' \
         'UBM_MARK: FEATURE_DONE' 'FEATURE_START' 'FEATURE_DONE' \
-        '特征数据' '特征转换' '特征保存' '特征统计' \
-        40 500; then
+        '特征数据' '特征转换' '特征保存' '特征统计'; then
         
         log_success "找到所有关键字，测试通过"
         CONCLUSION="Pass"

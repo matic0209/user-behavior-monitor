@@ -29,7 +29,7 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
-sleep 3
+sleep $STARTUP_WAIT
 
 # 触发数据采集快捷键 rrrr
 log_info "发送快捷键 rrrr 触发数据采集..."
@@ -37,7 +37,7 @@ send_char_repeated 'r' 4 100
 
 # 等待数据采集完成
 log_info "等待数据采集完成..."
-sleep 20
+sleep $TRAINING_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 if [[ -n "$LOG_PATH" ]]; then

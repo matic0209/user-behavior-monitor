@@ -29,15 +29,17 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
-sleep 3
+# 等待程序启动
+sleep $STARTUP_WAIT
 
-# 触发深度学习训练快捷键 rrrr
-log_info "发送快捷键 rrrr 触发深度学习训练..."
+# 触发深度学习分类快捷键 (rrrr)
+log_info "发送快捷键 rrrr 触发特征处理..."
 send_char_repeated 'r' 4 100
+write_result_row 2 "Trigger deep learning" "Deep learning starts" "send rrrr" "N/A"
 
-# 等待深度学习训练完成
-log_info "等待深度学习训练完成..."
-sleep 25
+# 等待深度学习处理完成
+log_info "等待深度学习处理完成..."
+sleep $TRAINING_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 if [[ -n "$LOG_PATH" ]]; then

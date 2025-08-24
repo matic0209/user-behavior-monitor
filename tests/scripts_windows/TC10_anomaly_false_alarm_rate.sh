@@ -29,7 +29,7 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start online monitoring" "Keep running, produce logs" "PID=$PID" "Pass"
 
-sleep 3
+sleep $STARTUP_WAIT
 
 # 启动在线监控
 log_info "启动在线异常检测监控..."
@@ -37,7 +37,7 @@ send_char_repeated 'r' 4 100
 
 # 等待监控运行
 log_info "等待在线监控运行..."
-sleep 30
+sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 if [[ -n "$LOG_PATH" ]]; then

@@ -29,15 +29,17 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
-sleep 3
+# 等待程序启动
+sleep $STARTUP_WAIT
 
-# 触发异常告警快捷键 aaaa
+# 触发异常告警快捷键 (aaaa)
 log_info "发送快捷键 aaaa 触发异常告警..."
 send_char_repeated 'a' 4 100
+write_result_row 2 "Trigger anomaly alert" "Anomaly alert starts" "send aaaa" "N/A"
 
-# 等待告警处理
-log_info "等待异常告警处理..."
-sleep 10
+# 等待异常告警处理完成
+log_info "等待异常告警处理完成..."
+sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then

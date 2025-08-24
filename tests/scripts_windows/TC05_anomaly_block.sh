@@ -29,7 +29,7 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
-sleep 3
+sleep $STARTUP_WAIT
 
 # 触发异常阻止快捷键 aaaa
 log_info "发送快捷键 aaaa 触发异常阻止..."
@@ -37,7 +37,7 @@ send_char_repeated 'a' 4 100
 
 # 等待阻止处理
 log_info "等待异常阻止处理..."
-sleep 10
+sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then

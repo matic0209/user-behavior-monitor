@@ -47,7 +47,7 @@ PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE (feature)" "Output feature stats" "PID=$PID" "Pass"
 
 # 等待程序启动
-sleep 3
+sleep $STARTUP_WAIT
 
 # 触发特征处理快捷键 rrrr
 log_info "发送快捷键 rrrr 触发特征处理..."
@@ -55,7 +55,7 @@ send_char_repeated 'r' 4 100
 
 # 等待特征处理完成
 log_info "等待特征处理完成..."
-sleep 15
+sleep $FEATURE_WAIT
 
 # 等待日志文件
 log_info "等待日志文件生成..."

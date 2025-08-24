@@ -29,9 +29,9 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start evaluation" "Output Accuracy / F1" "PID=$PID" "Pass"
 
-sleep 3
+sleep $STARTUP_WAIT
 send_char_repeated 'r' 4 100
-sleep 20
+sleep $TRAINING_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 OK=false

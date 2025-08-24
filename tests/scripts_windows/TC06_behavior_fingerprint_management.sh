@@ -29,9 +29,9 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
-sleep 3
+sleep $STARTUP_WAIT
 send_char_repeated 'r' 4 100
-sleep 15
+sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then

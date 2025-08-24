@@ -29,7 +29,7 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
-sleep 3
+sleep $STARTUP_WAIT
 
 # 模拟鼠标移动
 log_info "模拟鼠标移动..."
@@ -48,7 +48,7 @@ write_result_row 4 "Simulate scrolling" "Scroll events detected" "scrolled" "N/A
 
 # 等待数据采集
 log_info "等待数据采集..."
-sleep 10
+sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then
