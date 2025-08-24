@@ -212,15 +212,14 @@ echo ""
 for test_case in "${TEST_CASES[@]}"; do
     IFS=':' read -r test_name script_name description <<< "$test_case"
     
-    echo "=========================================="
-    log_info "执行测试: $test_name - $description"
-    log_info "脚本: $script_name"
-    echo "=========================================="
+    echo ""
+    show_test_case_status "$test_name" "$description" "start"
     
     script_path="$SCRIPT_DIR/$script_name"
     if [[ ! -f "$script_path" ]]; then
         log_warning "⚠️  测试脚本不存在: $script_path"
         ((SKIPPED++))
+        show_test_case_status "$test_name" "$description" "error"
         continue
     fi
     
@@ -231,27 +230,27 @@ for test_case in "${TEST_CASES[@]}"; do
     
     # 执行测试脚本
     test_start_time=$(date +%s)
-    log_info "开始时间: $(date '+%H:%M:%S')"
     
     if "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"; then
         test_exit_code=0
+        test_result="success"
     else
         test_exit_code=$?
+        test_result="error"
     fi
     
     test_end_time=$(date +%s)
     duration=$((test_end_time - test_start_time))
     
-    log_info "完成时间: $(date '+%H:%M:%S')"
-    log_info "执行时长: ${duration} 秒"
-    
-    # 检查测试结果
+    # 显示测试结果
     if [[ $test_exit_code -eq 0 ]]; then
         log_success "✓ 测试完成"
         ((PASSED++))
+        show_test_case_status "$test_name" "$description" "success"
     else
         log_warning "⚠️  测试完成但退出码非零: $test_exit_code"
         ((FAILED++))
+        show_test_case_status "$test_name" "$description" "error"
         
         if [[ "$SKIP_FAILED" == "false" ]]; then
             log_info "是否继续执行下一个测试? (y/N)"
@@ -263,6 +262,9 @@ for test_case in "${TEST_CASES[@]}"; do
         fi
     fi
     
+    # 显示执行时间
+    log_info "执行时长: ${duration} 秒"
+    
     echo ""
 done
 
@@ -271,51 +273,39 @@ END_TIME=$(date +%s)
 TOTAL_DURATION=$((END_TIME - START_TIME))
 TOTAL_MINUTES=$((TOTAL_DURATION / 60))
 
-echo "=========================================="
-log_success "测试执行完成"
-echo "=========================================="
-log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
-log_info "总耗时: ${TOTAL_MINUTES} 分钟"
 echo ""
-log_info "测试结果统计:"
-log_info "  总计: $TOTAL"
-log_info "  通过: $PASSED"
-log_info "  失败: $FAILED"
-log_info "  跳过: $SKIPPED"
+echo "╔══════════════════════════════════════════════════════════════════════════════════════════════════════╗"
+echo "║                                    🏁 测试执行完成"
+echo "╠══════════════════════════════════════════════════════════════════════════════════════════════════════╣"
+echo "║  结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
+echo "║  总耗时: ${TOTAL_MINUTES} 分钟 (${TOTAL_DURATION} 秒)"
+echo "║  测试模式: $(if [[ "$ULTRA_FAST_MODE" == "true" ]]; then echo "超快模式"; elif [[ "$FAST_MODE" == "true" ]]; then echo "快速模式"; else echo "正常模式"; fi)"
+echo "╚══════════════════════════════════════════════════════════════════════════════════════════════════════╝"
 
-if [[ $TOTAL -gt 0 ]]; then
-    SUCCESS_RATE=$((PASSED * 100 / TOTAL))
-    log_info "  成功率: ${SUCCESS_RATE}%"
+# 显示详细结果汇总
+write_result_summary "$TOTAL" "$PASSED" "$FAILED" "0" "0" "$SKIPPED"
+
+echo ""
+echo "📁 测试产物位置:"
+echo "  工作目录: $WORK_DIR"
+echo "  日志目录: $LOGS_DIR"
+echo "  数据目录: $DATA_DIR"
+
+# 如果有失败的测试，显示建议
+if [[ $FAILED -gt 0 ]]; then
+    echo ""
+    echo "⚠️  故障排除建议:"
+    echo "  1. 检查日志文件中的错误信息"
+    echo "  2. 确认可执行文件路径正确"
+    echo "  3. 检查工作目录权限"
+    echo "  4. 运行环境检测脚本: ./test_windows_compatibility.sh"
 fi
 
-# 生成测试报告
-REPORT_PATH="$BASE_DIR/test_report_$(date '+%Y%m%d_%H%M%S').txt"
-cat > "$REPORT_PATH" << EOF
-Windows UBM 测试报告 - Git Bash 版本
-====================================
-测试时间: $(date '+%Y-%m-%d %H:%M:%S')
-总耗时: ${TOTAL_MINUTES} 分钟
-
-测试结果:
-  总计: $TOTAL
-  通过: $PASSED
-  失败: $FAILED
-  跳过: $SKIPPED
-  成功率: ${SUCCESS_RATE}%
-
-测试用例详情:
-$(for test_case in "${TEST_CASES[@]}"; do
-    IFS=':' read -r test_name script_name description <<< "$test_case"
-    echo "  $test_name: $description"
-done)
-
-工作目录: $BASE_DIR
-可执行文件: $EXE_PATH
-
-详细日志请查看: $LOGS_DIR
-EOF
-
-log_success "测试报告已保存: $REPORT_PATH"
-
-echo ""
-log_success "测试执行完成！"
+# 如果有跳过的测试，显示信息
+if [[ $SKIPPED -gt 0 ]]; then
+    echo ""
+    echo "⏭️  跳过的测试:"
+    echo "  1. 检查测试脚本是否存在"
+    echo "  2. 确认脚本有执行权限"
+    echo "  3. 检查脚本语法是否正确"
+fi
