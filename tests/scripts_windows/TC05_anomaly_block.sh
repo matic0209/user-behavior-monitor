@@ -41,7 +41,9 @@ sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then
-    # 检查异常阻止相关关键字
+    log_info "分析异常阻止结果..."
+    
+    # 1. 检查异常阻止相关关键字
     PATTERNS=('block' 'prevent' 'stop' 'deny' '阻止' '预防' '停止' '拒绝' \
               'UBM_MARK: BLOCK_TRIGGERED' '阻止触发' '异常阻止' '安全阻止' \
               'threat' 'security' '威胁' '安全' 'malicious' '恶意')
@@ -54,14 +56,98 @@ if [[ -n "$LOG_PATH" ]]; then
         fi
     done
     
-    if [[ $TOTAL_HITS -gt 0 ]]; then
-        CONCLUSION="Pass"
+    # 2. 提取锁屏阈值和异常分数
+    log_info "提取锁屏阈值和异常分数..."
+    
+    # 锁屏阈值：默认0.8（80%），可配置
+    LOCK_SCREEN_THRESHOLD=$(grep -o "lock_screen_threshold[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0.8")
+    FORCE_LOGOUT_THRESHOLD=$(grep -o "force_logout_threshold[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0.8")
+    
+    # 实际异常分数
+    ANOMALY_SCORE=$(grep -o "anomaly_score[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    BLOCK_SCORE=$(grep -o "block_score[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    
+    # 3. 阈值验证
+    log_info "验证锁屏阈值..."
+    
+    # 默认锁屏阈值：异常分数 ≥ 0.8 (80%)
+    THRESHOLD=${LOCK_SCREEN_THRESHOLD:-0.8}
+    
+    # 检查是否有异常分数超过锁屏阈值
+    THRESHOLD_EXCEEDED=false
+    if [[ $(echo "$ANOMALY_SCORE >= $THRESHOLD" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        THRESHOLD_EXCEEDED=true
+        log_success "✓ 异常分数超过锁屏阈值: ${ANOMALY_SCORE} >= ${THRESHOLD}"
+    elif [[ $(echo "$BLOCK_SCORE >= $THRESHOLD" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        THRESHOLD_EXCEEDED=true
+        log_success "✓ 阻止分数超过锁屏阈值: ${BLOCK_SCORE} >= ${THRESHOLD}"
     else
-        CONCLUSION="Review"
+        log_warning "⚠️ 异常分数未超过锁屏阈值: ${ANOMALY_SCORE} < ${THRESHOLD}"
     fi
+    
+    # 4. 系统行为观察
+    log_info "观察系统行为..."
+    
+    # 检查是否有锁屏、登出等系统操作记录
+    SYSTEM_ACTIONS=('lock_screen' 'force_logout' 'shutdown' 'restart' '锁屏' '强制登出' '关机' '重启' \
+                    'UBM_MARK: SCREEN_LOCKED' 'UBM_MARK: USER_LOGGED_OUT' 'UBM_MARK: SYSTEM_ACTION')
+    
+    SYSTEM_ACTION_DETECTED=false
+    for action in "${SYSTEM_ACTIONS[@]}"; do
+        if grep -q "$action" "$LOG_PATH" 2>/dev/null; then
+            SYSTEM_ACTION_DETECTED=true
+            log_success "✓ 检测到系统操作: $action"
+            break
+        fi
+    done
+    
+    # 5. 权限检查和降级处理
+    log_info "检查权限和降级处理..."
+    
+    # 检查是否有权限不足的降级处理记录
+    PERMISSION_DENIED=$(grep -c "permission.*denied\|权限.*不足\|无权限\|insufficient.*permission" "$LOG_PATH" 2>/dev/null || echo "0")
+    FALLBACK_ACTION=$(grep -c "fallback\|降级\|alternative\|备用" "$LOG_PATH" 2>/dev/null || echo "0")
+    
+    if [[ $PERMISSION_DENIED -gt 0 ]]; then
+        log_warning "⚠️ 检测到权限不足: $PERMISSION_DENIED 次"
+    fi
+    
+    if [[ $FALLBACK_ACTION -gt 0 ]]; then
+        log_info "✓ 检测到降级处理: $FALLBACK_ACTION 次"
+    fi
+    
+    # 6. 确定测试结论
+    if [[ $TOTAL_HITS -gt 0 ]] && [[ "$THRESHOLD_EXCEEDED" == "true" ]]; then
+        if [[ "$SYSTEM_ACTION_DETECTED" == "true" ]]; then
+            CONCLUSION="Pass"
+            log_success "✓ 异常阻止功能正常，触发系统操作"
+        else
+            CONCLUSION="Partial"
+            log_warning "⚠️ 异常阻止功能部分正常，分数超过阈值但未触发系统操作"
+        fi
+    elif [[ $TOTAL_HITS -gt 0 ]]; then
+        CONCLUSION="Partial"
+        log_warning "⚠️ 异常阻止功能部分正常，但分数未超过阈值"
+    else
+        CONCLUSION="Fail"
+        log_error "✗ 异常阻止功能异常"
+    fi
+    
+    # 7. 输出详细信息
+    log_info "异常阻止详情:"
+    log_info "  锁屏阈值: ${THRESHOLD} (80%)"
+    log_info "  强制登出阈值: ${FORCE_LOGOUT_THRESHOLD}"
+    log_info "  实际异常分数: ${ANOMALY_SCORE}"
+    log_info "  阻止分数: ${BLOCK_SCORE}"
+    log_info "  阈值超过: ${THRESHOLD_EXCEEDED}"
+    log_info "  系统操作检测: ${SYSTEM_ACTION_DETECTED}"
+    log_info "  权限不足次数: ${PERMISSION_DENIED}"
+    log_info "  降级处理次数: ${FALLBACK_ACTION}"
+    
 else
     LOG_PATH="no-log-found"
     CONCLUSION="Review"
+    log_warning "未找到日志文件"
 fi
 
 ARTIFACT=$(save_artifacts "$LOG_PATH" "$BASE_DIR")

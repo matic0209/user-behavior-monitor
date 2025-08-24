@@ -43,11 +43,12 @@ sleep $TRAINING_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 if [[ -n "$LOG_PATH" ]]; then
-    # 检查深度学习相关关键字
+    log_info "分析深度学习分类结果..."
+    
+    # 1. 检查深度学习相关关键字
     PATTERNS=('deep learning' 'neural network' 'classification' 'training' 'model' \
               '深度学习' '神经网络' '分类' '训练' '模型' \
-              'UBM_MARK: FEATURE_DONE' '特征处理完成' '模型训练完成' \
-              'accuracy' 'precision' 'recall' 'f1' '准确率' '精确率' '召回率')
+              'UBM_MARK: FEATURE_DONE' '特征处理完成' '模型训练完成')
     
     TOTAL_HITS=0
     for pattern in "${PATTERNS[@]}"; do
@@ -57,14 +58,82 @@ if [[ -n "$LOG_PATH" ]]; then
         fi
     done
     
-    if [[ $TOTAL_HITS -gt 0 ]]; then
-        CONCLUSION="Pass"
-    else
-        CONCLUSION="Review"
+    # 2. 提取具体的性能指标
+    log_info "提取分类性能指标..."
+    
+    # 准确率计算方式：正确预测的样本数 / 总样本数
+    ACCURACY=$(grep -o "accuracy[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    ACCURACY_PCT=$(grep -o "准确率[[:space:]]*[0-9.]*%" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    
+    # F1-score计算方式：2 * (精确率 * 召回率) / (精确率 + 召回率)
+    F1_SCORE=$(grep -o "f1[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    F1_SCORE_PCT=$(grep -o "F1[[:space:]]*[0-9.]*%" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    
+    # 召回率计算方式：正确预测为正类的样本数 / 实际正类样本数
+    RECALL=$(grep -o "recall[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    RECALL_PCT=$(grep -o "召回率[[:space:]]*[0-9.]*%" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    
+    # 精确率计算方式：正确预测为正类的样本数 / 预测为正类的样本数
+    PRECISION=$(grep -o "precision[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    PRECISION_PCT=$(grep -o "精确率[[:space:]]*[0-9.]*%" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    
+    # 3. 指标验证（阈值：准确率 ≥ 90%，F1-score ≥ 85%）
+    log_info "验证性能指标阈值..."
+    
+    # 转换为百分比进行比较
+    ACCURACY_VAL=${ACCURACY:-$ACCURACY_PCT}
+    F1_VAL=${F1_SCORE:-$F1_SCORE_PCT}
+    
+    # 如果值小于1，转换为百分比
+    if [[ $(echo "$ACCURACY_VAL < 1" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        ACCURACY_VAL=$(echo "$ACCURACY_VAL * 100" | bc -l 2>/dev/null || echo "0")
     fi
+    
+    if [[ $(echo "$F1_VAL < 1" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        F1_VAL=$(echo "$F1_VAL * 100" | bc -l 2>/dev/null || echo "0")
+    fi
+    
+    # 阈值检查
+    ACCURACY_OK=false
+    F1_OK=false
+    
+    if [[ $(echo "$ACCURACY_VAL >= 90" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        ACCURACY_OK=true
+        log_success "✓ 准确率达标: ${ACCURACY_VAL}% >= 90%"
+    else
+        log_warning "✗ 准确率未达标: ${ACCURACY_VAL}% < 90%"
+    fi
+    
+    if [[ $(echo "$F1_VAL >= 85" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        F1_OK=true
+        log_success "✓ F1-score达标: ${F1_VAL}% >= 85%"
+    else
+        log_warning "✗ F1-score未达标: ${F1_VAL}% < 85%"
+    fi
+    
+    # 4. 确定测试结论
+    if [[ "$ACCURACY_OK" == "true" ]] && [[ "$F1_OK" == "true" ]]; then
+        CONCLUSION="Pass"
+        log_success "✓ 深度学习分类性能指标全部达标"
+    elif [[ "$ACCURACY_OK" == "true" ]] || [[ "$F1_OK" == "true" ]]; then
+        CONCLUSION="Partial"
+        log_warning "⚠️ 深度学习分类性能指标部分达标"
+    else
+        CONCLUSION="Fail"
+        log_error "✗ 深度学习分类性能指标未达标"
+    fi
+    
+    # 5. 输出详细指标
+    log_info "分类性能指标详情:"
+    log_info "  准确率 (Accuracy): ${ACCURACY_VAL}% (阈值: ≥90%)"
+    log_info "  F1-score: ${F1_VAL}% (阈值: ≥85%)"
+    log_info "  召回率 (Recall): ${RECALL:-$RECALL_PCT}%"
+    log_info "  精确率 (Precision): ${PRECISION:-$PRECISION_PCT}%"
+    
 else
     LOG_PATH="no-log-found"
     CONCLUSION="Review"
+    log_warning "未找到日志文件"
 fi
 
 ARTIFACT=$(save_artifacts "$LOG_PATH" "$BASE_DIR")

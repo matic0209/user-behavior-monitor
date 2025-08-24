@@ -43,7 +43,9 @@ sleep $FEATURE_WAIT
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then
-    # 检查异常告警相关关键字
+    log_info "分析异常告警结果..."
+    
+    # 1. 检查异常告警相关关键字
     PATTERNS=('anomaly' 'alert' 'warning' 'detection' '异常' '告警' '警告' '检测' \
               'UBM_MARK: ALERT_TRIGGERED' '告警触发' '异常检测' '安全警告' \
               'manual_test' '手动测试' '弹窗' 'dialog' 'popup')
@@ -56,14 +58,59 @@ if [[ -n "$LOG_PATH" ]]; then
         fi
     done
     
-    if [[ $TOTAL_HITS -gt 0 ]]; then
-        CONCLUSION="Pass"
+    # 2. 提取异常分数和阈值信息
+    log_info "提取异常分数和阈值信息..."
+    
+    # 异常分数阈值：默认0.8（80%），可配置
+    ANOMALY_THRESHOLD=$(grep -o "anomaly_threshold[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0.8")
+    ALERT_THRESHOLD=$(grep -o "alert_threshold[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0.8")
+    
+    # 实际异常分数
+    ANOMALY_SCORE=$(grep -o "anomaly_score[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    ALERT_SCORE=$(grep -o "alert_score[[:space:]]*=[[:space:]]*[0-9.]*" "$LOG_PATH" 2>/dev/null | grep -o "[0-9.]*" | head -1 || echo "0")
+    
+    # 3. 阈值验证
+    log_info "验证异常分数阈值..."
+    
+    # 默认阈值：异常分数 ≥ 0.8 (80%)
+    THRESHOLD=${ANOMALY_THRESHOLD:-0.8}
+    
+    # 检查是否有异常分数超过阈值
+    THRESHOLD_EXCEEDED=false
+    if [[ $(echo "$ANOMALY_SCORE >= $THRESHOLD" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        THRESHOLD_EXCEEDED=true
+        log_success "✓ 异常分数超过阈值: ${ANOMALY_SCORE} >= ${THRESHOLD}"
+    elif [[ $(echo "$ALERT_SCORE >= $THRESHOLD" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
+        THRESHOLD_EXCEEDED=true
+        log_success "✓ 告警分数超过阈值: ${ALERT_SCORE} >= ${THRESHOLD}"
     else
-        CONCLUSION="Review"
+        log_warning "⚠️ 异常分数未超过阈值: ${ANOMALY_SCORE} < ${THRESHOLD}"
     fi
+    
+    # 4. 确定测试结论
+    if [[ $TOTAL_HITS -gt 0 ]] && [[ "$THRESHOLD_EXCEEDED" == "true" ]]; then
+        CONCLUSION="Pass"
+        log_success "✓ 异常告警功能正常，分数超过阈值"
+    elif [[ $TOTAL_HITS -gt 0 ]]; then
+        CONCLUSION="Partial"
+        log_warning "⚠️ 异常告警功能部分正常，但分数未超过阈值"
+    else
+        CONCLUSION="Fail"
+        log_error "✗ 异常告警功能异常"
+    fi
+    
+    # 5. 输出详细信息
+    log_info "异常告警详情:"
+    log_info "  异常分数阈值: ${THRESHOLD} (80%)"
+    log_info "  实际异常分数: ${ANOMALY_SCORE}"
+    log_info "  告警分数阈值: ${ALERT_THRESHOLD}"
+    log_info "  实际告警分数: ${ALERT_SCORE}"
+    log_info "  阈值超过: ${THRESHOLD_EXCEEDED}"
+    
 else
     LOG_PATH="no-log-found"
     CONCLUSION="Review"
+    log_warning "未找到日志文件"
 fi
 
 ARTIFACT=$(save_artifacts "$LOG_PATH" "$BASE_DIR")
