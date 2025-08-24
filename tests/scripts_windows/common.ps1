@@ -114,12 +114,45 @@ function Scroll-Vertical {
 
 function Send-CharRepeated {
     param([char]$Char='a', [int]$Times=4, [int]$IntervalMs=60)
-    $vk = [byte]([WinAPI.NativeMethods]::VkKeyScan($Char) -band 0xFF)
-    for ($i=0; $i -lt $Times; $i++) {
-        [WinAPI.NativeMethods]::keybd_event($vk,0,0,[UIntPtr]::Zero)
-        Start-Sleep -Milliseconds $IntervalMs
-        [WinAPI.NativeMethods]::keybd_event($vk,0,$KEYEVENTF_KEYUP,[UIntPtr]::Zero)
-        Start-Sleep -Milliseconds $IntervalMs
+    
+    # 改进的快捷键发送函数
+    try {
+        $vk = [byte]([WinAPI.NativeMethods]::VkKeyScan($Char) -band 0xFF)
+        
+        # 确保程序窗口获得焦点
+        Start-Sleep -Milliseconds 500
+        
+        for ($i=0; $i -lt $Times; $i++) {
+            # 按下键
+            [WinAPI.NativeMethods]::keybd_event($vk,0,0,[UIntPtr]::Zero)
+            Start-Sleep -Milliseconds $IntervalMs
+            
+            # 释放键
+            [WinAPI.NativeMethods]::keybd_event($vk,0,$KEYEVENTF_KEYUP,[UIntPtr]::Zero)
+            Start-Sleep -Milliseconds $IntervalMs
+            
+            # 额外延迟确保按键被识别
+            Start-Sleep -Milliseconds 100
+        }
+        
+        # 等待程序处理快捷键
+        Start-Sleep -Seconds 2
+        
+        Write-Host "已发送快捷键: $Char 重复 $Times 次"
+        
+    } catch {
+        Write-Warning "快捷键发送失败: $_"
+        # 备用方案：使用SendKeys
+        try {
+            Add-Type -AssemblyName System.Windows.Forms
+            for ($i=0; $i -lt $Times; $i++) {
+                [System.Windows.Forms.SendKeys]::SendWait($Char)
+                Start-Sleep -Milliseconds $IntervalMs
+            }
+            Write-Host "使用备用方案发送快捷键成功"
+        } catch {
+            Write-Error "备用快捷键发送也失败: $_"
+        }
     }
 }
 
@@ -194,15 +227,100 @@ function Wait-LogContains {
         [switch]$Regex,
         [switch]$CaseSensitive
     )
-    if (-not $LogPath -or -not (Test-Path -LiteralPath $LogPath)) { return @{ ok=$false; hits=@{} } }
+    if (-not $LogPath -or -not (Test-Path -LiteralPath $LogPath)) { 
+        Write-Warning "日志文件不存在: $LogPath"
+        return @{ ok=$false; hits=@{} } 
+    }
+    
     $deadline = (Get-Date).AddSeconds($TimeoutSec)
     $lastHits = @{}
+    $attempts = 0
+    
+    Write-Host "等待日志包含关键字，超时时间: ${TimeoutSec}秒"
+    Write-Host "搜索模式: $($Patterns -join ', ')"
+    
     while ((Get-Date) -lt $deadline) {
-        $res = Assert-LogContains -LogPath $LogPath -Patterns $Patterns -Regex:$Regex -CaseSensitive:$CaseSensitive
-        $lastHits = $res.hits
-        if ($res.ok) { return @{ ok=$true; hits=$res.hits } }
+        $attempts++
+        $currentHits = @{}
+        $foundAny = $false
+        
+        foreach ($pattern in $Patterns) {
+            try {
+                $params = @{ LiteralPath = $LogPath; Pattern = $pattern; ErrorAction = 'SilentlyContinue' }
+                if ($Regex) { 
+                    $params.Remove('Pattern') | Out-Null; 
+                    $params['Pattern'] = $pattern 
+                }
+                if (-not $CaseSensitive) { 
+                    $params['CaseSensitive'] = $false 
+                }
+                
+                $matches = Select-String @params
+                $count = if ($matches) { $matches.Count } else { 0 }
+                $currentHits[$pattern] = $count
+                
+                if ($count -gt 0) {
+                    $foundAny = $true
+                    if ($attempts -eq 1) {
+                        Write-Host "✓ 找到关键字 '$pattern': $count 次"
+                    }
+                }
+            } catch {
+                Write-Warning "搜索模式 '$pattern' 时出错: $_"
+                $currentHits[$pattern] = 0
+            }
+        }
+        
+        # 检查是否有新的匹配
+        $newMatches = $false
+        foreach ($pattern in $Patterns) {
+            $current = $currentHits[$pattern]
+            $last = $lastHits[$pattern]
+            if ($current -gt $last) {
+                $newMatches = $true
+                break
+            }
+        }
+        
+        if ($foundAny) {
+            if ($newMatches) {
+                Write-Host "发现新的日志匹配 (尝试 $attempts)"
+            }
+            
+            # 如果所有模式都找到了，提前返回
+            $allFound = $true
+            foreach ($pattern in $Patterns) {
+                if ($currentHits[$pattern] -eq 0) {
+                    $allFound = $false
+                    break
+                }
+            }
+            
+            if ($allFound) {
+                Write-Host "✓ 所有关键字都已找到，提前返回"
+                return @{ ok=$true; hits=$currentHits }
+            }
+        }
+        
+        $lastHits = $currentHits.Clone()
+        
+        # 每5次尝试显示一次进度
+        if ($attempts % 5 -eq 0) {
+            $remaining = [math]::Round(($deadline - (Get-Date)).TotalSeconds, 1)
+            Write-Host "等待中... 剩余时间: ${remaining}秒 (尝试 $attempts)"
+        }
+        
         Start-Sleep -Milliseconds $IntervalMs
     }
+    
+    Write-Warning "超时，未找到所有关键字"
+    Write-Host "最终匹配结果:"
+    foreach ($pattern in $Patterns) {
+        $count = $lastHits[$pattern]
+        $status = if ($count -gt 0) { "✓" } else { "✗" }
+        Write-Host "  $status $pattern`: $count 次"
+    }
+    
     return @{ ok=$false; hits=$lastHits }
 }
 
