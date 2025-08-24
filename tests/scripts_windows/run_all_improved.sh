@@ -61,12 +61,18 @@ log_success "✓ 工作目录已准备: $BASE_DIR"
 log_info "  数据目录: $DATA_DIR"
 log_info "  日志目录: $LOGS_DIR"
 
-# 测试用例列表
+# 测试用例列表 - 包含所有10个测试用例
 declare -a TEST_CASES=(
+    "TC01:TC01_realtime_input_collection.sh:实时输入采集"
     "TC02:TC02_feature_extraction.sh:特征提取功能"
+    "TC03:TC03_deep_learning_classification.sh:深度学习分类"
+    "TC04:TC04_anomaly_alert.sh:异常告警"
+    "TC05:TC05_anomaly_block.sh:异常阻止"
     "TC06:TC06_behavior_fingerprint_management.sh:行为指纹管理"
+    "TC07:TC07_collection_metrics.sh:采集指标"
     "TC08:TC08_feature_count_metric.sh:特征数量阈值"
     "TC09:TC09_classification_accuracy_metric.sh:分类准确率指标"
+    "TC10:TC10_anomaly_false_alarm_rate.sh:异常误报率"
 )
 
 # 测试结果统计
@@ -102,31 +108,28 @@ for test_case in "${TEST_CASES[@]}"; do
         chmod +x "$script_path"
     fi
     
-    try {
-        # 执行测试脚本
-        test_start_time=$(date +%s)
-        log_info "开始时间: $(date '+%H:%M:%S')"
-        
-        "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"
+    # 执行测试脚本
+    test_start_time=$(date +%s)
+    log_info "开始时间: $(date '+%H:%M:%S')"
+    
+    if "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"; then
+        test_exit_code=0
+    else
         test_exit_code=$?
-        
-        test_end_time=$(date +%s)
-        duration=$((test_end_time - test_start_time))
-        
-        log_info "完成时间: $(date '+%H:%M:%S')"
-        log_info "执行时长: ${duration} 秒"
-        
-        # 检查测试结果
-        if [[ $test_exit_code -eq 0 ]]; then
-            log_success "✓ 测试完成"
-            ((PASSED++))
-        else
-            log_warning "⚠️  测试完成但退出码非零: $test_exit_code"
-            ((FAILED++))
-        fi
-        
-    } catch {
-        log_error "❌ 测试执行失败: $_"
+    fi
+    
+    test_end_time=$(date +%s)
+    duration=$((test_end_time - test_start_time))
+    
+    log_info "完成时间: $(date '+%H:%M:%S')"
+    log_info "执行时长: ${duration} 秒"
+    
+    # 检查测试结果
+    if [[ $test_exit_code -eq 0 ]]; then
+        log_success "✓ 测试完成"
+        ((PASSED++))
+    else
+        log_warning "⚠️  测试完成但退出码非零: $test_exit_code"
         ((FAILED++))
         
         if [[ "$SKIP_FAILED" == "false" ]]; then
@@ -137,7 +140,7 @@ for test_case in "${TEST_CASES[@]}"; do
                 break
             fi
         fi
-    }
+    fi
     
     echo ""
 done
@@ -166,10 +169,9 @@ fi
 
 # 生成测试报告
 REPORT_PATH="$BASE_DIR/test_report_$(date '+%Y%m%d_%H%M%S').txt"
-try {
-    cat > "$REPORT_PATH" << EOF
-Windows UBM 测试报告
-====================
+cat > "$REPORT_PATH" << EOF
+Windows UBM 测试报告 - Git Bash 版本
+====================================
 测试时间: $(date '+%Y-%m-%d %H:%M:%S')
 总耗时: ${TOTAL_MINUTES} 分钟
 
@@ -180,17 +182,19 @@ Windows UBM 测试报告
   跳过: $SKIPPED
   成功率: ${SUCCESS_RATE}%
 
+测试用例详情:
+$(for test_case in "${TEST_CASES[@]}"; do
+    IFS=':' read -r test_name script_name description <<< "$test_case"
+    echo "  $test_name: $description"
+done)
+
 工作目录: $BASE_DIR
 可执行文件: $EXE_PATH
 
 详细日志请查看: $LOGS_DIR
 EOF
-    
-    log_success "测试报告已保存: $REPORT_PATH"
-    
-} catch {
-    log_warning "测试报告保存失败: $_"
-}
+
+log_success "测试报告已保存: $REPORT_PATH"
 
 echo ""
 log_success "测试执行完成！"
