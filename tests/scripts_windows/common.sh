@@ -215,11 +215,55 @@ start_ubm() {
     
     log_debug "启动UBM程序: $exe，工作目录: $cwd"
     
+    # 检查可执行文件是否存在
+    if [[ ! -f "$exe" ]]; then
+        log_error "可执行文件不存在: $exe"
+        log_error "请检查以下路径:"
+        log_error "  1. 相对路径: $exe"
+        log_error "  2. 绝对路径: $(realpath "$exe" 2>/dev/null || echo '无法解析')"
+        log_error "  3. 当前工作目录: $(pwd)"
+        log_error ""
+        log_error "解决方案:"
+        log_error "  1. 确保已构建 UserBehaviorMonitor.exe"
+        log_error "  2. 检查 -ExePath 参数是否正确"
+        log_error "  3. 使用绝对路径，例如:"
+        log_error "     C:/path/to/UserBehaviorMonitor.exe"
+        log_error "  4. 或者先构建程序:"
+        log_error "     python setup.py build"
+        log_error "     pyinstaller --onefile user_behavior_monitor.py"
+        exit 1
+    fi
+    
+    # 检查文件是否可执行
+    if [[ ! -x "$exe" ]]; then
+        log_warning "文件存在但不可执行，尝试添加执行权限: $exe"
+        chmod +x "$exe" 2>/dev/null || log_warning "无法添加执行权限"
+    fi
+    
+    # 在切换工作目录前，先解析可执行文件的绝对路径
+    local exe_abs_path=""
+    if [[ "$exe" == /* ]] || [[ "$exe" == [A-Za-z]:* ]]; then
+        # 已经是绝对路径
+        exe_abs_path="$exe"
+    else
+        # 相对路径，转换为绝对路径
+        exe_abs_path="$(realpath "$exe" 2>/dev/null || echo "$exe")"
+        if [[ ! -f "$exe_abs_path" ]]; then
+            # 如果realpath失败，尝试基于当前目录构建绝对路径
+            exe_abs_path="$(pwd)/$exe"
+        fi
+    fi
+    
+    log_debug "可执行文件绝对路径: $exe_abs_path"
+    
     # 切换到工作目录
     cd "$cwd"
     
+    log_info "正在启动程序: $exe_abs_path"
+    log_info "工作目录: $(pwd)"
+    
     # 启动程序（后台运行）
-    "$exe" &
+    "$exe_abs_path" &
     local pid=$!
     
     # 等待程序启动
@@ -231,6 +275,10 @@ start_ubm() {
         echo "$pid"
     else
         log_error "程序启动失败"
+        log_error "请检查:"
+        log_error "  1. 程序是否有依赖缺失"
+        log_error "  2. 是否有权限问题"
+        log_error "  3. 程序是否崩溃"
         exit 1
     fi
 }

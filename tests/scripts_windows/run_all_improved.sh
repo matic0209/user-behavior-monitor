@@ -50,9 +50,71 @@ fi
 source "$SCRIPT_DIR/common.sh"
 
 # 验证可执行文件
+log_info "验证可执行文件..."
+log_info "  相对路径: $EXE_PATH"
+log_info "  当前工作目录: $(pwd)"
+log_info "  脚本目录: $SCRIPT_DIR"
+
+# 尝试解析绝对路径
+EXE_ABS_PATH=""
+if [[ "$EXE_PATH" == /* ]] || [[ "$EXE_PATH" == [A-Za-z]:* ]]; then
+    # 已经是绝对路径
+    EXE_ABS_PATH="$EXE_PATH"
+    log_info "  绝对路径: $EXE_ABS_PATH"
+else
+    # 相对路径，尝试解析
+    EXE_ABS_PATH="$(realpath "$EXE_PATH" 2>/dev/null || echo '')"
+    if [[ -n "$EXE_ABS_PATH" ]]; then
+        log_info "  解析的绝对路径: $EXE_ABS_PATH"
+    else
+        log_info "  无法解析绝对路径"
+    fi
+fi
+
 if [[ ! -f "$EXE_PATH" ]]; then
     log_error "可执行文件不存在: $EXE_PATH"
-    log_info "请确保 UserBehaviorMonitor.exe 已构建并位于 dist/ 目录中"
+    log_error ""
+    log_error "请检查以下路径:"
+    log_error "  1. 相对路径: $EXE_PATH"
+    log_error "  2. 绝对路径: $EXE_ABS_PATH"
+    log_error "  3. 当前工作目录: $(pwd)"
+    log_error "  4. 脚本目录: $SCRIPT_DIR"
+    log_error ""
+    log_error "路径调试信息:"
+    log_error "  pwd: $(pwd)"
+    log_error "  ls -la .:"
+    ls -la . 2>/dev/null || log_error "    无法列出当前目录"
+    log_error "  ls -la ..:"
+    ls -la .. 2>/dev/null || log_error "    无法列出上级目录"
+    log_error "  ls -la ../..:"
+    ls -la ../.. 2>/dev/null || log_error "    无法列出上上级目录"
+    log_error ""
+    log_error "解决方案:"
+    log_error "  1. 确保已构建 UserBehaviorMonitor.exe"
+    log_error "  2. 检查 -ExePath 参数是否正确"
+    log_error "  3. 使用绝对路径，例如:"
+    log_error "     C:/path/to/UserBehaviorMonitor.exe"
+    log_error "  4. 或者先构建程序:"
+    log_error "     python setup.py build"
+    log_error "     pyinstaller --onefile user_behavior_monitor.py"
+    log_error ""
+    log_error "当前可用的构建脚本:"
+    if [[ -f "../build_windows.py" ]]; then
+        log_error "  - ../build_windows.py (Windows专用构建)"
+    fi
+    if [[ -f "../build_cross_platform.py" ]]; then
+        log_error "  - ../build_cross_platform.py (跨平台构建)"
+    fi
+    if [[ -f "../simple_build.py" ]]; then
+        log_error "  - ../simple_build.py (简单构建)"
+    fi
+    log_error ""
+    log_error "示例用法:"
+    log_error "  # 使用绝对路径"
+    log_error "  $0 -ExePath \"C:/Users/YourName/project/dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\""
+    log_error ""
+    log_error "  # 使用相对路径（确保文件存在）"
+    log_error "  $0 -ExePath \"../../dist/UserBehaviorMonitor.exe\" -WorkDir \"win_test_run\""
     exit 1
 fi
 
