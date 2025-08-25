@@ -467,31 +467,34 @@ stop_ubm_gracefully() {
     
     log_debug "优雅停止UBM程序，PID: $proc"
     
-    # 发送退出快捷键 qqqq
-    send_char_repeated 'q' 4 80
-    
-    # 等待程序退出
-    sleep 2
-    
-    # 如果进程还在运行，强制终止
+    # 对于循环预测的程序，直接强制终止更可靠
     if kill -0 "$proc" 2>/dev/null; then
-        log_warning "程序未响应退出信号，尝试强制终止 (POSIX kill)"
+        log_warning "检测到进程仍在运行，立即强制终止 (避免循环预测卡住)"
         kill -9 "$proc" 2>/dev/null || true
         sleep 1
     fi
 
-    # 如果仍在运行，Windows 环境下使用 Taskkill/PowerShell 兜底
+    # Windows 环境下使用 Taskkill 确保彻底终止
     if kill -0 "$proc" 2>/dev/null; then
         if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-            log_warning "POSIX kill 未生效，尝试 taskkill /F 兜底"
+            log_warning "POSIX kill 未生效，使用 taskkill /F 强制终止"
             taskkill //PID "$proc" //F 2>/dev/null || true
             sleep 1
-            if kill -0 "$proc" 2>/dev/null && [[ "$USE_POWERSHELL" == "true" ]]; then
-                log_warning "taskkill 未生效，尝试 PowerShell Stop-Process"
-                powershell.exe -NoProfile -Command "Try { Stop-Process -Id $proc -Force -ErrorAction Stop } Catch { }" 2>/dev/null || true
+            
+            # 最后的兜底：尝试终止所有 UserBehaviorMonitor 进程
+            if kill -0 "$proc" 2>/dev/null; then
+                log_warning "进程仍未终止，尝试终止所有 UserBehaviorMonitor 进程"
+                taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
                 sleep 1
             fi
         fi
+    fi
+    
+    # 验证进程是否真正终止
+    if kill -0 "$proc" 2>/dev/null; then
+        log_error "警告：进程 $proc 可能仍在运行，请手动检查"
+    else
+        log_success "进程 $proc 已成功终止"
     fi
 }
 
