@@ -81,7 +81,7 @@ show_test_step 5 "等待数据采集" "success"
 
 # 步骤6：检查日志关键字
 show_test_step 6 "检查日志关键字" "start"
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
+LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 15)
 if [[ -n "$LOG_PATH" ]]; then
     # 检查日志关键字
     PATTERNS=('keyboard' 'click' 'hotkey' 'move' 'scroll' 'released' 'pressed' \

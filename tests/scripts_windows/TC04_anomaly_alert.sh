@@ -53,7 +53,7 @@ while [[ $(date +%s) -lt $end_ts ]]; do
   sleep 1
 done
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
+# LOG_PATH已在时间盒循环中获取，无需重复等待
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析异常告警结果..."
     

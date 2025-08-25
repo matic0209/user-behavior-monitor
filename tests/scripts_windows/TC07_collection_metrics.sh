@@ -51,7 +51,7 @@ while [[ $(date +%s) -lt $end_ts ]]; do
   sleep 1
 done
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
+# LOG_PATH已在时间盒循环中获取，无需重复等待
 if [[ -n "$LOG_PATH" ]]; then
     # 检查采集指标相关关键字
     PATTERNS=('collection' 'metrics' 'data_points' 'samples' '采集' '指标' '数据点' '样本' \
