@@ -523,11 +523,22 @@ wait_for_latest_log() {
     
     log_debug "等待最新日志文件，超时时间: ${timeout_sec}秒"
     
-    local deadline=$((SECONDS + timeout_sec))
+    # 使用更可靠的超时机制
+    local end_time=$(( $(date +%s) + timeout_sec ))
     
-    while [[ $SECONDS -lt $deadline ]]; do
-        local log_path=$(get_latest_log_path "$logs_dir")
-        if [[ -n "$log_path" ]]; then
+    while [[ $(date +%s) -lt $end_time ]]; do
+        # 添加错误处理，避免 find 命令卡住
+        local log_path=""
+        if [[ -d "$logs_dir" ]]; then
+            # 使用 timeout 命令限制 find 执行时间（如果可用）
+            if command -v timeout >/dev/null 2>&1; then
+                log_path=$(timeout 3 find "$logs_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- 2>/dev/null || echo "")
+            else
+                log_path=$(find "$logs_dir" -name "*.log" -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2- 2>/dev/null || echo "")
+            fi
+        fi
+        
+        if [[ -n "$log_path" && -f "$log_path" ]]; then
             log_debug "找到日志文件: $log_path"
             echo "$log_path"
             return 0
