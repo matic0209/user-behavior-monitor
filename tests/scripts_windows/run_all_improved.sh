@@ -1,4 +1,6 @@
 #!/bin/bash
+# 强制关闭退出即停，防止某些环境下 -e 继承导致中途中断
+set +e
 # Windows UBM 测试套件 - Git Bash 兼容版本
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXE_PATH=""
 WORK_DIR=""
 VERBOSE=false
-SKIP_FAILED=false
+SKIP_FAILED=true  # 默认跳过失败用例，避免交互阻塞
 FAST_MODE=true  # 默认启用快速模式
 ULTRA_FAST_MODE=false  # 新增超快模式
 
@@ -28,6 +30,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -SkipFailed)
             SKIP_FAILED=true
+            shift
+            ;;
+        -NoSkipFailed)
+            SKIP_FAILED=false
             shift
             ;;
         -FastMode)
@@ -75,6 +81,11 @@ fi
 
 # 加载公共函数（在参数验证之后）
 source "$SCRIPT_DIR/common.sh"
+
+# 非交互环境下强制跳过失败，防止 read 阻塞
+if [[ ! -t 0 || ! -t 1 ]]; then
+    SKIP_FAILED=true
+fi
 
 # 设置快速模式环境变量
 export FAST_MODE="$FAST_MODE"
@@ -238,9 +249,9 @@ for test_case in "${TEST_CASES[@]}"; do
     test_start_time=$(date +%s)
     log_info "开始执行脚本: $script_name"
     
-    # 使用set +e来防止脚本因为测试失败而退出
+    # 使用 bash 显式执行子脚本，且关闭退出即停
     set +e
-    if "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"; then
+    if bash "$script_path" -ExePath "$EXE_PATH" -WorkDir "$WORK_DIR"; then
         test_exit_code=0
         test_result="success"
         log_debug "脚本执行成功，退出码: $test_exit_code"
@@ -249,7 +260,7 @@ for test_case in "${TEST_CASES[@]}"; do
         test_result="error"
         log_debug "脚本执行失败，退出码: $test_exit_code"
     fi
-    set -e  # 恢复错误时退出的设置
+    # 不再恢复 set -e，保持容错
     
     test_end_time=$(date +%s)
     duration=$((test_end_time - test_start_time))
@@ -264,7 +275,7 @@ for test_case in "${TEST_CASES[@]}"; do
         ((FAILED++))
         show_test_case_status "$test_name" "$description" "error"
         
-        if [[ "$SKIP_FAILED" == "false" ]]; then
+        if [[ "$SKIP_FAILED" == "false" && -t 0 ]]; then
             log_info "是否继续执行下一个测试? (y/N)"
             read -r response
             if [[ ! "$response" =~ ^[Yy]$ ]]; then
@@ -279,6 +290,7 @@ for test_case in "${TEST_CASES[@]}"; do
     # 显示执行时间
     log_info "执行时长: ${duration} 秒"
     log_info "当前进度: $((PASSED + FAILED + SKIPPED))/$TOTAL"
+    log_info "已完成: $test_name ($description)，准备开始下一个用例"
     
     echo ""
 done
