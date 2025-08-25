@@ -37,18 +37,42 @@ log_info "发送快捷键 rrrr 触发特征处理..."
 send_char_repeated 'r' 4 100
 write_result_row 2 "Trigger deep learning" "Deep learning starts" "send rrrr" "N/A"
 
-# 等待深度学习处理完成
-log_info "等待深度学习处理完成..."
-sleep $TRAINING_WAIT
+# 等待深度学习/预测进入稳定阶段（时间盒，避免卡住）
+log_info "等待深度学习/预测进入稳定阶段(时间盒)..."
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
+# 依据模式设定时间盒
+TIMEBOX=45
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then
+  TIMEBOX=8
+elif [[ "${FAST_MODE:-false}" == "true" ]]; then
+  TIMEBOX=15
+fi
+
+end_ts=$(( $(date +%s) + TIMEBOX ))
+LOG_PATH=""
+PRED_SEEN=false
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    # 命中任一预测相关标记/日志即认为已进入稳定阶段
+    if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]" "$LOG_PATH" 2>/dev/null; then
+      PRED_SEEN=true
+      break
+    fi
+  fi
+  sleep 1
+done
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析深度学习分类结果..."
     
-    # 1. 检查深度学习相关关键字
-    PATTERNS=('deep learning' 'neural network' 'classification' 'training' 'model' \
-              '深度学习' '神经网络' '分类' '训练' '模型' \
-              'UBM_MARK: FEATURE_DONE' '特征处理完成' '模型训练完成')
+    # 1. 检查深度学习/预测相关关键字
+    PATTERNS=(
+      'deep learning' 'neural network' 'classification' 'training' 'model'
+      '深度学习' '神经网络' '分类' '训练' '模型'
+      'UBM_MARK: FEATURE_DONE' '特征处理完成' '模型训练完成'
+      'UBM_MARK: PREDICT_(INIT|START|RUNNING)'
+      '使用训练模型预测完成' '预测结果:' '保存了 .* 预测结果到数据库'
+    )
     
     TOTAL_HITS=0
     for pattern in "${PATTERNS[@]}"; do
