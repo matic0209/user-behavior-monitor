@@ -37,11 +37,23 @@ sleep $STARTUP_WAIT
 log_info "启动在线异常检测监控..."
 send_char_repeated 'r' 4 100
 
-# 等待监控运行
-log_info "等待在线监控运行..."
-sleep $FEATURE_WAIT
+# 等待监控进入稳定阶段（时间盒，避免长时间等待）
+log_info "等待监控进入稳定阶段(时间盒)..."
+TIMEBOX=45
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=10; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=20; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
+LOG_PATH=""
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]|detection|检测|anomaly" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中监控稳定阶段日志，进入误报率分析"
+      break
+    fi
+  fi
+  sleep 1
+done
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析异常误报率..."
     

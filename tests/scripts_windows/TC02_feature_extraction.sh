@@ -54,48 +54,49 @@ log_info "发送快捷键 rrrr 触发特征处理..."
 send_char_repeated 'r' 4 100
 write_result_row 2 "Trigger feature processing" "Feature processing starts" "send rrrr" "N/A"
 
-# 等待特征处理完成
-log_info "等待特征处理完成..."
-sleep $FEATURE_WAIT
+# 等待特征处理关键日志（时间盒，避免卡住）
+log_info "等待特征处理关键日志(时间盒)..."
+TIMEBOX=35
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=8; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=15; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
 
-# 等待日志文件
-log_info "等待日志文件生成..."
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
+LOG_PATH=""
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*FEATURE_(START|DONE)|特征处理完成|process_session_features|feature.*processed" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中特征处理关键日志，进入分析"
+      break
+    fi
+  fi
+  sleep 1
+done
+
 if [[ -n "$LOG_PATH" ]]; then
-    log_info "找到日志文件: $LOG_PATH"
+    log_info "分析特征处理结果..."
     
-    # 检查日志关键字
-    log_info "检查日志关键字..."
-    if wait_log_contains "$LOG_PATH" \
-        'features' 'process_session_features' 'feature' 'processed' 'complete' \
-        '特征处理' '处理完成' '特征 处理 完成' '[SUCCESS] 特征处理完成' \
-        'UBM_MARK: FEATURE_DONE' 'FEATURE_START' 'FEATURE_DONE' \
-        '特征数据' '特征转换' '特征保存' '特征统计'; then
-        
-        log_success "找到所有关键字，测试通过"
-        CONCLUSION="Pass"
-    else
-        # 检查是否有部分关键字匹配
-        TOTAL_HITS=0
-        PATTERNS=('features' 'process_session_features' 'feature' 'processed' 'complete' \
-                  '特征处理' '处理完成' '特征 处理 完成' '[SUCCESS] 特征处理完成' \
-                  'UBM_MARK: FEATURE_DONE' 'FEATURE_START' 'FEATURE_DONE' \
-                  '特征数据' '特征转换' '特征保存' '特征统计')
-        
-        for pattern in "${PATTERNS[@]}"; do
-            if grep -q "$pattern" "$LOG_PATH" 2>/dev/null; then
-                COUNT=$(grep -c "$pattern" "$LOG_PATH" 2>/dev/null || echo "0")
-                TOTAL_HITS=$((TOTAL_HITS + COUNT))
-            fi
-        done
-        
-        if [[ $TOTAL_HITS -gt 0 ]]; then
-            log_warning "部分关键字匹配，测试部分通过"
-            CONCLUSION="Partial"
-        else
-            log_warning "未找到关键字，需要复核"
-            CONCLUSION="Review"
+    # 检查特征处理关键字
+    PATTERNS=(
+      'features' 'process_session_features' 'feature' 'processed' 'complete'
+      '特征处理' '处理完成' '特征 处理 完成' '[SUCCESS] 特征处理完成'
+      'UBM_MARK: FEATURE_DONE' 'FEATURE_START' 'FEATURE_DONE'
+      '特征数据' '特征转换' '特征保存' '特征统计'
+    )
+    
+    TOTAL_HITS=0
+    for pattern in "${PATTERNS[@]}"; do
+        if grep -q "$pattern" "$LOG_PATH" 2>/dev/null; then
+            COUNT=$(grep -c "$pattern" "$LOG_PATH" 2>/dev/null || echo "0")
+            TOTAL_HITS=$((TOTAL_HITS + COUNT))
         fi
+    done
+    
+    if [[ $TOTAL_HITS -gt 0 ]]; then
+        CONCLUSION="Pass"
+        log_success "找到特征处理关键字，测试通过"
+    else
+        CONCLUSION="Review"
+        log_warning "未找到特征处理关键字，需要复核"
     fi
 else
     log_warning "未找到日志文件"

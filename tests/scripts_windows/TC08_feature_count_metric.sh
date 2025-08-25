@@ -53,13 +53,23 @@ sleep $STARTUP_WAIT
 log_info "发送快捷键 rrrr 触发特征处理..."
 send_char_repeated 'r' 4 100
 
-# 等待特征处理完成
-log_info "等待特征处理完成..."
-sleep $FEATURE_WAIT
+# 等待特征数量日志（时间盒，避免卡住）
+log_info "等待特征数量日志(时间盒)..."
+TIMEBOX=35
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=8; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=15; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
 
-# 等待日志文件
-log_info "等待日志文件生成..."
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
+LOG_PATH=""
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*FEATURE_DONE|特征处理完成|feature.*count|特征数量|features.*:" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中特征数量相关日志，进入分析"
+      break
+    fi
+  fi
+  sleep 1
+done
 OK=false
 ACTUAL="no-log-found"
 

@@ -31,9 +31,24 @@ write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
 sleep $STARTUP_WAIT
 send_char_repeated 'r' 4 100
-sleep $FEATURE_WAIT
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
+# 等待指纹相关日志（时间盒，避免卡住）
+log_info "等待指纹相关日志(时间盒)..."
+TIMEBOX=30
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=6; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=12; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
+
+LOG_PATH=""
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "fingerprint|指纹|UBM_MARK:\s*FEATURE_DONE|特征处理完成|behavior.*pattern" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中指纹相关日志，进入分析"
+      break
+    fi
+  fi
+  sleep 1
+done
 if [[ -n "$LOG_PATH" ]]; then
     # 检查指纹相关关键字
     PATTERNS=('fingerprint' 'import' 'export' '指纹' '导入' '导出' '行为指纹' '用户指纹' \
