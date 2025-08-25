@@ -31,7 +31,24 @@ write_result_row 1 "Start evaluation" "Output Accuracy / F1" "PID=$PID" "Pass"
 
 sleep $STARTUP_WAIT
 send_char_repeated 'r' 4 100
-sleep $TRAINING_WAIT
+
+# 时间盒 + 命中即止，避免在训练/预测阶段卡住
+log_info "等待训练/预测日志(时间盒)..."
+TIMEBOX=60
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=12; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=25; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
+
+LOG_PATH=""
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]|UBM_MARK:\s*FEATURE_DONE|模型训练完成" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中训练/预测关键日志，提前进入阈值检查"
+      break
+    fi
+  fi
+  sleep 1
+done
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 OK=false

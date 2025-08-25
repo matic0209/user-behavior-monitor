@@ -444,8 +444,23 @@ stop_ubm_gracefully() {
     
     # 如果进程还在运行，强制终止
     if kill -0 "$proc" 2>/dev/null; then
-        log_warning "程序未响应退出信号，强制终止"
+        log_warning "程序未响应退出信号，尝试强制终止 (POSIX kill)"
         kill -9 "$proc" 2>/dev/null || true
+        sleep 1
+    fi
+
+    # 如果仍在运行，Windows 环境下使用 PowerShell/Taskkill 兜底
+    if kill -0 "$proc" 2>/dev/null; then
+        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+            log_warning "POSIX kill 未生效，使用 PowerShell Stop-Process 兜底"
+            powershell.exe -NoProfile -Command "Try { Stop-Process -Id $proc -Force -ErrorAction Stop } Catch { }" 2>/dev/null || true
+            sleep 1
+            if kill -0 "$proc" 2>/dev/null; then
+                log_warning "Stop-Process 未生效，尝试 taskkill /F"
+                taskkill //PID "$proc" //F 2>/dev/null || true
+                sleep 1
+            fi
+        fi
     fi
 }
 
