@@ -43,7 +43,9 @@ while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
     if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]|UBM_MARK:\s*FEATURE_DONE|模型训练完成" "$LOG_PATH" 2>/dev/null; then
-      log_info "命中训练/预测关键日志，提前进入阈值检查"
+      log_info "命中训练/预测关键日志，立即终止应用程序避免无限循环"
+      stop_ubm_immediately "$PID" "准确率测试-预测检测"
+      sleep 1
       break
     fi
   fi
@@ -91,7 +93,13 @@ fi
 CONCLUSION=$([[ "$OK" == "true" ]] && echo "Pass" || echo "Review")
 write_result_row 2 "Threshold check" "Acc>=90%, F1>=85%" "$ACTUAL" "$CONCLUSION"
 
-stop_ubm_gracefully "$PID"
+# 进程已在预测检测时终止，这里只需确认
+if kill -0 "$PID" 2>/dev/null; then
+    log_warning "进程仍在运行，执行最终清理"
+    stop_ubm_gracefully "$PID"
+else
+    log_success "进程已成功终止"
+fi
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
 log_success "TC09 分类准确率指标测试完成"

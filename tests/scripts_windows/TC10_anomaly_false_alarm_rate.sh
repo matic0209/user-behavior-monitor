@@ -48,7 +48,9 @@ while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
     if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]|detection|检测|anomaly" "$LOG_PATH" 2>/dev/null; then
-      log_info "命中监控稳定阶段日志，进入误报率分析"
+      log_info "命中监控稳定阶段日志，立即终止应用程序避免无限循环"
+      stop_ubm_immediately "$PID" "误报率测试-预测检测"
+      sleep 1
       break
     fi
   fi
@@ -183,7 +185,13 @@ fi
 
 write_result_row 2 "Compute from logs" "FPR <= 1%" "$ACTUAL" "$CONCLUSION"
 
-stop_ubm_gracefully "$PID"
+# 进程已在预测检测时终止，这里只需确认
+if kill -0 "$PID" 2>/dev/null; then
+    log_warning "进程仍在运行，执行最终清理"
+    stop_ubm_gracefully "$PID"
+else
+    log_success "进程已成功终止"
+fi
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
 if [[ "$FAST_MODE" == "true" ]]; then

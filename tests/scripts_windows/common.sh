@@ -462,39 +462,85 @@ start_ubm() {
     fi
 }
 
-stop_ubm_gracefully() {
+# 专门用于立即终止预测循环的函数
+stop_ubm_immediately() {
     local proc="$1"
+    local reason="${2:-预测循环检测}"
     
-    log_debug "优雅停止UBM程序，PID: $proc"
+    log_warning "立即终止UBM程序 (原因: $reason)，PID: $proc"
     
-    # 对于循环预测的程序，直接强制终止更可靠
+    # 无等待，立即强杀
     if kill -0 "$proc" 2>/dev/null; then
-        log_warning "检测到进程仍在运行，立即强制终止 (避免循环预测卡住)"
         kill -9 "$proc" 2>/dev/null || true
-        sleep 1
-    fi
-
-    # Windows 环境下使用 Taskkill 确保彻底终止
-    if kill -0 "$proc" 2>/dev/null; then
+        
+        # Windows环境立即使用taskkill
         if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-            log_warning "POSIX kill 未生效，使用 taskkill /F 强制终止"
             taskkill //PID "$proc" //F 2>/dev/null || true
-            sleep 1
-            
-            # 最后的兜底：尝试终止所有 UserBehaviorMonitor 进程
-            if kill -0 "$proc" 2>/dev/null; then
-                log_warning "进程仍未终止，尝试终止所有 UserBehaviorMonitor 进程"
-                taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
-                sleep 1
-            fi
+            taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
         fi
     fi
     
-    # 验证进程是否真正终止
+    log_success "进程 $proc 已立即终止"
+}
+
+stop_ubm_gracefully() {
+    local proc="$1"
+    
+    log_debug "强制停止UBM程序，PID: $proc (专为预测循环优化)"
+    
+    # 第一步：立即强制终止主进程
     if kill -0 "$proc" 2>/dev/null; then
-        log_error "警告：进程 $proc 可能仍在运行，请手动检查"
+        log_warning "立即强制终止主进程 PID: $proc"
+        kill -9 "$proc" 2>/dev/null || true
+        sleep 0.5
+    fi
+
+    # 第二步：Windows环境下使用taskkill确保彻底终止
+    if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+        # 尝试通过PID终止
+        if kill -0 "$proc" 2>/dev/null; then
+            log_warning "使用 taskkill /F 强制终止 PID: $proc"
+            taskkill //PID "$proc" //F 2>/dev/null || true
+            sleep 0.5
+        fi
+        
+        # 终止所有相关进程（包括可能的子进程和线程）
+        log_warning "终止所有 UserBehaviorMonitor 相关进程"
+        taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
+        taskkill //IM "python.exe" //F //FI "WINDOWTITLE eq *UserBehaviorMonitor*" 2>/dev/null || true
+        sleep 0.5
+        
+        # 额外安全措施：终止所有可能相关的Python进程
+        if pgrep -f "UserBehaviorMonitor" >/dev/null 2>&1; then
+            log_warning "发现残留的UserBehaviorMonitor进程，强制清理"
+            pkill -9 -f "UserBehaviorMonitor" 2>/dev/null || true
+        fi
     else
-        log_success "进程 $proc 已成功终止"
+        # Linux/macOS环境
+        if kill -0 "$proc" 2>/dev/null; then
+            log_warning "Linux/macOS环境下强制终止进程组"
+            kill -9 -"$proc" 2>/dev/null || kill -9 "$proc" 2>/dev/null || true
+        fi
+    fi
+    
+    # 第三步：等待进程完全退出
+    sleep 1
+    
+    # 第四步：最终验证
+    local attempts=0
+    while kill -0 "$proc" 2>/dev/null && [[ $attempts -lt 5 ]]; do
+        log_warning "进程 $proc 仍在运行，等待终止... (尝试 $((attempts+1))/5)"
+        sleep 1
+        attempts=$((attempts+1))
+    done
+    
+    if kill -0 "$proc" 2>/dev/null; then
+        log_error "严重警告：进程 $proc 无法终止，可能需要手动干预"
+        log_error "请手动运行: taskkill //PID $proc //F 或重启系统"
+        return 1
+    else
+        log_success "进程 $proc 及其所有线程已完全终止"
+        return 0
     fi
 }
 

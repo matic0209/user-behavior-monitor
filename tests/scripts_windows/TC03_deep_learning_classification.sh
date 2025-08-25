@@ -57,6 +57,9 @@ while [[ $(date +%s) -lt $end_ts ]]; do
     # 命中任一预测相关标记/日志即认为已进入稳定阶段
     if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]" "$LOG_PATH" 2>/dev/null; then
       PRED_SEEN=true
+      log_info "检测到预测循环开始，立即终止应用程序避免无限循环"
+      stop_ubm_immediately "$PID" "预测循环检测"
+      sleep 1  # 给进程终止一点时间
       break
     fi
   fi
@@ -165,7 +168,13 @@ ACTUAL="log=$LOG_PATH; artifact=$ARTIFACT"
 
 write_result_row 2 "Check deep learning logs" "Contains classification/training keywords" "$ACTUAL" "$CONCLUSION"
 
-stop_ubm_gracefully "$PID"
+# 进程已在预测检测时终止，这里只需确认
+if kill -0 "$PID" 2>/dev/null; then
+    log_warning "进程仍在运行，执行最终清理"
+    stop_ubm_gracefully "$PID"
+else
+    log_success "进程已成功终止"
+fi
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
 log_success "TC03 深度学习分类测试完成"
