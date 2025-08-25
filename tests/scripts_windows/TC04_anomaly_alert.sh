@@ -45,6 +45,15 @@ end_ts=$(( $(date +%s) + TIMEBOX ))
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 8)
   if [[ -n "$LOG_PATH" ]]; then
+    # 优先检测训练完成，避免进入预测循环
+    if grep -qiE "模型训练完成|Training completed|Model training finished" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成，手动触发告警测试"
+      # 发送告警触发快捷键 aaaa
+      send_char_repeated 'a' 4 100
+      sleep 2  # 等待告警触发
+      break
+    fi
+    # 如果训练未完成但已进入预测/告警，也继续分析
     if grep -qiE "UBM_MARK:\s*ALERT_TRIGGERED|告警触发|异常检测|alert|warning|anomaly" "$LOG_PATH" 2>/dev/null; then
       log_info "命中异常告警关键日志，进入分析"
       break

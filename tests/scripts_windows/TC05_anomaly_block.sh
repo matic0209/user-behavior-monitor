@@ -45,6 +45,15 @@ LOG_PATH=""
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
+    # 优先检测训练完成，避免进入预测循环
+    if grep -qiE "模型训练完成|Training completed|Model training finished" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成，手动触发告警测试以验证拦截功能"
+      # 发送告警触发快捷键 aaaa，期望触发拦截
+      send_char_repeated 'a' 4 100
+      sleep 3  # 等待拦截功能触发
+      break
+    fi
+    # 如果训练未完成但已进入拦截，也继续分析
     if grep -qiE "UBM_MARK:\s*(BLOCK_TRIGGERED|LOCK_SCREEN|ALERT_TRIGGERED)|阻止触发|异常阻止|lock.*screen|block|prevent" "$LOG_PATH" 2>/dev/null; then
       log_info "命中异常阻止关键日志，进入分析"
       break

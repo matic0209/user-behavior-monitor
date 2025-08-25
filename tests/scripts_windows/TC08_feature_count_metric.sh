@@ -63,6 +63,14 @@ LOG_PATH=""
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
+    # 优先检测训练完成，避免进入预测循环
+    if grep -qiE "模型训练完成|Training completed|Model training finished" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成，立即终止应用程序避免进入预测循环"
+      stop_ubm_immediately "$PID" "训练完成检测"
+      sleep 1  # 给进程终止一点时间
+      break
+    fi
+    # 如果训练未完成但已有特征数量日志，继续分析
     if grep -qiE "UBM_MARK:\s*FEATURE_DONE|特征处理完成|feature.*count|特征数量|features.*:" "$LOG_PATH" 2>/dev/null; then
       log_info "命中特征数量相关日志，进入分析"
       break
@@ -134,7 +142,13 @@ write_result_row 2 "Check feature count" ">= 200" "$ACTUAL" "$CONCLUSION"
 
 # 停止程序
 log_info "停止UBM程序..."
-stop_ubm_gracefully "$PID"
+# 检查进程是否仍在运行，避免重复终止
+if kill -0 "$PID" 2>/dev/null; then
+    log_warning "进程仍在运行，执行最终清理"
+    stop_ubm_gracefully "$PID"
+else
+    log_success "进程已成功终止"
+fi
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
 log_success "TC08 特征数量阈值测试完成"

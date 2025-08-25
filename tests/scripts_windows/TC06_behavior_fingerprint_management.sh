@@ -42,6 +42,14 @@ LOG_PATH=""
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
+    # 优先检测训练完成，避免进入预测循环
+    if grep -qiE "模型训练完成|Training completed|Model training finished" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成，立即终止应用程序避免进入预测循环"
+      stop_ubm_immediately "$PID" "训练完成检测"
+      sleep 1  # 给进程终止一点时间
+      break
+    fi
+    # 如果训练未完成但已有指纹相关日志，继续分析
     if grep -qiE "fingerprint|指纹|UBM_MARK:\s*FEATURE_DONE|特征处理完成|behavior.*pattern" "$LOG_PATH" 2>/dev/null; then
       log_info "命中指纹相关日志，进入分析"
       break
@@ -79,7 +87,13 @@ ACTUAL="log=$LOG_PATH; artifact=$ARTIFACT"
 
 write_result_row 2 "Check fingerprint logs" "import/export/fingerprint keywords" "$ACTUAL" "$CONCLUSION"
 
-stop_ubm_gracefully "$PID"
+# 检查进程是否仍在运行，避免重复终止
+if kill -0 "$PID" 2>/dev/null; then
+    log_warning "进程仍在运行，执行最终清理"
+    stop_ubm_gracefully "$PID"
+else
+    log_success "进程已成功终止"
+fi
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
 log_success "TC06 行为指纹管理测试完成"
