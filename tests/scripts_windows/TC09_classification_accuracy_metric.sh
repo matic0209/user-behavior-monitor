@@ -50,7 +50,7 @@ while [[ $(date +%s) -lt $end_ts ]]; do
   sleep 1
 done
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
+# 使用时间盒中获取的日志路径
 OK=false
 ACTUAL="no-log-found"
 

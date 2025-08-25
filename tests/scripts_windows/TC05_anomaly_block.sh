@@ -35,11 +35,23 @@ sleep $STARTUP_WAIT
 log_info "发送快捷键 aaaa 触发异常阻止..."
 send_char_repeated 'a' 4 100
 
-# 等待阻止处理
-log_info "等待异常阻止处理..."
-sleep $FEATURE_WAIT
+# 等待异常阻止关键日志（时间盒，避免卡住）
+log_info "等待异常阻止关键日志(时间盒)..."
+TIMEBOX=30
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=6; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=12; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
 
-LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
+LOG_PATH=""
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*(BLOCK_TRIGGERED|LOCK_SCREEN|ALERT_TRIGGERED)|阻止触发|异常阻止|lock.*screen|block|prevent" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中异常阻止关键日志，进入分析"
+      break
+    fi
+  fi
+  sleep 1
+done
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析异常阻止结果..."
     
