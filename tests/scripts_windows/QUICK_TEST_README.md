@@ -47,6 +47,13 @@ bash quick_prediction_test.sh /path/to/UserBehaviorMonitor.exe
 
 比完整测试套件快100倍！
 
+## 安装Python依赖
+
+如果看到输入模拟警告，安装pyautogui：
+```bash
+python3 tests/scripts_windows/install_pyautogui_en.py
+```
+
 ## 故障排除
 
 ### 如果预测循环检测超时：
@@ -58,6 +65,9 @@ bash quick_prediction_test.sh /path/to/UserBehaviorMonitor.exe
 1. 手动终止进程：`taskkill /IM UserBehaviorMonitor.exe /F`
 2. 检查是否有权限问题
 3. 重启系统清理残留进程
+
+### 如果看到编码乱码：
+使用英文版安装脚本：`install_pyautogui_en.py` 而不是中文版
 
 ## 下一步
 

@@ -23,7 +23,7 @@ if python3 -c "import pyautogui; print('pyautogui可用')" 2>/dev/null; then
     log_success "[OK] pyautogui已安装，输入模拟效果更佳"
 else
     log_warning "[WARNING] pyautogui未安装，将使用备选方案"
-    log_info "可运行 python3 tests/scripts_windows/install_pyautogui.py 安装"
+    log_info "Run: python3 tests/scripts_windows/install_pyautogui_en.py"
 fi
 echo ""
 

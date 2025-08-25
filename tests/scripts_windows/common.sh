@@ -97,9 +97,9 @@ simulate_actions_fallback() {
     local action_type="$1"
     local duration="${2:-2}"
     
-    log_warning "使用备选方案模拟 $action_type，持续时间: ${duration}秒"
-    log_info "提示: 安装pyautogui可获得更好的输入模拟效果"
-    log_info "运行: python3 tests/scripts_windows/install_pyautogui.py"
+    log_warning "Using fallback simulation for $action_type, duration: ${duration}s"
+    log_info "Tip: Install pyautogui for better input simulation"
+    log_info "Run: python3 tests/scripts_windows/install_pyautogui_en.py"
     
     # 创建模拟日志
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
