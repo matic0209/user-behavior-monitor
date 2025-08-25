@@ -38,11 +38,23 @@ echo "[OK] 已清理旧日志文件"
 # 尝试直接运行EXE看看输出
 echo ""
 echo "=== 步骤1: 直接测试EXE启动 ==="
+
+# 转换为绝对路径，避免cd后路径错误
+if [[ "$EXE_PATH" == /* ]] || [[ "$EXE_PATH" == [A-Za-z]:* ]]; then
+    ABS_EXE_PATH="$EXE_PATH"
+else
+    ABS_EXE_PATH="$(cd "$(dirname "$EXE_PATH")" && pwd)/$(basename "$EXE_PATH")"
+fi
+
+echo "[DEBUG] 原始路径: $EXE_PATH"
+echo "[DEBUG] 绝对路径: $ABS_EXE_PATH"
+echo "[DEBUG] 文件是否存在: $(test -f "$ABS_EXE_PATH" && echo "是" || echo "否")"
+
 cd "$BASE_DIR"
-echo "在目录 $BASE_DIR 中运行: $EXE_PATH"
+echo "在目录 $BASE_DIR 中运行: $ABS_EXE_PATH"
 
 # 启动程序并捕获所有输出
-timeout 10s "$EXE_PATH" > startup_test.log 2>&1 &
+timeout 10s "$ABS_EXE_PATH" > startup_test.log 2>&1 &
 TEST_PID=$!
 
 echo "测试进程PID: $TEST_PID"

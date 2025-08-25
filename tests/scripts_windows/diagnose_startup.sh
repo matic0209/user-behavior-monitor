@@ -67,8 +67,11 @@ rm -f "$LOGS_DIR"/*.log 2>/dev/null
 
 # 启动程序并捕获输出
 echo "[INFO] 启动应用程序..."
+# 转换为绝对路径，避免cd后路径错误
+ABS_EXE_PATH=$(cd "$(dirname "$EXE_PATH")" && pwd)/$(basename "$EXE_PATH")
+echo "[DEBUG] 绝对EXE路径: $ABS_EXE_PATH"
 cd "$BASE_DIR"
-"$EXE_PATH" > "$LOGS_DIR/startup_output.txt" 2> "$LOGS_DIR/startup_error.txt" &
+"$ABS_EXE_PATH" > "$LOGS_DIR/startup_output.txt" 2> "$LOGS_DIR/startup_error.txt" &
 PID=$!
 
 echo "[OK] 应用程序已启动，PID: $PID"
