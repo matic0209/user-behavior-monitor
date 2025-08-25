@@ -45,9 +45,9 @@ end_ts=$(( $(date +%s) + TIMEBOX ))
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 8)
   if [[ -n "$LOG_PATH" ]]; then
-    # 优先检测训练完成，避免进入预测循环
-    if grep -qiE "模型训练完成|Training completed|Model training finished" "$LOG_PATH" 2>/dev/null; then
-      log_info "检测到模型训练完成，手动触发告警测试"
+    # 优先检测训练完成，避免进入预测循环 - 使用多种模式
+    if grep -qiE "\[SUCCESS\].*模型训练完成|用户.*模型训练完成|模型训练完成|Training completed|Model training finished|开始自动异常检测|自动异常检测已启动" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成或异常检测启动，手动触发告警测试"
       # 发送告警触发快捷键 aaaa
       send_char_repeated 'a' 4 100
       sleep 2  # 等待告警触发
