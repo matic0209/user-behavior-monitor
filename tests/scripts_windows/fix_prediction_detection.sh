@@ -108,7 +108,27 @@ fi
 # 尝试使用Python直接运行
 echo ""
 echo "=== 步骤3: 尝试Python直接运行 ==="
-PYTHON_MAIN="../../user_behavior_monitor.py"
+# 智能查找user_behavior_monitor.py
+PYTHON_CANDIDATES=(
+    "../../user_behavior_monitor.py"
+    "../../../user_behavior_monitor.py" 
+    "user_behavior_monitor.py"
+    "../user_behavior_monitor.py"
+)
+
+PYTHON_MAIN=""
+for candidate in "${PYTHON_CANDIDATES[@]}"; do
+    if [[ -f "$candidate" ]]; then
+        PYTHON_MAIN="$candidate"
+        echo "[DEBUG] 找到Python主文件: $candidate"
+        break
+    fi
+done
+
+if [[ -z "$PYTHON_MAIN" ]]; then
+    echo "[WARNING] 未找到user_behavior_monitor.py，尝试备选路径"
+    PYTHON_MAIN="../../user_behavior_monitor.py"  # 使用默认路径继续
+fi
 
 # 同样转换为绝对路径
 echo "[DEBUG] Python原始路径: $PYTHON_MAIN"
@@ -185,7 +205,14 @@ done
 if [[ -n "$MISSING_DEPS" ]]; then
     echo ""
     echo "[ERROR] 缺少依赖:$MISSING_DEPS"
-    echo "请运行: pip install$MISSING_DEPS"
+    echo ""
+    echo "解决方案："
+    echo "1. 安装单个依赖: pip install$MISSING_DEPS"
+    echo "2. 安装完整依赖: pip install -r requirements.txt"
+    echo "3. 安装测试依赖: pip install -r tests/requirements-test.txt"
+    echo ""
+    echo "推荐运行："
+    echo "  pip install -r requirements.txt"
 fi
 
 # 给出解决建议
