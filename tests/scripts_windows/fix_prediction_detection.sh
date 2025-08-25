@@ -111,13 +111,28 @@ echo "=== 步骤3: 尝试Python直接运行 ==="
 PYTHON_MAIN="../../user_behavior_monitor.py"
 
 # 同样转换为绝对路径
+echo "[DEBUG] Python原始路径: $PYTHON_MAIN"
+
 if [[ "$PYTHON_MAIN" == /* ]] || [[ "$PYTHON_MAIN" == [A-Za-z]:* ]]; then
     ABS_PYTHON_PATH="$PYTHON_MAIN"
+    echo "[DEBUG] 已经是绝对路径"
 else
-    ABS_PYTHON_PATH="$(cd "$(dirname "$PYTHON_MAIN")" && pwd)/$(basename "$PYTHON_MAIN")"
+    # 更安全的路径转换方法
+    PYTHON_DIR=$(dirname "$PYTHON_MAIN")
+    PYTHON_FILE=$(basename "$PYTHON_MAIN")
+    echo "[DEBUG] 相对目录: $PYTHON_DIR"
+    echo "[DEBUG] 文件名: $PYTHON_FILE"
+    
+    if cd "$PYTHON_DIR" 2>/dev/null; then
+        ABS_PYTHON_PATH="$(pwd)/$PYTHON_FILE"
+        cd - >/dev/null
+        echo "[DEBUG] 路径转换成功"
+    else
+        echo "[DEBUG] 路径转换失败，使用原始路径"
+        ABS_PYTHON_PATH="$PYTHON_MAIN"
+    fi
 fi
 
-echo "[DEBUG] Python原始路径: $PYTHON_MAIN"
 echo "[DEBUG] Python绝对路径: $ABS_PYTHON_PATH"
 echo "[DEBUG] Python文件是否存在: $(test -f "$ABS_PYTHON_PATH" && echo "是" || echo "否")"
 
@@ -148,7 +163,10 @@ if [[ -f "$ABS_PYTHON_PATH" ]]; then
         echo "[WARNING] Python版本也没有生成日志"
     fi
 else
-    echo "[INFO] 未找到Python主文件: $PYTHON_MAIN"
+    echo "[INFO] 未找到Python主文件"
+    echo "  原始路径: $PYTHON_MAIN"
+    echo "  绝对路径: $ABS_PYTHON_PATH"
+    echo "  请检查文件是否存在"
 fi
 
 # 检查依赖
