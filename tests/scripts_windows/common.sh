@@ -135,29 +135,36 @@ move_mouse_path() {
     
     # 检测操作系统
     if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        # Windows环境 (Git Bash)
-        log_debug "检测到Windows环境，使用PowerShell模拟鼠标移动"
-        
-        # 使用PowerShell模拟鼠标移动
-        if powershell.exe -Command "
-            Add-Type -AssemblyName System.Windows.Forms
-            \$screen = [System.Windows.Forms.Screen]::PrimaryScreen
-            \$width = \$screen.Bounds.Width
-            \$height = \$screen.Bounds.Height
-            \$y = \$height / 2
-            
-            for (\$x = 100; \$x -lt (\$width - 100); \$x += $step) {
-                [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(\$x, \$y)
-                Start-Sleep -Milliseconds 30
-            }
-        " 2>/dev/null; then
-            log_debug "PowerShell鼠标移动成功"
+        # Windows环境 (Git Bash)：优先使用 Python(pyautogui)，PowerShell 可选
+        if python3 -c "
+import time
+import pyautogui
+pyautogui.FAILSAFE = False
+width, height = pyautogui.size()
+y = height // 2
+for x in range(100, width-100, $step):
+    pyautogui.moveTo(x, y)
+    time.sleep(0.03)
+" 2>/dev/null; then
             return 0
-        else
-            log_warning "PowerShell鼠标移动失败，使用备选方案"
-            simulate_actions_fallback "mouse_move" "$duration_sec"
-            return $?
+        elif [[ "$USE_POWERSHELL" == "true" ]]; then
+            if powershell.exe -Command "
+                Add-Type -AssemblyName System.Windows.Forms
+                \$screen = [System.Windows.Forms.Screen]::PrimaryScreen
+                \$width = \$screen.Bounds.Width
+                \$height = \$screen.Bounds.Height
+                \$y = \$height / 2
+                for (\$x = 100; \$x -lt (\$width - 100); \$x += $step) {
+                    [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(\$x, \$y)
+                    Start-Sleep -Milliseconds 30
+                }
+            " 2>/dev/null; then
+                return 0
+            fi
         fi
+        log_warning "Windows下未能模拟鼠标移动，使用备选方案"
+        simulate_actions_fallback "mouse_move" "$duration_sec"
+        return $?
         
     elif command -v xdotool &> /dev/null; then
         # Linux环境下的xdotool
@@ -196,23 +203,30 @@ click_left_times() {
     log_debug "模拟左键点击 $times 次"
     
     if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        # Windows环境 (Git Bash)
-        log_debug "检测到Windows环境，使用PowerShell模拟鼠标点击"
-        
-        if powershell.exe -Command "
-            Add-Type -AssemblyName System.Windows.Forms
-            for (\$i = 0; \$i -lt $times; \$i++) {
-                [System.Windows.Forms.Cursor]::Position = [System.Windows.Forms.Cursor]::Position
-                Start-Sleep -Milliseconds 120
-            }
-        " 2>/dev/null; then
-            log_debug "PowerShell鼠标点击成功"
+        # Windows环境 (Git Bash)：优先使用 Python(pyautogui)，PowerShell 可选
+        if python3 -c "
+import time
+import pyautogui
+pyautogui.FAILSAFE = False
+for i in range($times):
+    pyautogui.click()
+    time.sleep(0.12)
+" 2>/dev/null; then
             return 0
-        else
-            log_warning "PowerShell鼠标点击失败，使用备选方案"
-            simulate_actions_fallback "mouse_click" 1
-            return $?
+        elif [[ "$USE_POWERSHELL" == "true" ]]; then
+            if powershell.exe -Command "
+                Add-Type -AssemblyName System.Windows.Forms
+                for (\$i = 0; \$i -lt $times; \$i++) {
+                    [System.Windows.Forms.Cursor]::Position = [System.Windows.Forms.Cursor]::Position
+                    Start-Sleep -Milliseconds 120
+                }
+            " 2>/dev/null; then
+                return 0
+            fi
         fi
+        log_warning "Windows下未能模拟点击，使用备选方案"
+        simulate_actions_fallback "mouse_click" 1
+        return $?
         
     elif command -v xdotool &> /dev/null; then
         for ((i=0; i<times; i++)); do
@@ -243,28 +257,36 @@ scroll_vertical() {
     log_debug "模拟垂直滚动 $notches 次"
     
     if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        # Windows环境 (Git Bash)
-        log_debug "检测到Windows环境，使用PowerShell模拟滚动"
-        
-        if powershell.exe -Command "
-            Add-Type -AssemblyName System.Windows.Forms
-            \$notches = $notches
-            for (\$i = 0; \$i -lt [Math]::Abs(\$notches); \$i++) {
-                if (\$notches -ge 0) {
-                    [System.Windows.Forms.SendKeys]::SendWait('{WHEEL_UP}')
-                } else {
-                    [System.Windows.Forms.SendKeys]::SendWait('{WHEEL_DOWN}')
-                }
-                Start-Sleep -Milliseconds 150
-            }
-        " 2>/dev/null; then
-            log_debug "PowerShell滚动成功"
+        # Windows环境 (Git Bash)：优先使用 Python(pyautogui)，PowerShell 可选
+        if python3 -c "
+import time
+import pyautogui
+pyautogui.FAILSAFE = False
+notches = $notches
+for i in range(abs(notches)):
+    pyautogui.scroll(3 if notches >= 0 else -3)
+    time.sleep(0.15)
+" 2>/dev/null; then
             return 0
-        else
-            log_warning "PowerShell滚动失败，使用备选方案"
-            simulate_actions_fallback "scroll" 1
-            return $?
+        elif [[ "$USE_POWERSHELL" == "true" ]]; then
+            if powershell.exe -Command "
+                Add-Type -AssemblyName System.Windows.Forms
+                \$notches = $notches
+                for (\$i = 0; \$i -lt [Math]::Abs(\$notches); \$i++) {
+                    if (\$notches -ge 0) {
+                        [System.Windows.Forms.SendKeys]::SendWait('{WHEEL_UP}')
+                    } else {
+                        [System.Windows.Forms.SendKeys]::SendWait('{WHEEL_DOWN}')
+                    }
+                    Start-Sleep -Milliseconds 150
+                }
+            " 2>/dev/null; then
+                return 0
+            fi
         fi
+        log_warning "Windows下未能模拟滚动，使用备选方案"
+        simulate_actions_fallback "scroll" 1
+        return $?
         
     elif command -v xdotool &> /dev/null; then
         for ((i=0; i<${notches#-}; i++)); do
@@ -306,27 +328,36 @@ send_char_repeated() {
     log_debug "发送字符 '$char' 重复 $times 次，间隔 ${interval_ms}ms"
 
     if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        # Windows环境 (Git Bash)
-        log_debug "检测到Windows环境，使用PowerShell模拟键盘输入"
-        
-        if powershell.exe -Command "
-            Add-Type -AssemblyName System.Windows.Forms
-            \$char = '$char'
-            \$times = $times
-            \$interval = $interval_ms
-            
-            for (\$i = 0; \$i -lt \$times; \$i++) {
-                [System.Windows.Forms.SendKeys]::SendWait(\$char)
-                Start-Sleep -Milliseconds \$interval
-            }
-        " 2>/dev/null; then
-            log_debug "PowerShell键盘输入成功"
+        # Windows环境 (Git Bash)：优先使用 Python(pyautogui)，PowerShell 可选
+        if python3 -c "
+import time
+import pyautogui
+pyautogui.FAILSAFE = False
+char = '$char'
+times = $times
+interval = $interval_ms / 1000.0
+for i in range(times):
+    pyautogui.typewrite(char)
+    time.sleep(interval)
+" 2>/dev/null; then
             return 0
-        else
-            log_warning "PowerShell键盘输入失败，使用备选方案"
-            simulate_actions_fallback "keyboard" 1
-            return $?
+        elif [[ "$USE_POWERSHELL" == "true" ]]; then
+            if powershell.exe -Command "
+                Add-Type -AssemblyName System.Windows.Forms
+                \$char = '$char'
+                \$times = $times
+                \$interval = $interval_ms
+                for (\$i = 0; \$i -lt \$times; \$i++) {
+                    [System.Windows.Forms.SendKeys]::SendWait(\$char)
+                    Start-Sleep -Milliseconds \$interval
+                }
+            " 2>/dev/null; then
+                return 0
+            fi
         fi
+        log_warning "Windows下未能模拟键盘输入，使用备选方案"
+        simulate_actions_fallback "keyboard" 1
+        return $?
         
     elif command -v xdotool &> /dev/null; then
         for ((i=0; i<times; i++)); do
@@ -449,15 +480,15 @@ stop_ubm_gracefully() {
         sleep 1
     fi
 
-    # 如果仍在运行，Windows 环境下使用 PowerShell/Taskkill 兜底
+    # 如果仍在运行，Windows 环境下使用 Taskkill/PowerShell 兜底
     if kill -0 "$proc" 2>/dev/null; then
         if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-            log_warning "POSIX kill 未生效，使用 PowerShell Stop-Process 兜底"
-            powershell.exe -NoProfile -Command "Try { Stop-Process -Id $proc -Force -ErrorAction Stop } Catch { }" 2>/dev/null || true
+            log_warning "POSIX kill 未生效，尝试 taskkill /F 兜底"
+            taskkill //PID "$proc" //F 2>/dev/null || true
             sleep 1
-            if kill -0 "$proc" 2>/dev/null; then
-                log_warning "Stop-Process 未生效，尝试 taskkill /F"
-                taskkill //PID "$proc" //F 2>/dev/null || true
+            if kill -0 "$proc" 2>/dev/null && [[ "$USE_POWERSHELL" == "true" ]]; then
+                log_warning "taskkill 未生效，尝试 PowerShell Stop-Process"
+                powershell.exe -NoProfile -Command "Try { Stop-Process -Id $proc -Force -ErrorAction Stop } Catch { }" 2>/dev/null || true
                 sleep 1
             fi
         fi
@@ -860,6 +891,8 @@ fi
 # 快速测试模式配置
 FAST_MODE=${FAST_MODE:-true}  # 默认启用快速模式
 ULTRA_FAST_MODE=${ULTRA_FAST_MODE:-false}
+# 是否允许在 Windows 下调用 PowerShell（默认禁用，以适配纯 Git Bash 环境）
+USE_POWERSHELL=${USE_POWERSHELL:-false}
 
 if [[ "$ULTRA_FAST_MODE" == "true" ]]; then
     # 超快模式：最小等待时间（开发调试用）
