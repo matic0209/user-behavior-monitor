@@ -47,6 +47,14 @@ LOG_PATH=""
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
+    # 优先检测训练完成，避免进入预测循环
+    if grep -qiE "模型训练完成|Training completed|Model training finished" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成，立即终止应用程序避免进入预测循环"
+      stop_ubm_immediately "$PID" "训练完成检测"
+      sleep 1  # 给进程终止一点时间
+      break
+    fi
+    # 如果训练未完成但已进入预测，也立即终止
     if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]|detection|检测|anomaly" "$LOG_PATH" 2>/dev/null; then
       log_info "命中监控稳定阶段日志，立即终止应用程序避免无限循环"
       stop_ubm_immediately "$PID" "误报率测试-预测检测"
