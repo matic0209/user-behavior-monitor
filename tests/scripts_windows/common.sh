@@ -501,22 +501,58 @@ start_ubm() {
 # 专门用于立即终止预测循环的函数
 stop_ubm_immediately() {
     local proc="$1"
-    local reason="${2:-预测循环检测}"
+    local reason="${2:-prediction loop detected}"
     
-    log_warning "立即终止UBM程序 (原因: $reason)，PID: $proc"
+    log_warning "IMMEDIATE STOP: UBM program (reason: $reason), PID: $proc"
+    log_debug "DEBUG: OSTYPE=$OSTYPE"
     
-    # 无等待，立即强杀
-    if kill -0 "$proc" 2>/dev/null; then
-        kill -9 "$proc" 2>/dev/null || true
-        
-        # Windows环境立即使用taskkill
-        if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-            taskkill //PID "$proc" //F 2>/dev/null || true
-            taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
-        fi
+    # 检查进程是否存在
+    if ! kill -0 "$proc" 2>/dev/null; then
+        log_info "DEBUG: Process $proc already terminated"
+        return 0
     fi
     
-    log_success "进程 $proc 已立即终止"
+    log_debug "DEBUG: Process $proc is running, terminating..."
+    
+    # 第一步：SIGKILL
+    log_debug "DEBUG: Sending SIGKILL to $proc"
+    kill -9 "$proc" 2>/dev/null || true
+    sleep 0.5
+    
+    # 检查是否成功
+    if ! kill -0 "$proc" 2>/dev/null; then
+        log_success "DEBUG: SIGKILL successful for PID $proc"
+        return 0
+    fi
+    
+    # Windows环境下的强化终止
+    log_debug "DEBUG: SIGKILL failed, trying Windows methods..."
+    
+    # 使用taskkill终止PID
+    log_debug "DEBUG: Using taskkill /PID $proc /F"
+    taskkill //PID "$proc" //F 2>/dev/null || true
+    sleep 0.5
+    
+    if ! kill -0 "$proc" 2>/dev/null; then
+        log_success "DEBUG: taskkill PID successful"
+        return 0
+    fi
+    
+    # 终止所有UserBehaviorMonitor进程
+    log_debug "DEBUG: Terminating all UserBehaviorMonitor processes"
+    taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
+    taskkill //IM "python.exe" //F //FI "COMMANDLINE eq *UserBehaviorMonitor*" 2>/dev/null || true
+    sleep 0.5
+    
+    # 最终检查
+    if ! kill -0 "$proc" 2>/dev/null; then
+        log_success "Process $proc terminated successfully"
+        return 0
+    else
+        log_error "CRITICAL: Process $proc could not be terminated!"
+        log_error "Manual intervention required: taskkill //PID $proc //F"
+        return 1
+    fi
 }
 
 stop_ubm_gracefully() {
