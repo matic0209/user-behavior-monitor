@@ -109,10 +109,22 @@ fi
 echo ""
 echo "=== 步骤3: 尝试Python直接运行 ==="
 PYTHON_MAIN="../../user_behavior_monitor.py"
-if [[ -f "$PYTHON_MAIN" ]]; then
-    echo "尝试Python版本: $PYTHON_MAIN"
+
+# 同样转换为绝对路径
+if [[ "$PYTHON_MAIN" == /* ]] || [[ "$PYTHON_MAIN" == [A-Za-z]:* ]]; then
+    ABS_PYTHON_PATH="$PYTHON_MAIN"
+else
+    ABS_PYTHON_PATH="$(cd "$(dirname "$PYTHON_MAIN")" && pwd)/$(basename "$PYTHON_MAIN")"
+fi
+
+echo "[DEBUG] Python原始路径: $PYTHON_MAIN"
+echo "[DEBUG] Python绝对路径: $ABS_PYTHON_PATH"
+echo "[DEBUG] Python文件是否存在: $(test -f "$ABS_PYTHON_PATH" && echo "是" || echo "否")"
+
+if [[ -f "$ABS_PYTHON_PATH" ]]; then
+    echo "尝试Python版本: $ABS_PYTHON_PATH"
     cd "$BASE_DIR"
-    timeout 10s python3 "$PYTHON_MAIN" > python_test.log 2>&1 &
+    timeout 10s python3 "$ABS_PYTHON_PATH" > python_test.log 2>&1 &
     PYTHON_PID=$!
     
     sleep 3
