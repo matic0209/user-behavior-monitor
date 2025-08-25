@@ -17,6 +17,16 @@ echo "工作目录: $WORK_DIR"
 echo "模式: 超快验证 (5-10秒)"
 echo ""
 
+# 检查Python依赖
+echo "🔧 检查Python依赖..."
+if python3 -c "import pyautogui; print('pyautogui可用')" 2>/dev/null; then
+    log_success "✅ pyautogui已安装，输入模拟效果更佳"
+else
+    log_warning "⚠️  pyautogui未安装，将使用备选方案"
+    log_info "💡 可运行 python3 tests/scripts_windows/install_pyautogui.py 安装"
+fi
+echo ""
+
 # 检查EXE文件
 if [[ ! -f "$EXE_PATH" ]]; then
     log_error "EXE文件不存在: $EXE_PATH"

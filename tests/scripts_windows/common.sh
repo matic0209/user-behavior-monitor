@@ -97,7 +97,9 @@ simulate_actions_fallback() {
     local action_type="$1"
     local duration="${2:-2}"
     
-    log_debug "使用备选方案模拟 $action_type，持续时间: ${duration}秒"
+    log_warning "使用备选方案模拟 $action_type，持续时间: ${duration}秒"
+    log_info "💡 提示: 安装pyautogui可获得更好的输入模拟效果"
+    log_info "💡 运行: python3 tests/scripts_windows/install_pyautogui.py"
     
     # 创建模拟日志
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
@@ -136,18 +138,35 @@ move_mouse_path() {
     # 检测操作系统
     if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
         # Windows环境 (Git Bash)：优先使用 Python(pyautogui)，PowerShell 可选
-        if python3 -c "
+        
+        # 首先检查Python和pyautogui是否可用
+        if python3 -c "import pyautogui; print('pyautogui available')" 2>/dev/null >/dev/null; then
+            log_debug "使用Python pyautogui进行鼠标模拟"
+            if python3 -c "
 import time
 import pyautogui
 pyautogui.FAILSAFE = False
-width, height = pyautogui.size()
-y = height // 2
-for x in range(100, width-100, $step):
-    pyautogui.moveTo(x, y)
-    time.sleep(0.03)
+try:
+    width, height = pyautogui.size()
+    y = height // 2
+    for x in range(100, width-100, $step):
+        pyautogui.moveTo(x, y)
+        time.sleep(0.03)
+    print('Mouse movement completed successfully')
+except Exception as e:
+    print(f'Error: {e}')
+    exit(1)
 " 2>/dev/null; then
-            return 0
-        elif [[ "$USE_POWERSHELL" == "true" ]]; then
+                return 0
+            else
+                log_warning "pyautogui执行失败，尝试PowerShell方案"
+            fi
+        else
+            log_debug "pyautogui不可用，尝试PowerShell方案"
+        fi
+        
+        # PowerShell方案
+        if [[ "$USE_POWERSHELL" == "true" ]] || [[ "$USE_POWERSHELL" == "" ]]; then
             if powershell.exe -Command "
                 Add-Type -AssemblyName System.Windows.Forms
                 \$screen = [System.Windows.Forms.Screen]::PrimaryScreen
@@ -329,19 +348,36 @@ send_char_repeated() {
 
     if [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
         # Windows环境 (Git Bash)：优先使用 Python(pyautogui)，PowerShell 可选
-        if python3 -c "
+        
+        # 首先检查Python和pyautogui是否可用
+        if python3 -c "import pyautogui; print('pyautogui available')" 2>/dev/null >/dev/null; then
+            log_debug "使用Python pyautogui进行键盘模拟"
+            if python3 -c "
 import time
 import pyautogui
 pyautogui.FAILSAFE = False
-char = '$char'
-times = $times
-interval = $interval_ms / 1000.0
-for i in range(times):
-    pyautogui.typewrite(char)
-    time.sleep(interval)
+try:
+    char = '$char'
+    times = $times
+    interval = $interval_ms / 1000.0
+    for i in range(times):
+        pyautogui.typewrite(char)
+        time.sleep(interval)
+    print('Keyboard input completed successfully')
+except Exception as e:
+    print(f'Error: {e}')
+    exit(1)
 " 2>/dev/null; then
-            return 0
-        elif [[ "$USE_POWERSHELL" == "true" ]]; then
+                return 0
+            else
+                log_warning "pyautogui键盘输入失败，尝试PowerShell方案"
+            fi
+        else
+            log_debug "pyautogui不可用，尝试PowerShell方案"
+        fi
+        
+        # PowerShell方案
+        if [[ "$USE_POWERSHELL" == "true" ]] || [[ "$USE_POWERSHELL" == "" ]]; then
             if powershell.exe -Command "
                 Add-Type -AssemblyName System.Windows.Forms
                 \$char = '$char'
