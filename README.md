@@ -108,6 +108,24 @@ python test_debug_logging.py
 python user_behavior_monitor.py
 ```
 
+#### 5. 测试环境依赖（可选）
+
+如果需要运行测试脚本或进行开发测试，安装额外依赖：
+
+```bash
+# 安装测试专用依赖
+pip install -r tests/requirements-test.txt
+
+# 或使用自动安装脚本
+python3 tests/scripts_windows/install_pyautogui_en.py
+```
+
+测试依赖包括：
+- `pyautogui`: GUI自动化和输入模拟
+- `pillow`: 图像处理（pyautogui依赖）
+- `pytest`: 单元测试框架
+- `pytest-cov`: 测试覆盖率
+
 ## 使用指南
 
 ### 系统启动

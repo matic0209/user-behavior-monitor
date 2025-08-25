@@ -1,0 +1,17 @@
+# 测试脚本专用依赖
+# Test script specific dependencies
+
+# GUI自动化和输入模拟 (GUI automation and input simulation)
+pyautogui>=0.9.50
+
+# 图像处理库，pyautogui的依赖 (Image processing library, required by pyautogui)
+pillow>=8.0.0
+
+# 单元测试框架 (Unit testing framework)
+pytest>=6.0.0
+
+# 测试覆盖率 (Test coverage)
+pytest-cov>=2.10.0
+
+# 模拟和Mock (Mocking and stubbing)
+pytest-mock>=3.6.0

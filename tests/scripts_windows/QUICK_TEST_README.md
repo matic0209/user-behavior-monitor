@@ -49,9 +49,19 @@ bash quick_prediction_test.sh /path/to/UserBehaviorMonitor.exe
 
 ## 安装Python依赖
 
-如果看到输入模拟警告，安装pyautogui：
+### 方法1: 使用requirements文件（推荐）
+```bash
+pip install -r tests/requirements-test.txt
+```
+
+### 方法2: 使用自动安装脚本
 ```bash
 python3 tests/scripts_windows/install_pyautogui_en.py
+```
+
+### 方法3: 手动安装核心依赖
+```bash
+pip install pyautogui pillow
 ```
 
 ## 故障排除

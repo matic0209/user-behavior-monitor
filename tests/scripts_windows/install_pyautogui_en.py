@@ -24,10 +24,35 @@ def install_module(module_name):
         print(f"[ERROR] {module_name} installation failed: {e}")
         return False
 
+def install_from_requirements():
+    """Try to install from requirements-test.txt"""
+    import os
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    requirements_file = os.path.join(os.path.dirname(script_dir), "requirements-test.txt")
+    
+    if os.path.exists(requirements_file):
+        try:
+            print(f"Installing from {requirements_file}...")
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", requirements_file])
+            print("[OK] All test dependencies installed from requirements file")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"[WARNING] Requirements file installation failed: {e}")
+            print("Falling back to individual module installation...")
+            return False
+    return False
+
 def main():
     print("Checking and installing test script dependencies...")
     print("=" * 50)
     
+    # Try requirements file first
+    if install_from_requirements():
+        print("\n[SUCCESS] Dependencies installed from requirements-test.txt")
+        return True
+    
+    # Fallback to individual installation
+    print("Installing individual modules...")
     modules_to_check = ["pyautogui", "pillow"]
     missing_modules = []
     

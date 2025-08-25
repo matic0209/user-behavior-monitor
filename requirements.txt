@@ -12,3 +12,6 @@ pyyaml>=6.0
 pynput>=1.7.6
 keyboard>=0.13.5; sys_platform == "win32"
 pywin32>=228; sys_platform == "win32"
+# 测试脚本依赖
+pyautogui>=0.9.50
+pillow>=8.0.0
