@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windows UBM 测试报告 (演示版)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { text-align: center; border-bottom: 2px solid #007acc; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h1 { color: #007acc; margin: 0; }
+        .demo-notice { background-color: #fff3cd; border: 1px solid #ffeaa7; color: #856404; padding: 15px; border-radius: 6px; margin-bottom: 20px; text-align: center; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .info-card { background-color: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #007acc; }
+        .info-card h3 { margin: 0 0 10px 0; color: #495057; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 30px; }
+        .stat-card { text-align: center; padding: 20px; border-radius: 6px; color: white; }
+        .stat-pass { background-color: #28a745; }
+        .stat-fail { background-color: #dc3545; }
+        .stat-skip { background-color: #6c757d; }
+        .stat-total { background-color: #007acc; }
+        .test-cases { margin-bottom: 30px; }
+        .test-case { background-color: #f8f9fa; padding: 15px; margin-bottom: 10px; border-radius: 6px; border-left: 4px solid #dee2e6; }
+        .test-case h4 { margin: 0 0 10px 0; color: #495057; }
+        .footer { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; color: #6c757d; }
+        .pass-rate { font-size: 24px; font-weight: bold; color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Windows UBM 测试报告</h1>
+            <p>用户行为监控系统 - Windows测试套件</p>
+        </div>
+
+        <div class="demo-notice">
+            <strong>📢 演示报告:</strong> 这是一个演示报告，用于展示报告生成功能。实际测试时会生成真实的测试数据。
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>📅 测试信息</h3>
+                <p><strong>开始时间:</strong> 2025-08-24 23:02:33</p>
+                <p><strong>结束时间:</strong> 2025-08-25 00:02:33</p>
+                <p><strong>总耗时:</strong> 60 分钟 (3600 秒)</p>
+                <p><strong>测试模式:</strong> 超快模式</p>
+            </div>
+            <div class="info-card">
+                <h3>⚙️ 环境信息</h3>
+                <p><strong>可执行文件:</strong> ../../dist/UserBehaviorMonitor.exe</p>
+                <p><strong>工作目录:</strong> win_test_run</p>
+                <p><strong>日志目录:</strong> /home/ubuntu/workspace/user-behavior-monitor/tests/scripts_windows/win_test_run/logs</p>
+                <p><strong>数据目录:</strong> /home/ubuntu/workspace/user-behavior-monitor/tests/scripts_windows/win_test_run/data</p>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card stat-total">
+                <h3>📋 总计</h3>
+                <div style="font-size: 32px; font-weight: bold;">10</div>
+            </div>
+            <div class="stat-card stat-pass">
+                <h3>✅ 通过</h3>
+                <div style="font-size: 32px; font-weight: bold;">8</div>
+            </div>
+            <div class="stat-card stat-fail">
+                <h3>❌ 失败</h3>
+                <div style="font-size: 32px; font-weight: bold;">1</div>
+            </div>
+            <div class="stat-card stat-skip">
+                <h3>⏭️ 跳过</h3>
+                <div style="font-size: 32px; font-weight: bold;">1</div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 30px;">
+            <h3>📈 通过率</h3>
+            <div class="pass-rate">
+                80.0%
+            </div>
+        </div>
+
+        <div class="test-cases">
+            <h3>🧪 测试用例详情</h3>
+            <div class="test-case">
+                <h4>TC01</h4>
+                <p><strong>描述:</strong> 实时输入采集</p>
+                <p><strong>脚本:</strong> TC01_realtime_input_collection.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC02</h4>
+                <p><strong>描述:</strong> 特征提取功能</p>
+                <p><strong>脚本:</strong> TC02_feature_extraction.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC03</h4>
+                <p><strong>描述:</strong> 深度学习分类</p>
+                <p><strong>脚本:</strong> TC03_deep_learning_classification.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC04</h4>
+                <p><strong>描述:</strong> 异常告警</p>
+                <p><strong>脚本:</strong> TC04_anomaly_alert.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC05</h4>
+                <p><strong>描述:</strong> 异常阻止</p>
+                <p><strong>脚本:</strong> TC05_anomaly_block.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC06</h4>
+                <p><strong>描述:</strong> 行为指纹管理</p>
+                <p><strong>脚本:</strong> TC06_behavior_fingerprint_management.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC07</h4>
+                <p><strong>描述:</strong> 采集指标</p>
+                <p><strong>脚本:</strong> TC07_collection_metrics.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC08</h4>
+                <p><strong>描述:</strong> 特征数量阈值</p>
+                <p><strong>脚本:</strong> TC08_feature_count_metric.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC09</h4>
+                <p><strong>描述:</strong> 分类准确率指标</p>
+                <p><strong>脚本:</strong> TC09_classification_accuracy_metric.sh</p>
+            </div>
+            <div class="test-case">
+                <h4>TC10</h4>
+                <p><strong>描述:</strong> 异常误报率</p>
+                <p><strong>脚本:</strong> TC10_anomaly_false_alarm_rate.sh</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>报告生成时间: 2025-08-25 00:02:33</p>
+            <p>Windows UBM 测试套件 v1.0 (演示版)</p>
+        </div>
+    </div>
+</body>
+</html>
