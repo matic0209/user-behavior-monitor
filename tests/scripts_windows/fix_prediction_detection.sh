@@ -4,7 +4,34 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-EXE_PATH="${1:-../../dist/UserBehaviorMonitor.exe}"
+# 智能查找UserBehaviorMonitor.exe
+EXE_CANDIDATES=(
+    "../../dist/UserBehaviorMonitor.exe"
+    "../../../dist/UserBehaviorMonitor.exe"
+    "dist/UserBehaviorMonitor.exe"
+    "../dist/UserBehaviorMonitor.exe"
+    "../../../../dist/UserBehaviorMonitor.exe"
+)
+
+DEFAULT_EXE="../../dist/UserBehaviorMonitor.exe"
+if [[ -n "$1" ]]; then
+    EXE_PATH="$1"
+    echo "[DEBUG] 使用用户指定的EXE路径: $EXE_PATH"
+else
+    EXE_PATH=""
+    for candidate in "${EXE_CANDIDATES[@]}"; do
+        if [[ -f "$candidate" ]]; then
+            EXE_PATH="$candidate"
+            echo "[DEBUG] 找到EXE文件: $candidate"
+            break
+        fi
+    done
+    
+    if [[ -z "$EXE_PATH" ]]; then
+        echo "[WARNING] 未找到UserBehaviorMonitor.exe，使用默认路径"
+        EXE_PATH="$DEFAULT_EXE"
+    fi
+fi
 WORK_DIR="${2:-./fix_prediction_test}"
 
 echo "=== 解决预测循环检测问题 ==="
@@ -15,9 +42,26 @@ echo ""
 # 检查EXE是否存在
 if [[ ! -f "$EXE_PATH" ]]; then
     echo "[ERROR] EXE文件不存在: $EXE_PATH"
-    echo "请确保:"
-    echo "1. 已经构建了EXE文件"
-    echo "2. 路径正确"
+    echo ""
+    echo "解决方案："
+    echo "1. 自动构建EXE文件 (推荐):"
+    echo "   bash tests/scripts_windows/build_exe_if_missing.sh"
+    echo ""
+    echo "2. 手动构建EXE文件:"
+    echo "   python build_cross_platform.py"
+    echo "   # 或者"
+    echo "   python build_windows.py"
+    echo ""
+    echo "3. 手动指定EXE路径:"
+    echo "   bash $0 /path/to/UserBehaviorMonitor.exe"
+    echo ""
+    echo "4. 检查是否在正确目录:"
+    echo "   当前脚本位置: $SCRIPT_DIR"
+    echo "   期望EXE位置: $(cd "$SCRIPT_DIR" && cd ../../dist 2>/dev/null && pwd || echo "不存在")/UserBehaviorMonitor.exe"
+    echo ""
+    echo "5. 查找EXE文件:"
+    echo "   find . -name 'UserBehaviorMonitor.exe' -type f 2>/dev/null"
+    echo ""
     exit 1
 fi
 
