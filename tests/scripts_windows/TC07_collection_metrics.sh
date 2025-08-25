@@ -35,9 +35,21 @@ sleep $STARTUP_WAIT
 log_info "发送快捷键 rrrr 触发数据采集..."
 send_char_repeated 'r' 4 100
 
-# 等待数据采集完成
-log_info "等待数据采集完成..."
-sleep $TRAINING_WAIT
+# 等待数据采集进入稳定阶段（时间盒）
+log_info "等待数据采集进入稳定阶段(时间盒)..."
+TIMEBOX=30
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=6; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=12; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 8)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*COLLECT_(START|PROGRESS|DONE)|数据采集完成|采集统计|COLLECT_DONE" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中采集阶段日志，进入指标检查"
+      break
+    fi
+  fi
+  sleep 1
+done
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 40)
 if [[ -n "$LOG_PATH" ]]; then

@@ -37,9 +37,21 @@ log_info "发送快捷键 aaaa 触发异常告警..."
 send_char_repeated 'a' 4 100
 write_result_row 2 "Trigger anomaly alert" "Anomaly alert starts" "send aaaa" "N/A"
 
-# 等待异常告警处理完成
-log_info "等待异常告警处理完成..."
-sleep $FEATURE_WAIT
+# 等待异常告警关键日志（时间盒，避免卡住）
+log_info "等待异常告警关键日志(时间盒)..."
+TIMEBOX=30
+if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then TIMEBOX=6; elif [[ "${FAST_MODE:-false}" == "true" ]]; then TIMEBOX=12; fi
+end_ts=$(( $(date +%s) + TIMEBOX ))
+while [[ $(date +%s) -lt $end_ts ]]; do
+  LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 8)
+  if [[ -n "$LOG_PATH" ]]; then
+    if grep -qiE "UBM_MARK:\s*ALERT_TRIGGERED|告警触发|异常检测|alert|warning|anomaly" "$LOG_PATH" 2>/dev/null; then
+      log_info "命中异常告警关键日志，进入分析"
+      break
+    fi
+  fi
+  sleep 1
+done
 
 LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 30)
 if [[ -n "$LOG_PATH" ]]; then

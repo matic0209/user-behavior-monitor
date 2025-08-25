@@ -44,9 +44,12 @@ if [[ -n "$LOG_PATH" ]]; then
     log_info "分析异常阻止结果..."
     
     # 1. 检查异常阻止相关关键字
-    PATTERNS=('block' 'prevent' 'stop' 'deny' '阻止' '预防' '停止' '拒绝' \
-              'UBM_MARK: BLOCK_TRIGGERED' '阻止触发' '异常阻止' '安全阻止' \
-              'threat' 'security' '威胁' '安全' 'malicious' '恶意')
+    PATTERNS=(
+      'block' 'prevent' 'stop' 'deny' '阻止' '预防' '停止' '拒绝'
+      'UBM_MARK: BLOCK_TRIGGERED' '阻止触发' '异常阻止' '安全阻止'
+      'UBM_MARK: LOCK_SCREEN' 'LOCK_SCREEN' 'SCREEN_LOCKED'
+      'threat' 'security' '威胁' '安全' 'malicious' '恶意'
+    )
     
     TOTAL_HITS=0
     for pattern in "${PATTERNS[@]}"; do
@@ -89,8 +92,10 @@ if [[ -n "$LOG_PATH" ]]; then
     log_info "观察系统行为..."
     
     # 检查是否有锁屏、登出等系统操作记录
-    SYSTEM_ACTIONS=('lock_screen' 'force_logout' 'shutdown' 'restart' '锁屏' '强制登出' '关机' '重启' \
-                    'UBM_MARK: SCREEN_LOCKED' 'UBM_MARK: USER_LOGGED_OUT' 'UBM_MARK: SYSTEM_ACTION')
+    SYSTEM_ACTIONS=(
+      'lock_screen' 'force_logout' 'shutdown' 'restart' '锁屏' '强制登出' '关机' '重启'
+      'UBM_MARK: LOCK_SCREEN' 'UBM_MARK: SCREEN_LOCKED' 'UBM_MARK: USER_LOGGED_OUT' 'UBM_MARK: SYSTEM_ACTION'
+    )
     
     SYSTEM_ACTION_DETECTED=false
     for action in "${SYSTEM_ACTIONS[@]}"; do
