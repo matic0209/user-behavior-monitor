@@ -10,7 +10,7 @@ EXE_PATH="${1:-../../dist/UserBehaviorMonitor.exe}"
 WORK_DIR="${2:-./quick_test_run}"
 ULTRA_FAST_MODE=true  # 强制使用超快模式
 
-echo "🚀 快速验证预测循环终止修复"
+echo "快速验证预测循环终止修复"
 echo "================================"
 echo "EXE路径: $EXE_PATH"
 echo "工作目录: $WORK_DIR"
@@ -18,12 +18,12 @@ echo "模式: 超快验证 (5-10秒)"
 echo ""
 
 # 检查Python依赖
-echo "🔧 检查Python依赖..."
+echo "检查Python依赖..."
 if python3 -c "import pyautogui; print('pyautogui可用')" 2>/dev/null; then
-    log_success "✅ pyautogui已安装，输入模拟效果更佳"
+    log_success "[OK] pyautogui已安装，输入模拟效果更佳"
 else
-    log_warning "⚠️  pyautogui未安装，将使用备选方案"
-    log_info "💡 可运行 python3 tests/scripts_windows/install_pyautogui.py 安装"
+    log_warning "[WARNING] pyautogui未安装，将使用备选方案"
+    log_info "可运行 python3 tests/scripts_windows/install_pyautogui.py 安装"
 fi
 echo ""
 
@@ -45,11 +45,11 @@ log_info "日志目录: $LOGS_DIR"
 
 # 测试步骤1: 启动应用程序
 echo ""
-echo "📋 测试步骤1: 启动应用程序"
+echo "[STEP 1] 启动应用程序"
 echo "------------------------"
 START_TIME=$(date +%s)
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
-log_success "✓ 应用程序已启动，PID: $PID"
+log_success "[OK] 应用程序已启动，PID: $PID"
 
 # 等待应用程序完全启动
 echo "等待应用程序完全启动..."
@@ -57,7 +57,7 @@ sleep 3
 
 # 测试步骤2: 触发快速数据收集
 echo ""
-echo "📋 测试步骤2: 触发数据收集和训练"
+echo "[STEP 2] 触发数据收集和训练"
 echo "--------------------------------"
 log_info "发送 rrrr 快捷键触发数据收集和训练..."
 send_char_repeated 'r' 4 100
@@ -74,7 +74,7 @@ sleep 1
 
 # 测试步骤3: 等待预测循环开始并立即终止
 echo ""
-echo "📋 测试步骤3: 检测预测循环并立即终止"
+echo "[STEP 3] 检测预测循环并立即终止"
 echo "------------------------------------"
 log_info "等待预测循环开始（最多等待10秒）..."
 
@@ -89,7 +89,7 @@ while [[ $(date +%s) -lt $end_ts ]]; do
         # 检查是否出现预测相关日志
         if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]" "$LOG_PATH" 2>/dev/null; then
             PREDICTION_DETECTED=true
-            log_success "✓ 检测到预测循环开始！"
+            log_success "[OK] 检测到预测循环开始！"
             
             # 记录检测时间
             DETECTION_TIME=$(date +%s)
@@ -97,7 +97,7 @@ while [[ $(date +%s) -lt $end_ts ]]; do
             log_info "从启动到预测检测用时: ${TIME_TO_PREDICTION}秒"
             
             # 立即终止应用程序（测试修复）
-            log_warning "🛑 立即终止应用程序（测试修复）..."
+            log_warning "[TERMINATE] 立即终止应用程序（测试修复）..."
             TERMINATION_START=$(date +%s)
             
             stop_ubm_immediately "$PID" "快速验证测试"
@@ -108,18 +108,18 @@ while [[ $(date +%s) -lt $end_ts ]]; do
             TERMINATION_TIME=$((TERMINATION_END - TERMINATION_START))
             
             if kill -0 "$PID" 2>/dev/null; then
-                log_error "❌ 进程仍在运行，立即终止失败！"
+                log_error "[ERROR] 进程仍在运行，立即终止失败！"
                 # 尝试强力清理
                 stop_ubm_gracefully "$PID"
                 if kill -0 "$PID" 2>/dev/null; then
-                    log_error "❌ 强力清理也失败，进程无法终止"
-                    echo "⚠️  可能需要手动终止进程: $PID"
+                    log_error "[ERROR] 强力清理也失败，进程无法终止"
+                    echo "[WARNING]  可能需要手动终止进程: $PID"
                     break
                 else
-                    log_warning "⚠️  立即终止失败，但强力清理成功"
+                    log_warning "[WARNING]  立即终止失败，但强力清理成功"
                 fi
             else
-                log_success "✅ 进程已成功终止！"
+                log_success "[OK] 进程已成功终止！"
                 log_info "终止用时: ${TERMINATION_TIME}秒"
             fi
             
@@ -137,27 +137,27 @@ echo ""  # 换行
 
 # 测试结果分析
 echo ""
-echo "📊 测试结果分析"
+echo "[ANALYSIS] 测试结果分析"
 echo "==============="
 
 TOTAL_TIME=$(($(date +%s) - START_TIME))
 
 if [[ "$PREDICTION_DETECTED" == "true" ]]; then
-    log_success "🎉 预测循环检测: 成功"
+    log_success "[SUCCESS] 预测循环检测: 成功"
     log_info "  - 检测用时: ${TIME_TO_PREDICTION}秒"
     
     if ! kill -0 "$PID" 2>/dev/null; then
-        log_success "🎉 立即终止功能: 成功"
+        log_success "[SUCCESS] 立即终止功能: 成功"
         log_info "  - 终止用时: ${TERMINATION_TIME}秒"
         echo ""
-        echo "✅ 修复验证成功！预测循环能够被立即终止，不会导致测试卡住。"
+        echo "[OK] 修复验证成功！预测循环能够被立即终止，不会导致测试卡住。"
     else
-        log_error "❌ 立即终止功能: 失败"
+        log_error "[ERROR] 立即终止功能: 失败"
         echo ""
-        echo "⚠️  修复可能不完全，需要进一步调试终止逻辑。"
+        echo "[WARNING]  修复可能不完全，需要进一步调试终止逻辑。"
     fi
 else
-    log_warning "⚠️  预测循环检测: 超时"
+    log_warning "[WARNING]  预测循环检测: 超时"
     log_info "可能原因："
     log_info "  1. 应用程序启动缓慢"
     log_info "  2. 数据收集时间不足"
@@ -191,8 +191,8 @@ else
 fi
 
 echo ""
-echo "⏱️  总测试时间: ${TOTAL_TIME}秒"
-echo "🏁 快速验证测试完成"
+echo "[TIME]  总测试时间: ${TOTAL_TIME}秒"
+echo "[DONE] 快速验证测试完成"
 
 # 最终清理确认
 if kill -0 "$PID" 2>/dev/null; then
@@ -202,7 +202,7 @@ fi
 
 echo ""
 if [[ "$PREDICTION_DETECTED" == "true" ]] && ! kill -0 "$PID" 2>/dev/null; then
-    echo "🎯 结论: 修复有效，可以进行完整测试！"
+    echo "[RESULT] 结论: 修复有效，可以进行完整测试！"
     exit 0
 else
     echo "🔧 结论: 需要进一步调试"
