@@ -26,16 +26,27 @@ ps aux | grep -i "UserBehavior\|behavior" | grep -v grep || echo "  未找到"
 log_info "2. 收集所有需要终止的PID..."
 PIDS_TO_KILL=()
 
-# 方法1：通过tasklist获取
+# 方法1：通过tasklist获取 - 确保获取所有UserBehaviorMonitor进程
+echo "  使用tasklist查找UserBehaviorMonitor.exe..."
 while IFS= read -r line; do
-    if [[ -n "$line" ]]; then
-        PID=$(echo "$line" | awk '{print $2}')
+    if [[ -n "$line" && "$line" != *"INFO: No tasks"* ]]; then
+        # 提取PID（第二列）
+        PID=$(echo "$line" | tr -d '"' | awk -F',' '{print $2}' | tr -d ' ')
         if [[ "$PID" =~ ^[0-9]+$ ]]; then
             PIDS_TO_KILL+=("$PID")
-            echo "  找到PID: $PID (tasklist)"
+            echo "    找到UserBehaviorMonitor PID: $PID"
         fi
     fi
-done < <(tasklist /FI "IMAGENAME eq UserBehaviorMonitor.exe" /FO CSV /NH 2>/dev/null | tr -d '"' || echo "")
+done < <(tasklist /FI "IMAGENAME eq UserBehaviorMonitor.exe" /FO CSV /NH 2>/dev/null || echo "")
+
+# 额外方法：直接通过进程名获取所有PID
+echo "  使用wmic查找所有UserBehaviorMonitor进程..."
+while IFS= read -r pid; do
+    if [[ -n "$pid" && "$pid" =~ ^[0-9]+$ ]]; then
+        PIDS_TO_KILL+=("$pid")
+        echo "    找到UserBehaviorMonitor PID: $pid (wmic)"
+    fi
+done < <(wmic process where "name='UserBehaviorMonitor.exe'" get processid /format:value 2>/dev/null | grep "ProcessId=" | cut -d'=' -f2 | tr -d '\r' || echo "")
 
 # 方法2：通过wmic获取
 while IFS= read -r line; do
@@ -76,6 +87,13 @@ log_info "3. 发现 ${#UNIQUE_PIDS[@]} 个进程需要终止: ${UNIQUE_PIDS[*]}"
 # 3. 逐个终止进程，模拟任务管理器
 log_info "4. 开始终止进程（模拟任务管理器）..."
 
+# 首先使用最激进的方法：按进程名终止所有实例
+log_info "4.1 使用进程名终止所有UserBehaviorMonitor实例..."
+taskkill //IM "UserBehaviorMonitor.exe" //F //T 2>/dev/null && echo "  按进程名终止成功" || echo "  按进程名终止失败或无进程"
+sleep 1
+
+# 然后逐个终止收集到的PID（以防万一）
+log_info "4.2 逐个终止收集到的PID..."
 for pid in "${UNIQUE_PIDS[@]}"; do
     if kill -0 "$pid" 2>/dev/null; then
         log_info "终止进程 PID: $pid"
