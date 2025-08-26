@@ -54,19 +54,19 @@ PRED_SEEN=false
 while [[ $(date +%s) -lt $end_ts ]]; do
   LOG_PATH=$(wait_for_latest_log "$LOGS_DIR" 10)
   if [[ -n "$LOG_PATH" ]]; then
-    # 优先检测训练完成，避免进入预测循环 - 使用多种模式
-    if grep -qiE "\[SUCCESS\].*模型训练完成|用户.*模型训练完成|模型训练完成|Training completed|Model training finished|开始自动异常检测|自动异常检测已启动" "$LOG_PATH" 2>/dev/null; then
-      log_info "检测到模型训练完成或异常检测启动，立即终止应用程序避免进入预测循环"
-      stop_ubm_immediately "$PID" "训练完成或预测启动检测"
-      sleep 1  # 给进程终止一点时间
+    # 激进策略：检测到任何预测活动就立即终止，不等训练完成
+    if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]|成功加载用户.*的模型" "$LOG_PATH" 2>/dev/null; then
+      PRED_SEEN=true
+      log_info "检测到预测活动（模型加载/预测运行），立即终止应用程序避免无限循环"
+      stop_ubm_immediately "$PID" "预测活动检测"
+      sleep 2  # 给进程更多时间终止
       break
     fi
-    # 如果训练未完成但已进入预测，也立即终止
-    if grep -qiE "UBM_MARK:\s*PREDICT_(INIT|START|RUNNING)|使用训练模型预测完成|预测结果[:：]" "$LOG_PATH" 2>/dev/null; then
-      PRED_SEEN=true
-      log_info "检测到预测循环开始，立即终止应用程序避免无限循环"
-      stop_ubm_immediately "$PID" "预测循环检测"
-      sleep 1  # 给进程终止一点时间
+    # 备用：检测训练完成
+    if grep -qiE "\[SUCCESS\].*模型训练完成|用户.*模型训练完成|模型训练完成|Training completed|Model training finished|开始自动异常检测|自动异常检测已启动" "$LOG_PATH" 2>/dev/null; then
+      log_info "检测到模型训练完成或异常检测启动，立即终止应用程序"
+      stop_ubm_immediately "$PID" "训练完成检测"
+      sleep 2  # 给进程更多时间终止
       break
     fi
   fi

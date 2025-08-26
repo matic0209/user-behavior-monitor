@@ -514,43 +514,44 @@ stop_ubm_immediately() {
     
     log_debug "DEBUG: Process $proc is running, terminating..."
     
-    # 第一步：SIGKILL
-    log_debug "DEBUG: Sending SIGKILL to $proc"
-    kill -9 "$proc" 2>/dev/null || true
-    sleep 0.5
+    # 激进策略：立即使用最强力的方法
+    log_debug "DEBUG: Using aggressive termination methods"
+    
+    # 同时使用多种方法
+    kill -9 "$proc" 2>/dev/null || true &
+    taskkill //PID "$proc" //F 2>/dev/null || true &
+    taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true &
+    taskkill //IM "python.exe" //F //FI "COMMANDLINE eq *UserBehaviorMonitor*" 2>/dev/null || true &
+    
+    # 等待所有终止命令完成
+    wait
+    sleep 1
     
     # 检查是否成功
     if ! kill -0 "$proc" 2>/dev/null; then
-        log_success "DEBUG: SIGKILL successful for PID $proc"
+        log_success "DEBUG: Aggressive termination successful for PID $proc"
         return 0
     fi
     
-    # Windows环境下的强化终止
-    log_debug "DEBUG: SIGKILL failed, trying Windows methods..."
+    # 如果还没成功，再试一轮更激进的方法
+    log_debug "DEBUG: First round failed, trying nuclear option..."
     
-    # 使用taskkill终止PID
-    log_debug "DEBUG: Using taskkill /PID $proc /F"
-    taskkill //PID "$proc" //F 2>/dev/null || true
-    sleep 0.5
+    # 核弹级终止：终止所有可能相关的进程
+    pkill -f "UserBehaviorMonitor" 2>/dev/null || true
+    pkill -f "user_behavior_monitor" 2>/dev/null || true
+    taskkill //IM "UserBehaviorMonitor.exe" //F //T 2>/dev/null || true  # /T 终止进程树
+    taskkill //IM "python.exe" //F //FI "COMMANDLINE eq *behavior*" 2>/dev/null || true
     
-    if ! kill -0 "$proc" 2>/dev/null; then
-        log_success "DEBUG: taskkill PID successful"
-        return 0
-    fi
-    
-    # 终止所有UserBehaviorMonitor进程
-    log_debug "DEBUG: Terminating all UserBehaviorMonitor processes"
-    taskkill //IM "UserBehaviorMonitor.exe" //F 2>/dev/null || true
-    taskkill //IM "python.exe" //F //FI "COMMANDLINE eq *UserBehaviorMonitor*" 2>/dev/null || true
-    sleep 0.5
+    sleep 2
     
     # 最终检查
     if ! kill -0 "$proc" 2>/dev/null; then
-        log_success "Process $proc terminated successfully"
+        log_success "Process $proc terminated successfully (nuclear option)"
         return 0
     else
-        log_error "CRITICAL: Process $proc could not be terminated!"
-        log_error "Manual intervention required: taskkill //PID $proc //F"
+        log_error "CRITICAL: Process $proc STILL RUNNING after nuclear termination!"
+        log_error "This should never happen. Manual intervention required."
+        log_error "Try: taskkill //PID $proc //F //T"
         return 1
     fi
 }
