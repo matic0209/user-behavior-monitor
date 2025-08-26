@@ -29,6 +29,11 @@ write_result_table_header
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
 write_result_row 1 "Start EXE" "Process started" "PID=$PID" "Pass"
 
+# 启动核弹级终止器作为安全网（60秒后强制终止）
+log_warning "启动核弹级终止器作为安全网（60秒后强制终止所有UBM进程）"
+NUCLEAR_PID=$(bash "$SCRIPT_DIR/nuclear_terminator.sh" 60)
+log_info "核弹级终止器PID: $NUCLEAR_PID"
+
 # 等待程序启动
 sleep $STARTUP_WAIT
 
@@ -40,12 +45,12 @@ write_result_row 2 "Trigger deep learning" "Deep learning starts" "send rrrr" "N
 # 等待深度学习/预测进入稳定阶段（时间盒，避免卡住）
 log_info "等待深度学习/预测进入稳定阶段(时间盒)..."
 
-# 依据模式设定时间盒
-TIMEBOX=45
+# 依据模式设定时间盒 - 大幅缩短以强制快速终止
+TIMEBOX=10  # 从45秒大幅缩短到10秒
 if [[ "${ULTRA_FAST_MODE:-false}" == "true" ]]; then
-  TIMEBOX=8
+  TIMEBOX=5
 elif [[ "${FAST_MODE:-false}" == "true" ]]; then
-  TIMEBOX=15
+  TIMEBOX=8
 fi
 
 end_ts=$(( $(date +%s) + TIMEBOX ))
@@ -182,6 +187,13 @@ if kill -0 "$PID" 2>/dev/null; then
 else
     log_success "进程已成功终止"
 fi
+
+# 清理核弹级终止器
+if [[ -n "$NUCLEAR_PID" ]] && kill -0 "$NUCLEAR_PID" 2>/dev/null; then
+    log_info "清理核弹级终止器进程: $NUCLEAR_PID"
+    kill "$NUCLEAR_PID" 2>/dev/null || true
+fi
+
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
 
 log_success "TC03 深度学习分类测试完成"
