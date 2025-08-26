@@ -77,6 +77,14 @@ while [[ $(date +%s) -lt $end_ts ]]; do
   fi
   sleep 1
 done
+
+# 时间盒结束后，无论是否检测到，都强制终止所有UBM进程
+log_warning "时间盒结束，强制终止所有UBM进程以防止无限循环"
+taskkill //IM "UserBehaviorMonitor.exe" //F //T 2>/dev/null || true
+taskkill //IM "python.exe" //F //FI "COMMANDLINE eq *UserBehaviorMonitor*" 2>/dev/null || true
+pkill -f "UserBehaviorMonitor" 2>/dev/null || true
+sleep 2
+
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析深度学习分类结果..."
     
@@ -195,5 +203,11 @@ if [[ -n "$NUCLEAR_PID" ]] && kill -0 "$NUCLEAR_PID" 2>/dev/null; then
 fi
 
 write_result_row 3 "Exit program" "Graceful exit or terminated" "Exit done" "Pass"
+
+# 最终安全检查：确保所有UBM进程都被终止
+log_warning "最终安全检查：确保所有UBM进程都被终止"
+taskkill //IM "UserBehaviorMonitor.exe" //F //T 2>/dev/null || true
+taskkill //IM "python.exe" //F //FI "COMMANDLINE eq *behavior*" 2>/dev/null || true
+pkill -f "behavior" 2>/dev/null || true
 
 log_success "TC03 深度学习分类测试完成"
