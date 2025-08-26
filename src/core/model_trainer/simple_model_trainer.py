@@ -206,7 +206,13 @@ class SimpleModelTrainer:
             # 只保留目标特征列
             aligned_features = features_df[target_features].copy()
             
-            self.logger.info(f"特征对齐完成: {len(aligned_features.columns)} 个特征")
+            feature_count = len(aligned_features.columns)
+            self.logger.info(f"特征对齐完成: {feature_count} 个特征")
+            # 添加UBM_MARK用于测试脚本解析
+            try:
+                self.logger.info(f"UBM_MARK: FEATURE_COUNT n_features={feature_count}")
+            except Exception:
+                pass
             return aligned_features
             
         except Exception as e:

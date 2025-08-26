@@ -84,26 +84,35 @@ ACTUAL="no-log-found"
 if [[ -n "$LOG_PATH" ]]; then
     log_info "分析日志文件: $LOG_PATH"
     
-    # 多种特征数量匹配模式
+    # 多种特征数量匹配模式 (按优先级排序)
     PATTERNS=(
-        'feature_count\s*:\s*([0-9]+)'
-        '特征数量\s*:\s*([0-9]+)'
-        '特征数\s*:\s*([0-9]+)'
-        'features\s*:\s*([0-9]+)'
-        'n_features\s*:\s*([0-9]+)'
-        '特征\s*([0-9]+)\s*个'
-        '共\s*([0-9]+)\s*个特征'
+        'UBM_MARK:\s*FEATURE_COUNT\s+n_features=([0-9]+)'  # "UBM_MARK: FEATURE_COUNT n_features=200" (最优先)
+        'n_features[^0-9]*([0-9]+)'                        # "n_features": 200
+        'Selected\s+([0-9]+)\s+features'                   # "Selected 200 features out of 300"
+        '特征对齐完成:\s*([0-9]+)\s*个特征'                    # "特征对齐完成: 200 个特征"
+        'Created\s+([0-9]+)\s+new\s+features'              # "Created 200 new features"
+        '特征数量[^0-9]*([0-9]+)'                          # "特征数量: 200"
+        '特征数[^0-9]*([0-9]+)'                            # "特征数: 200"
+        'features[^0-9]*([0-9]+)'                          # "features: 200"
+        '特征\s*([0-9]+)\s*个'                             # "特征 200 个"
+        '共\s*([0-9]+)\s*个特征'                           # "共 200 个特征"
+        '([0-9]+)\s*records,\s*([0-9]+)\s*features'        # "1000 records, 200 features"
     )
     
     MAX=0
     for pattern in "${PATTERNS[@]}"; do
         log_debug "搜索模式: $pattern"
-        if grep -q "$pattern" "$LOG_PATH" 2>/dev/null; then
-            # 提取数字
-            MATCHES=$(grep -o "$pattern" "$LOG_PATH" | grep -o '[0-9]\+')
-            for match in $MATCHES; do
-                if [[ $match -gt $MAX ]]; then
-                    MAX=$match
+        # 使用grep -E进行扩展正则表达式匹配
+        MATCHES=$(grep -oE "$pattern" "$LOG_PATH" 2>/dev/null || echo "")
+        if [[ -n "$MATCHES" ]]; then
+            log_debug "找到匹配: $MATCHES"
+            # 从每个匹配中提取所有数字
+            NUMBERS=$(echo "$MATCHES" | grep -oE '[0-9]+')
+            for num in $NUMBERS; do
+                log_debug "提取到数字: $num"
+                if [[ $num -gt $MAX ]]; then
+                    MAX=$num
+                    log_debug "更新最大值: $MAX (来源模式: $pattern)"
                 fi
             done
         fi

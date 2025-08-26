@@ -60,33 +60,55 @@ if [[ -n "$LOG_PATH" ]]; then
     ACC=""
     F1=""
     
-    # 查找Accuracy
-    ACC_LINE=$(grep -i "accuracy.*[0-9]" "$LOG_PATH" | head -1)
+    # 查找Accuracy - 支持多种格式
+    # 格式1: "ACCURACY: 0.9500" (应用程序标准输出)
+    # 格式2: "模型准确率: 0.9500" (中文输出)
+    # 格式3: "accuracy: 0.95" 或 "accuracy=0.95"
+    ACC_LINE=$(grep -iE "(ACCURACY:|模型准确率:|accuracy[:=])" "$LOG_PATH" | head -1)
     if [[ -n "$ACC_LINE" ]]; then
-        ACC=$(echo "$ACC_LINE" | grep -o '[0-9]\+\.[0-9]\+' | head -1)
-        if [[ -z "$ACC" ]]; then
-            ACC=$(echo "$ACC_LINE" | grep -o '[0-9]\+' | head -1)
-        fi
+        # 提取数字（支持小数和整数）
+        ACC=$(echo "$ACC_LINE" | grep -oE '[0-9]+\.[0-9]+|[0-9]+' | head -1)
+        log_debug "找到准确率: $ACC (来源: $ACC_LINE)"
+    else
+        log_debug "未找到准确率信息"
     fi
     
-    # 查找F1
-    F1_LINE=$(grep -i "f1.*[0-9]" "$LOG_PATH" | head -1)
+    # 查找F1 - 支持多种格式  
+    # 格式1: "F1: 0.8750" (应用程序标准输出)
+    # 格式2: "f1_score: 0.87" 或 "f1=0.87"
+    F1_LINE=$(grep -iE "(F1:|f1_score[:=]|f1[:=])" "$LOG_PATH" | head -1)
     if [[ -n "$F1_LINE" ]]; then
-        F1=$(echo "$F1_LINE" | grep -o '[0-9]\+\.[0-9]\+' | head -1)
-        if [[ -z "$F1" ]]; then
-            F1=$(echo "$F1_LINE" | grep -o '[0-9]\+' | head -1)
-        fi
+        # 提取数字（支持小数和整数）
+        F1=$(echo "$F1_LINE" | grep -oE '[0-9]+\.[0-9]+|[0-9]+' | head -1)
+        log_debug "找到F1分数: $F1 (来源: $F1_LINE)"
+    else
+        log_debug "未找到F1分数信息"
     fi
     
     if [[ -n "$ACC" ]] && [[ -n "$F1" ]]; then
+        # 转换为数值进行比较
         ACC_NUM=$(echo "$ACC" | bc -l 2>/dev/null || echo "$ACC")
         F1_NUM=$(echo "$F1" | bc -l 2>/dev/null || echo "$F1")
         
-        if [[ $ACC_NUM -ge 90 ]] && [[ $F1_NUM -ge 85 ]]; then
+        # 检查是否是0-1之间的小数格式，如果是则转换为百分比进行比较
+        # 阈值：准确率>=0.90, F1>=0.85
+        ACC_THRESHOLD="0.90"
+        F1_THRESHOLD="0.85"
+        
+        # 使用bc进行浮点数比较
+        ACC_PASS=$(echo "$ACC_NUM >= $ACC_THRESHOLD" | bc -l 2>/dev/null || echo "0")
+        F1_PASS=$(echo "$F1_NUM >= $F1_THRESHOLD" | bc -l 2>/dev/null || echo "0")
+        
+        if [[ "$ACC_PASS" == "1" ]] && [[ "$F1_PASS" == "1" ]]; then
             OK=true
         fi
         
-        ACTUAL="acc=${ACC}%, f1=${F1}% (threshold: acc>=90%, f1>=85%)"
+        # 显示百分比格式便于理解
+        ACC_PERCENT=$(echo "$ACC_NUM * 100" | bc -l 2>/dev/null | cut -d. -f1 || echo "$ACC_NUM")
+        F1_PERCENT=$(echo "$F1_NUM * 100" | bc -l 2>/dev/null | cut -d. -f1 || echo "$F1_NUM")
+        ACTUAL="acc=${ACC_PERCENT}%, f1=${F1_PERCENT}% (threshold: acc>=90%, f1>=85%)"
+        
+        log_info "指标解析结果: 准确率=$ACC_NUM (${ACC_PERCENT}%), F1=$F1_NUM (${F1_PERCENT}%)"
     fi
 fi
 
