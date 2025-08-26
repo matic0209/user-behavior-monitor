@@ -148,10 +148,10 @@ class WindowsBehaviorMonitor:
         
         # 自动流程控制
         self.auto_mode = True
-        # 从配置读取目标采样数，默认 1000（加速测试）
+        # 从配置读取目标采样数
         dc_cfg = self.config.get_data_collection_config()
-        self.min_data_points = int(dc_cfg.get('target_samples_per_session', 1000))
-        self.collection_timeout = 120  # 采集超时时间（秒）- 从300秒减少到120秒，适配1000样本
+        self.min_data_points = int(dc_cfg.get('target_samples_per_session', 10000))
+        self.collection_timeout = 300  # 采集超时时间（秒）
         
         # 心跳配置
         self.heartbeat_url = "http://127.0.0.1:26002/heartbeat"
