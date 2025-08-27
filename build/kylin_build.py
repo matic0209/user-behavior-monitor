@@ -34,6 +34,17 @@ class KylinBuilder:
             'arch': platform.machine()
         }
         
+        # 如果不是Linux系统，返回当前系统信息用于开发测试
+        if platform.system() != 'Linux':
+            version_info.update({
+                'name': f'{platform.system()} (开发环境)',
+                'version': platform.release(),
+                'is_dev_env': True
+            })
+            return version_info
+        
+        version_info['is_dev_env'] = False
+        
         # 检查麒麟版本文件
         kylin_files = [
             '/etc/kylin-release',
@@ -48,31 +59,54 @@ class KylinBuilder:
                         content = f.read()
                         if '麒麟' in content or 'Kylin' in content:
                             version_info['name'] = '麒麟'
-                            if '银河麒麟' in content:
+                            if '银河麒麟' in content or 'Galaxy Kylin' in content:
                                 version_info['name'] = '银河麒麟'
-                            elif '中标麒麟' in content:
+                            elif '中标麒麟' in content or 'NeoKylin' in content:
                                 version_info['name'] = '中标麒麟'
+                            elif '优麒麟' in content or 'Ubuntu Kylin' in content:
+                                version_info['name'] = '优麒麟'
                             # 提取版本号
                             lines = content.strip().split('\n')
                             for line in lines:
-                                if 'VERSION' in line:
-                                    version_info['version'] = line.split('=')[-1].strip('"')
+                                if 'VERSION' in line or 'VERSION_ID' in line:
+                                    version_info['version'] = line.split('=')[-1].strip('"\'')
                                     break
                             break
                 except Exception:
                     continue
         
+        # 如果还是未知，尝试检测通用Linux发行版
+        if version_info['name'] == '未知':
+            try:
+                with open('/etc/os-release', 'r') as f:
+                    content = f.read()
+                    for line in content.split('\n'):
+                        if line.startswith('PRETTY_NAME='):
+                            version_info['name'] = line.split('=', 1)[1].strip('"\'')
+                            break
+                        elif line.startswith('NAME='):
+                            version_info['name'] = line.split('=', 1)[1].strip('"\'')
+            except Exception:
+                version_info['name'] = 'Linux'
+        
         return version_info
         
     def check_system_compatibility(self):
         """检查系统兼容性"""
-        print("检查麒麟系统兼容性...")
+        print("检查系统兼容性...")
         print(f"检测到系统: {self.kylin_version['name']} {self.kylin_version['version']} ({self.kylin_version['arch']})")
         
+        # 如果是开发环境，给出提示
+        if self.kylin_version.get('is_dev_env', False):
+            print("注意: 当前在开发环境中运行，仅用于测试打包脚本逻辑")
+            print("实际部署请在真实的麒麟系统上运行")
+        
         # 检查架构支持
-        supported_archs = ['x86_64', 'aarch64', 'loongarch64']
+        supported_archs = ['x86_64', 'aarch64', 'loongarch64', 'arm64']  # 添加arm64用于Mac开发
         if self.kylin_version['arch'] not in supported_archs:
             print(f"警告: 架构 {self.kylin_version['arch']} 可能不完全支持")
+        else:
+            print(f"✓ 架构 {self.kylin_version['arch']} 受支持")
         
         return True
     
@@ -94,7 +128,13 @@ class KylinBuilder:
             print(f"✓ PyInstaller已安装: {PyInstaller.__version__}")
         except ImportError:
             print("错误: PyInstaller未安装")
-            print("请运行: pip3 install pyinstaller")
+            if self.kylin_version.get('is_dev_env', False):
+                print("开发环境建议: 创建虚拟环境后安装")
+                print("  python3 -m venv build_env")
+                print("  source build_env/bin/activate")
+                print("  pip install pyinstaller")
+            else:
+                print("麒麟系统安装: pip3 install pyinstaller")
             return False
         
         # 检查核心依赖
@@ -108,11 +148,24 @@ class KylinBuilder:
             print("检测到龙芯架构，跳过部分依赖检查...")
             # 龙芯架构可能缺少某些包
             required_packages = ["numpy", "psutil", "pyyaml"]
+        elif self.kylin_version.get('is_dev_env', False):
+            print("开发环境：检查核心依赖...")
+            # 开发环境检查所有依赖
+            required_packages = [
+                "numpy", "pandas", "scikit-learn", "psutil", "pyyaml"
+            ]
         
         missing_packages = []
         for package in required_packages:
             try:
-                __import__(package)
+                # 特殊处理某些包名映射
+                import_name = package
+                if package == "scikit-learn":
+                    import_name = "sklearn"
+                elif package == "pyyaml":
+                    import_name = "yaml"
+                
+                __import__(import_name)
                 print(f"✓ {package}已安装")
             except ImportError:
                 missing_packages.append(package)

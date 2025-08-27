@@ -20,13 +20,20 @@ seaborn>=0.11.0; platform_machine != "loongarch64"
 imbalanced-learn>=0.8.0; platform_machine != "loongarch64"
 
 # 输入监控依赖
-# 注意：麒麟系统可能需要特殊配置
+# 注意：麒麟系统可能需要特殊配置和权限
 pynput>=1.7.6
+
+# 备选输入监控库 (Linux专用)
 keyboard>=0.13.5; platform_machine != "loongarch64"
 
 # Linux系统特定依赖
 python-xlib>=0.31; platform_system == "Linux"
 python-evdev>=1.6.1; platform_system == "Linux" and platform_machine != "loongarch64"
+
+# 麒麟系统额外依赖
+# 用于处理中文字符和系统集成
+chardet>=3.0.4
+python-dateutil>=2.8.0
 
 # 打包依赖
 pyinstaller>=5.0.0
