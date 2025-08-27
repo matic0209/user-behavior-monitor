@@ -25,7 +25,7 @@ WORK_CONFIG=$(prepare_work_dir "$WORK_DIR")
 BASE_DIR=$(echo "$WORK_CONFIG" | grep -o '"Base":"[^"]*"' | cut -d'"' -f4)
 LOGS_DIR=$(echo "$WORK_CONFIG" | grep -o '"Logs":"[^"]*"' | cut -d'"' -f4)
 
-write_result_header "TC10 Alert false positive rate (<=1%)"
+write_result_header "TC10 Alert false positive rate (<=0.1%)"
 write_result_table_header
 
 PID=$(start_ubm "$EXE_PATH" "$BASE_DIR")
@@ -124,7 +124,7 @@ if [[ -n "$LOG_PATH" ]]; then
         FPR=${FPR_METHOD3:-0}
         
         # 4. 阈值验证（误报率 ≤ 1/1000 = 0.1%）
-        THRESHOLD=0.1  # 0.1%
+        THRESHOLD=0.1  # 0.1% (千分之一)
         
         if [[ "$FPR" != "N/A" ]] && [[ $(echo "$FPR <= $THRESHOLD" | bc -l 2>/dev/null || echo "0") -eq 1 ]]; then
             OK=true
@@ -191,7 +191,7 @@ else
     log_warning "未找到日志文件"
 fi
 
-write_result_row 2 "Compute from logs" "FPR <= 1%" "$ACTUAL" "$CONCLUSION"
+write_result_row 2 "Compute from logs" "FPR <= 0.1%" "$ACTUAL" "$CONCLUSION"
 
 # 进程已在预测检测时终止，这里只需确认
 if kill -0 "$PID" 2>/dev/null; then

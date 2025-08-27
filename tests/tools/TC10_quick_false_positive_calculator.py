@@ -115,7 +115,7 @@ class TC10FalsePositiveCalculator:
             results['user_stats'] = user_stats
             
             # 阈值验证
-            threshold_limit = 1.0  # 1%
+            threshold_limit = 0.1  # 0.1% (千分之一)
             print(f"\n✅ 阈值验证 (要求 ≤ {threshold_limit}%):")
             
             main_fpr = results.get('fpr_by_threshold', 0)
@@ -192,7 +192,7 @@ class TC10FalsePositiveCalculator:
         print("=" * 60)
         print(f"⏱️ 评估时间窗口: {time_window_hours} 小时")
         print(f"🎯 异常检测阈值: {self.anomaly_threshold}")
-        print(f"📊 要求误报率: ≤ 1%")
+        print(f"📊 要求误报率: ≤ 0.1% (千分之一)")
         
         start_time = time.time()
         
@@ -222,7 +222,7 @@ class TC10FalsePositiveCalculator:
         print(f"总预测次数: {total_predictions}")
         print(f"异常预测次数: {anomalies}")
         print(f"误报率: {main_fpr:.2f}%")
-        print(f"阈值要求: ≤ 1%")
+        print(f"阈值要求: ≤ 0.1% (千分之一)")
         
         if results.get('pass_threshold', False):
             print("结论: ✅ 通过 - 误报率满足要求")

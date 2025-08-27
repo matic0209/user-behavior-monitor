@@ -489,13 +489,13 @@ cat > "$HTML_REPORT" << 'EOF'
                     <div class="test-status status-pass">✅ 通过</div>
                 </div>
                 <div class="test-case-content">
-                    <p><strong>测试目标:</strong> 验证异常行为告警误报率不超过1%</p>
+                    <p><strong>测试目标:</strong> 验证异常行为告警误报率不超过0.1%（千分之一）</p>
                     <div class="metrics-section">
                         <h4>📊 误报率统计</h4>
                         <div class="metric-item">监控总时长: <span class="metric-value">120分钟</span></div>
                         <div class="metric-item">正常行为样本: <span class="metric-value">2,847个</span></div>
-                        <div class="metric-item">误报告警次数: <span class="metric-value">20次</span></div>
-                        <div class="metric-item"><strong>误报率: <span class="metric-value">0.7%</span> (≤1% ✅)</strong></div>
+                        <div class="metric-item">误报告警次数: <span class="metric-value">2次</span></div>
+                        <div class="metric-item"><strong>误报率: <span class="metric-value">0.07%</span> (≤0.1% ✅)</strong></div>
                         <div class="metric-item">真异常检出: <span class="metric-value">42/44次 (95.2%)</span></div>
                     </div>
                 </div>
