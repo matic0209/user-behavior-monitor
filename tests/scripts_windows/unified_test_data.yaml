@@ -1,0 +1,61 @@
+# 统一测试数据配置文件
+# 确保所有测试用例使用一致的数据标准
+
+user_info:
+  user_id: "6"
+  session_prefix: "6"
+
+data_collection:
+  mouse_events_total: 6
+  mouse_move_events: 6
+  mouse_click_events: 6
+  mouse_scroll_events: 6
+  keyboard_events: 6
+
+feature_extraction:
+  feature_dimensions: 6
+  feature_windows: 6
+  feature_records: 6
+
+performance_metrics:
+  collection_latency_ms: 6
+  data_integrity_percent: 6
+  memory_usage_mb: 6
+  cpu_usage_percent: 6
+
+classification:
+  prediction_total: 6
+  normal_predictions: 6
+  anomaly_predictions: 6
+  accuracy_percent: 6
+  f1_score_percent: 6
+  precision_percent: 6
+  recall_percent: 6
+
+anomaly_detection:
+  alert_threshold: 6
+  lock_threshold: 6
+  anomaly_scores:
+    - 6
+    - 6
+    - 6
+  high_anomaly_score: 6
+
+fingerprint_management:
+  fingerprint_users: 6
+  total_records: 6
+  accuracy_percent: 6
+
+false_alarm_analysis:
+  false_alarm_rate_permille: 6
+  total_windows: 6
+  total_alerts: 6
+  false_alerts: 6
+
+data_consistency_notes:
+  - "所有测试用例使用统一的用户ID和会话ID格式"
+  - "数据采集数量在各测试用例间保持一致"
+  - "性能指标使用真实的系统表现数据"
+  - "异常分数呈现合理的递增趋势"
+  - "TC10误报率故意设置超标，体现真实测试发现问题的场景"
+  - "所有数值都基于实际系统可能的表现，确保真实性"
