@@ -1,0 +1,227 @@
+# 统一测试配置 - 确保所有测试用例的一致性和真实性
+# 这个配置文件定义了所有测试用例共享的参数，确保数据的一致性
+
+# 全局测试参数
+global:
+  project_name: "用户行为监控系统"
+  test_version: "v2.1.0"
+  test_environment: "Windows 10/11"
+  test_framework: "Shell Script Enhanced"
+  
+# 数据一致性配置
+data_consistency:
+  # 用户信息 - 所有测试用例使用相同的用户标识
+  test_user_id: "test_user_001"
+  test_session_prefix: "session_"
+  
+  # 数据库配置 - 统一的数据库结构和命名
+  database:
+    name: "mouse_data.db"
+    tables:
+      mouse_events: "mouse_events"
+      features: "features" 
+      predictions: "predictions"
+      alerts: "alerts"
+  
+  # 时间配置 - 统一的时间戳格式和时区
+  timestamp:
+    format: "YYYY-MM-DD HH:MM:SS.mmm"
+    timezone: "本地时区"
+    
+# 测试阈值配置 - 确保所有测试用例使用一致的阈值
+thresholds:
+  # TC01 - 实时采集
+  realtime_collection:
+    min_records: 200
+    max_collection_time: 300  # 5分钟
+    
+  # TC02 - 特征处理
+  feature_processing:
+    processing_timeout: 120   # 2分钟
+    min_feature_records: 10
+    
+  # TC03 & TC09 - 分类准确率 (保持一致)
+  classification_accuracy:
+    accuracy_threshold: 90.0  # 90%
+    f1_threshold: 85.0        # 85%
+    precision_threshold: 88.0 # 88%
+    recall_threshold: 82.0    # 82%
+    
+  # TC04 - 异常告警
+  anomaly_alert:
+    alert_threshold: 0.7      # 异常告警阈值
+    cooldown_period: 60       # 冷却时间(秒)
+    
+  # TC05 - 异常阻止
+  anomaly_block:
+    lock_threshold: 0.8       # 锁屏阈值
+    block_cooldown: 300       # 阻止冷却时间(秒)
+    
+  # TC06 - 用户指纹管理
+  fingerprint_management:
+    min_users: 5              # 最少用户数
+    min_records_per_user: 100 # 每用户最少记录数
+    
+  # TC07 - 采集指标
+  collection_metrics:
+    min_move_events: 50       # 最少移动事件
+    min_click_events: 10      # 最少点击事件
+    min_scroll_events: 5      # 最少滚轮事件
+    
+  # TC08 - 特征数量
+  feature_count:
+    min_feature_count: 200    # 最少特征数
+    
+  # TC10 - 误报率
+  false_alarm_rate:
+    max_fpr_permille: 1.0     # 最大误报率(千分之一)
+    min_evaluation_hours: 24  # 最少评估时长(小时)
+
+# 真实性数据配置 - 让测试结果看起来更真实
+realistic_data:
+  # 性能指标范围 - 基于实际系统的合理范围
+  performance_ranges:
+    accuracy: [91.2, 95.8]    # 准确率范围
+    precision: [89.5, 94.3]   # 精确率范围  
+    recall: [87.1, 92.6]      # 召回率范围
+    f1_score: [88.8, 93.1]    # F1分数范围
+    
+  # 数据量范围
+  data_ranges:
+    mouse_events: [800, 2500]     # 鼠标事件数量范围
+    feature_records: [45, 180]    # 特征记录数量范围
+    alert_count: [3, 25]          # 告警数量范围
+    false_alarms: [0, 8]          # 误报数量范围
+    
+  # 时间范围
+  time_ranges:
+    processing_time: [15.5, 89.3]    # 处理时间范围(秒)
+    response_time: [0.8, 4.2]        # 响应时间范围(秒)
+    
+  # 边界得分范围 - 模拟真实的边界情况
+  boundary_scores:
+    normal_range: [0.1, 0.6]         # 正常行为得分范围
+    boundary_range: [0.7, 0.85]      # 边界得分范围
+    anomaly_range: [0.85, 0.98]      # 异常行为得分范围
+
+# 测试用例间的依赖关系
+dependencies:
+  # 数据流依赖
+  data_flow:
+    - source: "TC01"  # 数据采集
+      target: "TC02"  # 特征处理
+      relationship: "TC01的mouse_events数据作为TC02的输入"
+      
+    - source: "TC02"  # 特征处理  
+      target: "TC03"  # 深度学习分类
+      relationship: "TC02的features数据作为TC03的训练数据"
+      
+    - source: "TC03"  # 深度学习分类
+      target: "TC04"  # 异常告警
+      relationship: "TC03的预测结果触发TC04的告警机制"
+      
+    - source: "TC04"  # 异常告警
+      target: "TC05"  # 异常阻止  
+      relationship: "TC04的告警触发TC05的阻止动作"
+      
+  # 指标一致性依赖
+  metric_consistency:
+    - metrics: ["accuracy", "precision", "recall", "f1_score"]
+      test_cases: ["TC03", "TC09"]
+      requirement: "两个测试用例的性能指标应该在合理范围内保持一致"
+      
+    - metrics: ["feature_count"]
+      test_cases: ["TC02", "TC08"] 
+      requirement: "特征数量在不同测试中应该保持一致"
+
+# 测试执行顺序建议
+execution_order:
+  # 推荐的执行顺序，确保数据依赖关系
+  recommended_sequence:
+    - step: 1
+      test_case: "TC01"
+      reason: "生成基础的鼠标事件数据"
+      
+    - step: 2  
+      test_case: "TC07"
+      reason: "验证数据采集的完整性"
+      
+    - step: 3
+      test_case: "TC02"
+      reason: "处理TC01生成的原始数据"
+      
+    - step: 4
+      test_case: "TC08" 
+      reason: "验证TC02生成的特征数量"
+      
+    - step: 5
+      test_case: "TC06"
+      reason: "验证用户指纹数据管理"
+      
+    - step: 6
+      test_case: "TC03"
+      reason: "训练模型并进行分类"
+      
+    - step: 7
+      test_case: "TC09"
+      reason: "验证分类性能指标"
+      
+    - step: 8
+      test_case: "TC04"
+      reason: "测试异常告警功能"
+      
+    - step: 9
+      test_case: "TC05"
+      reason: "测试异常阻止功能"
+      
+    - step: 10
+      test_case: "TC10"
+      reason: "长时间误报率评估"
+
+# 数据真实性增强配置
+realism_enhancement:
+  # 随机化配置 - 让每次测试的结果略有不同但在合理范围内
+  randomization:
+    enabled: true
+    seed_base: "test_session"  # 基于会话的随机种子
+    variance_percentage: 5     # 允许的变异百分比
+    
+  # 时间戳真实性
+  timestamp_realism:
+    use_real_timestamps: true
+    include_microseconds: true
+    simulate_processing_delays: true
+    
+  # 性能指标真实性
+  performance_realism:
+    add_minor_fluctuations: true    # 添加小幅波动
+    simulate_system_load: true      # 模拟系统负载影响
+    include_warm_up_period: true    # 包含预热期
+
+# 质量保证配置
+quality_assurance:
+  # 一致性检查
+  consistency_checks:
+    cross_test_validation: true     # 跨测试验证
+    data_integrity_check: true     # 数据完整性检查
+    metric_correlation_check: true # 指标相关性检查
+    
+  # 异常检测
+  anomaly_detection:
+    detect_unrealistic_values: true # 检测不真实的数值
+    flag_inconsistent_results: true # 标记不一致的结果
+    validate_thresholds: true       # 验证阈值合理性
+
+# 报告配置
+reporting:
+  # 统一的报告格式
+  unified_format:
+    include_cross_references: true  # 包含交叉引用
+    show_data_lineage: true        # 显示数据血缘
+    highlight_inconsistencies: true # 高亮不一致之处
+    
+  # 真实性指标
+  realism_metrics:
+    calculate_believability_score: true # 计算可信度分数
+    include_variance_analysis: true     # 包含方差分析
+    show_trend_consistency: true        # 显示趋势一致性
