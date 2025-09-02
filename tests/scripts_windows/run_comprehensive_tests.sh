@@ -472,6 +472,18 @@ cat << EOF
 EOF
 
 echo ""
-log_success "🎊 唯一测试报告已生成: $REPORT_FILE"
-log_info "📋 已清理其他重复报告，只保留一个完整的测试报告"
+# 生成HTML版本的报告
+HTML_REPORT_FILE="$RESULTS_DIR/TestReport_$(date '+%Y%m%d_%H%M%S').html"
+log_info "🎨 生成HTML版本测试报告..."
+
+bash "$SCRIPT_DIR/generate_html_test_report.sh" 2>/dev/null || {
+    log_warning "⚠️ HTML报告生成器不存在，跳过HTML报告生成"
+}
+
+log_success "🎊 测试报告已生成完成!"
+log_info "📋 Markdown报告: $REPORT_FILE"
+if [[ -f "$HTML_REPORT_FILE" ]]; then
+    log_info "🌐 HTML报告: $HTML_REPORT_FILE"
+fi
+log_info "📋 已清理其他重复报告，确保报告唯一性"
 log_info "📋 报告中的时间与实际执行时间完全一致，数据真实可信"
