@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/common.sh"
 
 # 解析命令行参数
 FAST_MODE=false
-DEMO_MODE=false
+DEMO_MODE=true  # 默认启用演示模式
 MAX_TIME=""
 
 show_usage() {
@@ -16,32 +16,41 @@ show_usage() {
     echo "用法: $0 [选项]"
     echo ""
     echo "选项:"
+    echo "  --full        完整模式 (1小时5分钟，完整企业级测试)"
     echo "  --fast        快速模式 (时间缩短50%，约32分钟)"
-    echo "  --demo        演示模式 (时间缩短80%，约13分钟)"
+    echo "  --demo        演示模式 (时间缩短80%，约13分钟) [默认]"
     echo "  --timeout N   设置最大执行时间(分钟)，超时自动退出"
     echo "  --help        显示此帮助信息"
     echo ""
     echo "执行模式:"
-    echo "  完整模式     1小时5分钟    - 完整的企业级测试体验"
+    echo "  演示模式     13分钟        - 默认模式，适合演示和快速验证"
     echo "  快速模式     32分钟        - 适合日常验证和CI/CD"
-    echo "  演示模式     13分钟        - 适合演示和快速验证"
+    echo "  完整模式     1小时5分钟    - 完整的企业级测试体验"
     echo ""
     echo "示例:"
-    echo "  $0                    # 完整模式 (1小时5分钟)"
-    echo "  $0 --fast            # 快速模式 (32分钟)"
+    echo "  $0                    # 演示模式 (13分钟) [默认]"
     echo "  $0 --demo            # 演示模式 (13分钟)"
+    echo "  $0 --fast            # 快速模式 (32分钟)"
+    echo "  $0 --full            # 完整模式 (1小时5分钟)"
     echo "  $0 --timeout 30      # 30分钟超时"
     exit 0
 }
 
 while [[ $# -gt 0 ]]; do
     case $1 in
+        --full)
+            DEMO_MODE=false
+            FAST_MODE=false
+            shift
+            ;;
         --fast)
+            DEMO_MODE=false
             FAST_MODE=true
             shift
             ;;
         --demo)
             DEMO_MODE=true
+            FAST_MODE=false
             shift
             ;;
         --timeout)
