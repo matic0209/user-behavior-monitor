@@ -144,46 +144,35 @@ else
     log_info "🎯 使用完整模式 (完整测试体验)"
 fi
 
-# 加载真实的测试时间配置
-declare -A BASE_DURATIONS=(
-    ["TC01"]=285   # 实时输入采集：4分45秒 (增加数据采集和验证时间)
-    ["TC02"]=365   # 特征提取：6分5秒 (增加特征处理计算时间)
-    ["TC03"]=680   # 深度学习分类：11分20秒 (增加模型训练和评估时间)
-    ["TC04"]=245   # 异常告警：4分5秒 (增加异常检测和告警验证时间)
-    ["TC05"]=320   # 异常拦截：5分20秒 (增加拦截测试和系统响应时间)
-    ["TC06"]=195   # 指纹管理：3分15秒 (增加指纹数据处理时间)
-    ["TC07"]=165   # 采集指标：2分45秒 (增加多种输入事件采集时间)
-    ["TC08"]=155   # 特征数量：2分35秒 (增加特征统计和验证时间)
-    ["TC09"]=480   # 分类准确率：8分钟 (增加算法评估和指标计算时间)
-    ["TC10"]=750   # 误报率：12分30秒 (增加长时间监控模拟时间)
-)
+# 加载真实的测试时间配置 - 兼容所有bash版本
+# 使用函数替代关联数组，提高兼容性
+get_base_duration() {
+    case "$1" in
+        "TC01") echo "285" ;;   # 实时输入采集：4分45秒 (增加数据采集和验证时间)
+        "TC02") echo "365" ;;   # 特征提取：6分5秒 (增加特征处理计算时间)
+        "TC03") echo "680" ;;   # 深度学习分类：11分20秒 (增加模型训练和评估时间)
+        "TC04") echo "245" ;;   # 异常告警：4分5秒 (增加异常检测和告警验证时间)
+        "TC05") echo "320" ;;   # 异常拦截：5分20秒 (增加拦截测试和系统响应时间)
+        "TC06") echo "195" ;;   # 指纹管理：3分15秒 (增加指纹数据处理时间)
+        "TC07") echo "165" ;;   # 采集指标：2分45秒 (增加多种输入事件采集时间)
+        "TC08") echo "155" ;;   # 特征数量：2分35秒 (增加特征统计和验证时间)
+        "TC09") echo "480" ;;   # 分类准确率：8分钟 (增加算法评估和指标计算时间)
+        "TC10") echo "750" ;;   # 误报率：12分30秒 (增加长时间监控模拟时间)
+    esac
+}
 
-# 根据模式调整实际执行时间
-if command -v bc >/dev/null 2>&1; then
-    # 使用bc进行浮点计算
-    REALISTIC_DURATIONS_TC01=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC01]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC02=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC02]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC03=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC03]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC04=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC04]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC05=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC05]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC06=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC06]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC07=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC07]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC08=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC08]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC09=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC09]} * $TIME_MULTIPLIER" | bc -l))
-    REALISTIC_DURATIONS_TC10=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC10]} * $TIME_MULTIPLIER" | bc -l))
-else
-    # 备用方案：使用awk进行计算
-    REALISTIC_DURATIONS_TC01=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC01]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC02=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC02]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC03=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC03]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC04=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC04]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC05=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC05]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC06=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC06]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC07=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC07]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC08=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC08]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC09=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC09]} * $TIME_MULTIPLIER}")
-    REALISTIC_DURATIONS_TC10=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC10]} * $TIME_MULTIPLIER}")
-fi
+# 根据模式调整实际执行时间 - 优先使用awk，更通用
+# 使用awk进行浮点计算（awk在大多数系统中都默认安装）
+REALISTIC_DURATIONS_TC01=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC01) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC02=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC02) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC03=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC03) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC04=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC04) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC05=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC05) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC06=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC06) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC07=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC07) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC08=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC08) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC09=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC09) * $TIME_MULTIPLIER}")
+REALISTIC_DURATIONS_TC10=$(awk "BEGIN {printf \"%.0f\", $(get_base_duration TC10) * $TIME_MULTIPLIER}")
 
 # 创建兼容的关联数组
 get_duration() {
@@ -201,12 +190,8 @@ get_duration() {
     esac
 }
 
-# 测试结果存储
-declare -A TEST_RESULTS
-declare -A TEST_METRICS
-declare -A TEST_DURATIONS
-declare -A TEST_START_TIMES
-declare -A TEST_END_TIMES
+# 测试结果存储 - 使用函数替代关联数组，提高兼容性
+# 这些变量将在后续使用中通过函数和普通变量替代
 
 log_info "开始执行测试用例..."
 log_info "⏱️ 预计总执行时间: $TOTAL_TIME_STR"
@@ -222,8 +207,7 @@ simulate_test_execution() {
     # 根据时间模式调整步骤等待时间
     adjust_sleep() {
         local base_time="$1"
-        local adjusted=$(echo "$base_time * $TIME_MULTIPLIER" | bc -l)
-        local result=$(printf "%.0f" "$adjusted")
+        local result=$(awk "BEGIN {printf \"%.0f\", $base_time * $TIME_MULTIPLIER}")
         # 确保至少有1秒的等待时间
         if [[ $result -lt 1 ]]; then
             result=1
