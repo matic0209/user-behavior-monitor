@@ -387,8 +387,16 @@ echo ""
 # 生成测试报告
 log_info "📊 生成综合测试报告..."
 
-# 调用报告生成器
-bash "$SCRIPT_DIR/generate_test_report.sh" \
+# 调用修正版报告生成器（包含统一格式和原始步骤）
+bash "$SCRIPT_DIR/generate_corrected_test_report.sh" \
+    --results-dir "$RESULTS_DIR" \
+    --start-time "$TEST_START_TIME" \
+    --end-time "$TEST_END_TIME" \
+    --total-tests "$TOTAL_TESTS" \
+    --passed-tests "$PASSED_TESTS"
+
+# 也生成统一格式报告
+bash "$SCRIPT_DIR/generate_unified_test_report.sh" \
     --results-dir "$RESULTS_DIR" \
     --start-time "$TEST_START_TIME" \
     --end-time "$TEST_END_TIME" \
