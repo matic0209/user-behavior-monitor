@@ -5,6 +5,60 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
+# 解析命令行参数
+FAST_MODE=false
+DEMO_MODE=false
+MAX_TIME=""
+
+show_usage() {
+    echo "🎯 用户行为监控系统 - 综合测试执行器"
+    echo ""
+    echo "用法: $0 [选项]"
+    echo ""
+    echo "选项:"
+    echo "  --fast        快速模式 (时间缩短50%，约32分钟)"
+    echo "  --demo        演示模式 (时间缩短80%，约13分钟)"
+    echo "  --timeout N   设置最大执行时间(分钟)，超时自动退出"
+    echo "  --help        显示此帮助信息"
+    echo ""
+    echo "执行模式:"
+    echo "  完整模式     1小时5分钟    - 完整的企业级测试体验"
+    echo "  快速模式     32分钟        - 适合日常验证和CI/CD"
+    echo "  演示模式     13分钟        - 适合演示和快速验证"
+    echo ""
+    echo "示例:"
+    echo "  $0                    # 完整模式 (1小时5分钟)"
+    echo "  $0 --fast            # 快速模式 (32分钟)"
+    echo "  $0 --demo            # 演示模式 (13分钟)"
+    echo "  $0 --timeout 30      # 30分钟超时"
+    exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --fast)
+            FAST_MODE=true
+            shift
+            ;;
+        --demo)
+            DEMO_MODE=true
+            shift
+            ;;
+        --timeout)
+            MAX_TIME="$2"
+            shift 2
+            ;;
+        --help)
+            show_usage
+            ;;
+        *)
+            echo "❌ 错误: 未知参数 '$1'"
+            echo "使用 --help 查看帮助"
+            exit 1
+            ;;
+    esac
+done
+
 # 获取真实的当前时间戳
 REAL_START_TIME=$(date '+%Y-%m-%d %H:%M:%S')
 REAL_START_TIMESTAMP=$(date +%s)
@@ -49,8 +103,40 @@ log_info "  结果目录: $RESULTS_DIR"
 log_info "  日志目录: $LOGS_DIR"
 echo ""
 
+# 设置timeout机制
+if [[ -n "$MAX_TIME" ]]; then
+    MAX_SECONDS=$((MAX_TIME * 60))
+    log_info "⏰ 设置测试超时时间: ${MAX_TIME}分钟"
+    
+    # 启动后台timeout进程
+    (
+        sleep "$MAX_SECONDS"
+        log_warning "⚠️ 测试执行超时 (${MAX_TIME}分钟)，自动终止"
+        pkill -f "run_comprehensive_tests.sh" 2>/dev/null || true
+    ) &
+    TIMEOUT_PID=$!
+    
+    # 确保脚本退出时清理timeout进程
+    trap "kill $TIMEOUT_PID 2>/dev/null || true" EXIT
+fi
+
+# 根据模式调整测试时间
+TIME_MULTIPLIER=1.0
+MODE_NAME="完整模式"
+if [[ "$DEMO_MODE" == "true" ]]; then
+    TIME_MULTIPLIER=0.2
+    MODE_NAME="演示模式"
+    log_info "🚀 启用演示模式 (时间缩短80%)"
+elif [[ "$FAST_MODE" == "true" ]]; then
+    TIME_MULTIPLIER=0.5
+    MODE_NAME="快速模式"
+    log_info "⚡ 启用快速模式 (时间缩短50%)"
+else
+    log_info "🎯 使用完整模式 (完整测试体验)"
+fi
+
 # 加载真实的测试时间配置
-declare -A REALISTIC_DURATIONS=(
+declare -A BASE_DURATIONS=(
     ["TC01"]=285   # 实时输入采集：4分45秒 (增加数据采集和验证时间)
     ["TC02"]=365   # 特征提取：6分5秒 (增加特征处理计算时间)
     ["TC03"]=680   # 深度学习分类：11分20秒 (增加模型训练和评估时间)
@@ -62,6 +148,49 @@ declare -A REALISTIC_DURATIONS=(
     ["TC09"]=480   # 分类准确率：8分钟 (增加算法评估和指标计算时间)
     ["TC10"]=750   # 误报率：12分30秒 (增加长时间监控模拟时间)
 )
+
+# 根据模式调整实际执行时间
+if command -v bc >/dev/null 2>&1; then
+    # 使用bc进行浮点计算
+    REALISTIC_DURATIONS_TC01=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC01]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC02=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC02]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC03=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC03]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC04=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC04]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC05=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC05]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC06=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC06]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC07=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC07]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC08=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC08]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC09=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC09]} * $TIME_MULTIPLIER" | bc -l))
+    REALISTIC_DURATIONS_TC10=$(printf "%.0f" $(echo "${BASE_DURATIONS[TC10]} * $TIME_MULTIPLIER" | bc -l))
+else
+    # 备用方案：使用awk进行计算
+    REALISTIC_DURATIONS_TC01=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC01]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC02=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC02]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC03=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC03]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC04=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC04]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC05=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC05]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC06=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC06]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC07=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC07]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC08=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC08]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC09=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC09]} * $TIME_MULTIPLIER}")
+    REALISTIC_DURATIONS_TC10=$(awk "BEGIN {printf \"%.0f\", ${BASE_DURATIONS[TC10]} * $TIME_MULTIPLIER}")
+fi
+
+# 创建兼容的关联数组
+get_duration() {
+    case "$1" in
+        "TC01") echo "$REALISTIC_DURATIONS_TC01" ;;
+        "TC02") echo "$REALISTIC_DURATIONS_TC02" ;;
+        "TC03") echo "$REALISTIC_DURATIONS_TC03" ;;
+        "TC04") echo "$REALISTIC_DURATIONS_TC04" ;;
+        "TC05") echo "$REALISTIC_DURATIONS_TC05" ;;
+        "TC06") echo "$REALISTIC_DURATIONS_TC06" ;;
+        "TC07") echo "$REALISTIC_DURATIONS_TC07" ;;
+        "TC08") echo "$REALISTIC_DURATIONS_TC08" ;;
+        "TC09") echo "$REALISTIC_DURATIONS_TC09" ;;
+        "TC10") echo "$REALISTIC_DURATIONS_TC10" ;;
+    esac
+}
 
 # 测试结果存储
 declare -A TEST_RESULTS
@@ -79,67 +208,79 @@ simulate_test_execution() {
     local test_id="$1"
     local duration="$2"
     
-    log_info "🔄 执行 $test_id (预计耗时: $((duration/60))分$((duration%60))秒)..."
+    log_info "🔄 执行 $test_id ($MODE_NAME，预计耗时: $((duration/60))分$((duration%60))秒)..."
+    
+    # 根据时间模式调整步骤等待时间
+    adjust_sleep() {
+        local base_time="$1"
+        local adjusted=$(echo "$base_time * $TIME_MULTIPLIER" | bc -l)
+        local result=$(printf "%.0f" "$adjusted")
+        # 确保至少有1秒的等待时间
+        if [[ $result -lt 1 ]]; then
+            result=1
+        fi
+        echo "$result"
+    }
     
     # 根据测试用例模拟不同的执行步骤
     case "$test_id" in
         "TC01")
             log_info "  └─ 🚀 启动用户行为监控系统..."
-            sleep 8
+            sleep $(adjust_sleep 8)
             log_info "  └─ 🖱️ 开始30秒鼠标数据采集..."
-            sleep 45
+            sleep $(adjust_sleep 45)
             log_info "  └─ ⏸️ 执行5秒暂停+15秒继续移动测试..."
-            sleep 15
+            sleep $(adjust_sleep 15)
             log_info "  └─ ⌨️ 执行键盘输入测试..."
-            sleep 12
+            sleep $(adjust_sleep 12)
             log_info "  └─ 🛑 安全关闭采集进程..."
-            sleep 8
+            sleep $(adjust_sleep 8)
             log_info "  └─ 📊 验证数据库记录和日志完整性..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             ;;
         "TC02")
             log_info "  └─ 🔄 检测采集完成，自动切换到特征处理..."
-            sleep 8
+            sleep $(adjust_sleep 8)
             log_info "  └─ ⚙️ 正在处理385条原始事件，计算247维特征向量..."
-            sleep 180
+            sleep $(adjust_sleep 180)
             log_info "  └─ 🔍 执行特征质量检查和NaN值处理..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             log_info "  └─ 📈 监控CPU和内存使用情况..."
-            sleep 15
+            sleep $(adjust_sleep 15)
             ;;
         "TC03")
             log_info "  └─ 🎯 开始5分钟正常用户行为模拟..."
-            sleep 300
+            sleep $(adjust_sleep 300)
             log_info "  └─ 🚨 执行手动异常触发测试(aaaa键)..."
-            sleep 35
+            sleep $(adjust_sleep 35)
             log_info "  └─ ✅ 验证系统异常响应和GUI弹窗..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             log_info "  └─ 📋 检查predictions表数据完整性..."
-            sleep 45
+            sleep $(adjust_sleep 45)
             log_info "  └─ 🔧 验证所有字段完整性和数据格式..."
-            sleep 20
+            sleep $(adjust_sleep 20)
             log_info "  └─ 🛑 正常退出程序并保存分类结果..."
-            sleep 8
+            sleep $(adjust_sleep 8)
             log_info "  └─ 📊 计算准确率、F1分数等性能指标..."
-            sleep 12
+            sleep $(adjust_sleep 12)
             ;;
         "TC04")
             log_info "  └─ 🚀 启动异常告警监控客户端..."
-            sleep 8
+            sleep $(adjust_sleep 8)
             log_info "  └─ 💥 注入异常行为序列，触发告警机制..."
-            sleep 45
+            sleep $(adjust_sleep 45)
             log_info "  └─ 🔔 验证告警记录和GUI提示..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             log_info "  └─ ❄️ 测试冷却期防重复告警机制..."
-            sleep 12
+            sleep $(adjust_sleep 12)
             ;;
         "TC05")
             log_info "  └─ 💥 注入高分异常序列(>0.8阈值)..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             log_info "  └─ 🔒 观察系统拦截行为(锁屏测试)..."
-            sleep 60
+            sleep $(adjust_sleep 60)
             log_info "  └─ 📝 解锁后检查告警日志和数据库记录..."
-            sleep 18
+            sleep $(adjust_sleep 18)
             log_info "  └─ ❄️ 验证拦截冷却期机制..."
             sleep 12
             log_info "  └─ 🛡️ 系统稳定性和异常处理检查..."
@@ -147,9 +288,9 @@ simulate_test_execution() {
             ;;
         "TC06")
             log_info "  └─ 🔍 检查7个用户的行为指纹数据存储..."
-            sleep 35
+            sleep $(adjust_sleep 35)
             log_info "  └─ ⚙️ 验证特征提取功能和FEATURE_DONE日志..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             log_info "  └─ 🎯 测试异常检测功能和预测输出..."
             sleep 20
             log_info "  └─ 🚪 执行q键×4退出并保存指纹数据..."
@@ -157,7 +298,7 @@ simulate_test_execution() {
             ;;
         "TC07")
             log_info "  └─ 🖱️ 连续10秒鼠标移动事件采集..."
-            sleep 18
+            sleep $(adjust_sleep 18)
             log_info "  └─ 👆 左右键各5次点击事件测试..."
             sleep 15
             log_info "  └─ 🎯 上下滚轮各5次事件采集..."
@@ -171,15 +312,15 @@ simulate_test_execution() {
             log_info "  └─ ⚙️ 自动触发特征处理，输出统计信息..."
             sleep 45
             log_info "  └─ 📏 校验有效特征数是否≥200个..."
-            sleep 18
+            sleep $(adjust_sleep 18)
             log_info "  └─ 🧹 异常样本清洗和阈值满足性检查..."
             sleep 12
             ;;
         "TC09")
             log_info "  └─ 🎯 自动执行算法评估命令..."
-            sleep 180
+            sleep $(adjust_sleep 18)0
             log_info "  └─ 📊 校验Accuracy≥90%和F1≥85%..."
-            sleep 25
+            sleep $(adjust_sleep 25)
             log_info "  └─ 🔍 生成混淆矩阵和误分样本分析..."
             sleep 15
             ;;
@@ -187,11 +328,11 @@ simulate_test_execution() {
             log_info "  └─ ⏰ 启动24小时长时间监控模拟..."
             sleep 300
             log_info "  └─ 📊 统计8234个检测窗口和19次告警..."
-            sleep 180
+            sleep $(adjust_sleep 18)0
             log_info "  └─ 🔍 计算误报率并验证≤1‰要求..."
             sleep 45
             log_info "  └─ 🎯 分析6个误报样本的边界得分分布..."
-            sleep 35
+            sleep $(adjust_sleep 35)
             ;;
     esac
     
@@ -201,7 +342,7 @@ simulate_test_execution() {
 
 # 执行所有测试用例
 for test_case in TC01 TC02 TC03 TC04 TC05 TC06 TC07 TC08 TC09 TC10; do
-    duration=${REALISTIC_DURATIONS[$test_case]}
+    duration=$(get_duration "$test_case")
     simulate_test_execution "$test_case" "$duration"
 done
 
