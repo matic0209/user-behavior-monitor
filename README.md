@@ -186,6 +186,9 @@ python simple_build.py
 
 # 或使用优化打包脚本
 python build_optimized_exe.py
+
+# Windows 7 一键脚本（自动安装依赖 + 修复 + 打包）
+python win7_build_helper.py
 ```
 
 #### 打包选项
@@ -201,6 +204,35 @@ python build_optimized_exe.py
 - 性能监控和自动重启
 - 日志轮转和错误处理
 - 长期运行稳定性增强
+
+#### Win7 快速封装流程
+
+如果目标机器仍为 Windows 7，可直接运行新的 `win7_build_helper.py` 来串联“安装依赖 → 修复问题 → 调用构建脚本”的完整流程：
+
+```cmd
+# 默认执行发布版构建
+python win7_build_helper.py
+
+# 仅做依赖安装/修复，不触发打包
+python win7_build_helper.py --only-install
+
+# 指定其他构建脚本或自定义脚本
+python win7_build_helper.py --builder safe
+python win7_build_helper.py --custom-script E:\tools\my_build.py
+
+# 跳过某些阶段（比如已经装好依赖）
+python win7_build_helper.py --skip-install
+```
+
+脚本会自动：
+
+- 将控制台切换至 UTF-8，避免 Win7 GBK 乱码
+- 升级 pip 并安装 `requirements.txt` + PyInstaller/pywin32 等构建依赖
+- 调用 `archive/fix_permission.py` 清理残留的 PyInstaller 进程 & 目录
+- 调用 `archive/fix_release_issues.py` 生成发布版所需的 mock 模块与 `build_release.py`
+- 最后执行指定的构建脚本（默认 `build_release.py`）
+
+这在 Win7 上相当于“一键打包”；若脚本缺失，会给出明确提示，便于问题定位。
 
 ### 2. Windows服务部署
 

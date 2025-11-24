@@ -75,6 +75,28 @@ python build_safe.py
 python build_cross_platform.py
 ```
 
+### 方法4: Windows 7 一键脚本
+```cmd
+# 默认执行发布版构建
+python win7_build_helper.py
+
+# 仅准备环境，不触发打包
+python win7_build_helper.py --only-install
+
+# 自定义构建脚本
+python win7_build_helper.py --custom-script D:\\work\\my_build.py
+```
+
+`win7_build_helper.py` 会自动完成以下动作：
+
+1. 切换控制台到 UTF-8，避免 Win7 下的 GBK 乱码；
+2. 安装 `requirements.txt` + PyInstaller/pywin32 等必要依赖；
+3. 运行 `archive/fix_permission.py`，结束残留进程并清理 `build/dist`；
+4. 运行 `archive/fix_release_issues.py`，确保 mock 模块与 `build_release.py` 存在；
+5. 执行指定的构建脚本（默认 `build_release.py`，亦可通过 `--builder safe/full/...` 或 `--custom-script` 定制）。
+
+若机器已经准备好了依赖，可通过 `--skip-install` 跳过安装；需要只做依赖/修复时使用 `--only-install` 即可。
+
 ## 常见问题解决
 
 ### 问题1: 权限错误
