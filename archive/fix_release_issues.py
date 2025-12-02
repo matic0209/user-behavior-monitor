@@ -397,17 +397,20 @@ def main():
         
         # 构建可执行文件
         if build_release_executable():
-            print("\\n" + "=" * 40)
+            print()
+            print("=" * 40)
             print("[SUCCESS] 发布版构建完成!")
             print("[INFO] 可执行文件已生成")
             print("=" * 40)
         else:
-            print("\\n" + "=" * 40)
+            print()
+            print("=" * 40)
             print("[ERROR] 发布版构建失败!")
             print("=" * 40)
             
     except Exception as e:
-        print(f"\\n[ERROR] 发布版构建过程中出现错误: {e}")
+        print()
+        print(f"[ERROR] 发布版构建过程中出现错误: {e}")
         import traceback
         traceback.print_exc()
 
