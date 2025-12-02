@@ -221,6 +221,9 @@ except ImportError:
             
             print("[SUCCESS] 导入语句修复完成")
             return True
+        else:
+            print("[INFO] 导入语句已存在，无需修复")
+            return True
         
     except Exception as e:
         print(f"[ERROR] 修复导入语句失败: {e}")
